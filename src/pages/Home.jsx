@@ -2,13 +2,19 @@ import { Button } from "../components/ui/button.jsx";
 import { Card } from "../components/ui/card.jsx";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback.jsx";
 import { Apple, Dumbbell, TrendingUp, Target, Heart, Zap } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 /**
  * Home Page - FitLife landing page with all features
  * Matches DESIGN_SPECIFICATION.md completely
  */
 export default function Home() {
+  const navigate = useNavigate();
+
+  const goToSignIn = () => {
+    navigate("/signin");
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white">
       {/* Navigation */}
@@ -64,12 +70,12 @@ export default function Home() {
       <section id="programs" className="px-6 md:px-12 pb-24">
         <div className="max-w-7xl mx-auto">
           <div className="grid md:grid-cols-2 gap-8 lg:gap-12">
-            {/* Nutrition Program Card */}
+            {/* Outdoor Training Card */}
             <Card className="group relative overflow-hidden bg-gradient-to-br from-emerald-900/40 to-green-900/40 border-emerald-500/30 hover:border-emerald-400/60 transition-all duration-300 hover:shadow-2xl hover:shadow-emerald-500/20 hover:-translate-y-2">
               <div className="relative h-64 overflow-hidden rounded-t-lg">
                 <ImageWithFallback 
-                  src="https://images.unsplash.com/photo-1761839258803-21515f43190c?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxoZWFsdGh5JTIwc2FsYWQlMjBtZWFsJTIwcHJlcCUyMG51dHJpdGlvbnxlbnwxfHx8fDE3NzE2ODYwOTF8MA&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral"
-                  alt="Healthy nutrition meals"
+                  src="https://images.unsplash.com/photo-1571902943202-507ec2618e8f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080"
+                  alt="Outdoor training"
                   className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-gray-900 via-gray-900/50 to-transparent" />
@@ -81,42 +87,43 @@ export default function Home() {
                 </div>
                 
                 <h2 className="text-3xl md:text-4xl font-bold mb-4 text-emerald-50">
-                  Personalized Nutrition
+                  Antrenament Afară
                 </h2>
                 
                 <p className="text-gray-300 text-lg leading-relaxed mb-8">
-                  Build custom meal plans tailored to your dietary needs and goals. 
-                  Track calories, macros, and nutrients with ease. Get expert guidance 
-                  on healthy eating habits that fit your lifestyle.
+                  Antrenamente în aer liber cu exerciții de greutate corporală, alergare și calistenie. 
+                  Durabilitate, flexibilitate și conexiune cu natura. Programe adaptate pentru fitness outdoor profesional.
                 </p>
                 
                 <div className="space-y-3 mb-8">
                   <div className="flex items-center gap-3 text-emerald-300">
                     <TrendingUp className="w-5 h-5" />
-                    <span>Smart calorie tracking</span>
+                    <span>Programe de calistenie și greutate corporală</span>
                   </div>
                   <div className="flex items-center gap-3 text-emerald-300">
                     <Target className="w-5 h-5" />
-                    <span>Custom meal plans</span>
+                    <span>Antrenamente de alergare și rezistență</span>
                   </div>
                   <div className="flex items-center gap-3 text-emerald-300">
                     <Heart className="w-5 h-5" />
-                    <span>Nutrition insights</span>
+                    <span>Alimentație pentru activități outdoor</span>
                   </div>
                 </div>
                 
-                <Button className="w-full bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white font-semibold py-6 text-lg border-0 shadow-lg shadow-emerald-500/30">
-                  Create Nutrition Plan
+                <Button 
+                  onClick={goToSignIn}
+                  className="w-full bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white font-semibold py-6 text-lg border-0 shadow-lg shadow-emerald-500/30">
+                  Crează Plan Outdoor
                 </Button>
               </div>
             </Card>
 
-            {/* Workout Program Card */}
+            {/* Gym Training Card */}
             <Card className="group relative overflow-hidden bg-gradient-to-br from-blue-900/40 to-red-900/40 border-blue-500/30 hover:border-blue-400/60 transition-all duration-300 hover:shadow-2xl hover:shadow-blue-500/20 hover:-translate-y-2">
               <div className="relative h-64 overflow-hidden rounded-t-lg">
                 <ImageWithFallback 
-                  src="https://images.unsplash.com/photo-1766287453739-c3ffc3f37d05?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxneW0lMjB3b3Jrb3V0JTIwZml0bmVzcyUyMHRyYWluaW5nfGVufDF8fHx8MTc3MTYxOTQzM3ww&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral"
-                  alt="Gym workout training"
+                  src="https://images.unsplash.com/photo-1534438327276-14e5300c3a48?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080"
+                  alt="Gym training"
                   className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-gray-900 via-gray-900/50 to-transparent" />
@@ -128,32 +135,34 @@ export default function Home() {
                 </div>
                 
                 <h2 className="text-3xl md:text-4xl font-bold mb-4 text-blue-50">
-                  Personalized Training
+                  Antrenament la Sală
                 </h2>
                 
                 <p className="text-gray-300 text-lg leading-relaxed mb-8">
-                  Design workout routines that match your fitness level and objectives. 
-                  Track your progress, monitor performance, and stay consistent with 
-                  structured programs built for real results.
+                  Antrenamente structurate cu greutăți și echipament profesional. 
+                  Dezvoltare musculară, forță și rezistență prin programe progressive. 
+                  Rezultate optime cu programe personalizate la sală.
                 </p>
                 
                 <div className="space-y-3 mb-8">
                   <div className="flex items-center gap-3 text-blue-300">
                     <TrendingUp className="w-5 h-5" />
-                    <span>Progress tracking</span>
+                    <span>Programe de forță și hipertrofie</span>
                   </div>
                   <div className="flex items-center gap-3 text-blue-300">
                     <Target className="w-5 h-5" />
-                    <span>Custom workout plans</span>
+                    <span>Antrenamente cu progresie structurată</span>
                   </div>
                   <div className="flex items-center gap-3 text-blue-300">
                     <Zap className="w-5 h-5" />
-                    <span>Performance analytics</span>
+                    <span>Alimentație pentru dezvoltare musculară</span>
                   </div>
                 </div>
                 
-                <Button className="w-full bg-gradient-to-r from-blue-500 to-red-600 hover:from-blue-600 hover:to-red-700 text-white font-semibold py-6 text-lg border-0 shadow-lg shadow-blue-500/30">
-                  Create Workout Plan
+                <Button 
+                  onClick={goToSignIn}
+                  className="w-full bg-gradient-to-r from-blue-500 to-red-600 hover:from-blue-600 hover:to-red-700 text-white font-semibold py-6 text-lg border-0 shadow-lg shadow-blue-500/30">
+                  Crează Plan Sală
                 </Button>
               </div>
             </Card>

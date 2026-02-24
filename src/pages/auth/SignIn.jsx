@@ -34,7 +34,10 @@ export default function SignIn() {
     // Mock authentication
     if (email === "admin" && password === "admin") {
       setLoading(false);
-      navigate("/dashboard", { replace: true });
+      // Store login info
+      localStorage.setItem("isLoggedIn", "true");
+      localStorage.setItem("userEmail", email);
+      navigate("/", { replace: true });
     } else {
       setLoading(false);
       setError("Invalid email or password. Try admin/admin");
