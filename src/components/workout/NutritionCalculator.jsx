@@ -1,5 +1,349 @@
 import React, { useState } from "react";
-import { Plus, Minus } from "lucide-react";
+import { Plus, Minus, RotateCcw, ChevronDown } from "lucide-react";
+
+const zileSaptamana = ["Luni", "Marti", "Miercuri", "Joi", "Vineri", "Sambata", "Duminica"];
+
+const meniuri = {
+  breakfast: [
+    {
+      name: "Omleta cu ovaz",
+      ingredients: [
+        { item: "Oua", grams: 180 },
+        { item: "Fulgi de ovaz", grams: 70 },
+        { item: "Banana", grams: 100 },
+      ],
+      steps: [
+        "Bate ouale si gateste omleta la foc mediu.",
+        "Fierbe ovazul 5-7 minute cu apa.",
+        "Serveste cu banana feliata.",
+      ],
+    },
+    {
+      name: "Iaurt grecesc cu granola",
+      ingredients: [
+        { item: "Iaurt grecesc 2%", grams: 250 },
+        { item: "Granola", grams: 60 },
+        { item: "Fructe de padure", grams: 120 },
+      ],
+      steps: [
+        "Pune iaurtul intr-un bol.",
+        "Adauga granola si fructele de padure.",
+        "Amesteca usor si consuma imediat.",
+      ],
+    },
+    {
+      name: "Toast proteic",
+      ingredients: [
+        { item: "Paine integrala", grams: 100 },
+        { item: "Branza cottage", grams: 180 },
+        { item: "Rosii", grams: 120 },
+      ],
+      steps: [
+        "Prajeste painea 2-3 minute.",
+        "Intinde branza cottage pe felii.",
+        "Adauga rosii feliate deasupra.",
+      ],
+    },
+    {
+      name: "Terci cu lapte si mar",
+      ingredients: [
+        { item: "Fulgi de ovaz", grams: 75 },
+        { item: "Lapte 1.5%", grams: 250 },
+        { item: "Mar", grams: 140 },
+      ],
+      steps: [
+        "Fierbe ovazul in lapte 6-8 minute.",
+        "Rade marul si adauga-l peste terci.",
+        "Amesteca si lasa 1 minut sa se lege.",
+      ],
+    },
+    {
+      name: "Clatite din ovaz",
+      ingredients: [
+        { item: "Faina de ovaz", grams: 80 },
+        { item: "Oua", grams: 120 },
+        { item: "Iaurt", grams: 120 },
+      ],
+      steps: [
+        "Amesteca ingredientele pana devin aluat.",
+        "Coace clatitele pe tigaie antiaderenta.",
+        "Serveste cu iaurt deasupra.",
+      ],
+    },
+    {
+      name: "Budinca de chia",
+      ingredients: [
+        { item: "Seminte chia", grams: 35 },
+        { item: "Lapte", grams: 260 },
+        { item: "Mango", grams: 120 },
+      ],
+      steps: [
+        "Lasa chia in lapte minim 4 ore.",
+        "Taie mango cuburi.",
+        "Serveste budinca cu mango deasupra.",
+      ],
+    },
+    {
+      name: "Sandwich cu ton",
+      ingredients: [
+        { item: "Paine integrala", grams: 110 },
+        { item: "Ton in suc propriu", grams: 140 },
+        { item: "Castravete", grams: 100 },
+      ],
+      steps: [
+        "Scurge tonul si amesteca usor.",
+        "Umple sandwich-ul cu ton si castravete.",
+        "Taie in doua si serveste.",
+      ],
+    },
+  ],
+  lunch: [
+    {
+      name: "Pui cu orez si legume",
+      ingredients: [
+        { item: "Piept de pui", grams: 220 },
+        { item: "Orez", grams: 120 },
+        { item: "Legume mix", grams: 180 },
+      ],
+      steps: [
+        "Fierbe orezul conform instructiunilor.",
+        "Gateste puiul la grill 6-8 minute pe parte.",
+        "Soteaza legumele 4-5 minute.",
+      ],
+    },
+    {
+      name: "Curcan cu cartof dulce",
+      ingredients: [
+        { item: "Piept de curcan", grams: 220 },
+        { item: "Cartof dulce", grams: 280 },
+        { item: "Salata verde", grams: 120 },
+      ],
+      steps: [
+        "Coace cartoful dulce 30 minute la 200C.",
+        "Frige curcanul pe tigaie grill.",
+        "Serveste cu salata proaspata.",
+      ],
+    },
+    {
+      name: "Vita cu quinoa",
+      ingredients: [
+        { item: "Carne de vita slaba", grams: 200 },
+        { item: "Quinoa", grams: 110 },
+        { item: "Broccoli", grams: 180 },
+      ],
+      steps: [
+        "Fierbe quinoa 12-15 minute.",
+        "Frige vita la foc iute 4-5 minute.",
+        "Fierbe broccoli la abur 5 minute.",
+      ],
+    },
+    {
+      name: "Somon cu couscous",
+      ingredients: [
+        { item: "Somon", grams: 210 },
+        { item: "Couscous", grams: 110 },
+        { item: "Dovlecel", grams: 180 },
+      ],
+      steps: [
+        "Coace somonul 15 minute la 190C.",
+        "Hidrateaza couscous-ul 5 minute.",
+        "Soteaza dovlecelul cu putina sare.",
+      ],
+    },
+    {
+      name: "Pui cu paste integrale",
+      ingredients: [
+        { item: "Piept de pui", grams: 210 },
+        { item: "Paste integrale", grams: 120 },
+        { item: "Sos rosii", grams: 100 },
+      ],
+      steps: [
+        "Fierbe pastele conform ambalajului.",
+        "Gateste puiul cuburi pe tigaie.",
+        "Amesteca pastele cu sosul si puiul.",
+      ],
+    },
+    {
+      name: "Bowl cu naut si ton",
+      ingredients: [
+        { item: "Ton in suc propriu", grams: 160 },
+        { item: "Naut fiert", grams: 180 },
+        { item: "Ardei gras", grams: 120 },
+      ],
+      steps: [
+        "Scurge tonul si nautul.",
+        "Taie ardeiul cuburi.",
+        "Amesteca totul intr-un bol mare.",
+      ],
+    },
+    {
+      name: "Pulpa curcan cu bulgur",
+      ingredients: [
+        { item: "Pulpa de curcan dezosata", grams: 220 },
+        { item: "Bulgur", grams: 120 },
+        { item: "Morcov", grams: 130 },
+      ],
+      steps: [
+        "Gateste curcanul la cuptor 30 minute.",
+        "Fierbe bulgurul 12 minute.",
+        "Soteaza morcovul feliat subtire.",
+      ],
+    },
+  ],
+  dinner: [
+    {
+      name: "Peste alb cu cartofi",
+      ingredients: [
+        { item: "File peste alb", grams: 220 },
+        { item: "Cartofi", grams: 220 },
+        { item: "Salata", grams: 120 },
+      ],
+      steps: [
+        "Coace pestele 15 minute.",
+        "Fierbe cartofii pana devin moi.",
+        "Serveste cu salata simpla.",
+      ],
+    },
+    {
+      name: "Omleta cu legume",
+      ingredients: [
+        { item: "Oua", grams: 200 },
+        { item: "Ardei", grams: 100 },
+        { item: "Ciuperci", grams: 120 },
+      ],
+      steps: [
+        "Soteaza legumele 3-4 minute.",
+        "Adauga ouale batute.",
+        "Gateste omleta pana se incheaga.",
+      ],
+    },
+    {
+      name: "Curcan cu fasole verde",
+      ingredients: [
+        { item: "Curcan", grams: 200 },
+        { item: "Fasole verde", grams: 220 },
+        { item: "Orez basmati", grams: 90 },
+      ],
+      steps: [
+        "Fierbe orezul separat.",
+        "Gateste curcanul pe grill.",
+        "Soteaza fasolea verde 5 minute.",
+      ],
+    },
+    {
+      name: "Tofu cu orez si broccoli",
+      ingredients: [
+        { item: "Tofu", grams: 220 },
+        { item: "Orez", grams: 100 },
+        { item: "Broccoli", grams: 200 },
+      ],
+      steps: [
+        "Rumeste tofu pe tigaie antiaderenta.",
+        "Fierbe orezul separat.",
+        "Gateste broccoli la abur.",
+      ],
+    },
+    {
+      name: "Somon cu sparanghel",
+      ingredients: [
+        { item: "Somon", grams: 200 },
+        { item: "Sparanghel", grams: 180 },
+        { item: "Cartof copt", grams: 200 },
+      ],
+      steps: [
+        "Coace somonul si cartoful in cuptor.",
+        "Trage sparanghelul la tigaie 3 minute.",
+        "Asaza ingredientele in farfurie.",
+      ],
+    },
+    {
+      name: "Pui cu salata de quinoa",
+      ingredients: [
+        { item: "Pui", grams: 200 },
+        { item: "Quinoa", grams: 90 },
+        { item: "Rosii", grams: 130 },
+      ],
+      steps: [
+        "Fierbe quinoa 12 minute.",
+        "Gateste puiul cuburi pe grill.",
+        "Amesteca quinoa cu rosii taiate.",
+      ],
+    },
+    {
+      name: "Vita cu legume wok",
+      ingredients: [
+        { item: "Vita slaba", grams: 190 },
+        { item: "Mix legume wok", grams: 250 },
+        { item: "Taitei orez", grams: 80 },
+      ],
+      steps: [
+        "Fierbe taiteii conform instructiunilor.",
+        "Gateste vita rapid la foc mare.",
+        "Adauga legumele si amesteca 4 minute.",
+      ],
+    },
+  ],
+};
+
+function StepInput({ label, value, setValue, step, min, hint, tone }) {
+  return (
+    <div
+      className="p-4"
+      style={{
+        borderRadius: "0.75rem",
+        border: `1px solid ${tone.border}`,
+        background: tone.bg,
+      }}
+    >
+      <div className="flex items-center justify-between mb-2">
+        <p className="font-semibold">{label}</p>
+        <p className="text-sm" style={{ color: "#cbd5e1" }}>{hint}</p>
+      </div>
+
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => setValue(Math.max(min, value - step))}
+          style={{
+            width: 42,
+            height: 42,
+            borderRadius: 10,
+            border: "1px solid rgba(148,163,184,0.35)",
+            background: "rgba(15,23,42,0.7)",
+          }}
+        >
+          <Minus className="w-4 h-4 mx-auto" />
+        </button>
+
+        <input
+          type="number"
+          value={value}
+          onChange={(e) => setValue(Math.max(min, parseInt(e.target.value, 10) || 0))}
+          className="flex-1 text-center font-bold"
+          style={{
+            height: 42,
+            borderRadius: 10,
+            border: "1px solid rgba(148,163,184,0.35)",
+            background: "rgba(15,23,42,0.8)",
+            color: "#ffffff",
+          }}
+        />
+
+        <button
+          onClick={() => setValue(value + step)}
+          style={{
+            width: 42,
+            height: 42,
+            borderRadius: 10,
+            border: "1px solid rgba(148,163,184,0.35)",
+            background: "rgba(15,23,42,0.7)",
+          }}
+        >
+          <Plus className="w-4 h-4 mx-auto" />
+        </button>
+      </div>
+    </div>
+  );
+}
 
 export default function NutritionCalculator() {
   const [isCalculating, setIsCalculating] = useState(false);
@@ -7,292 +351,261 @@ export default function NutritionCalculator() {
   const [carbohidrati, setCarbohidrati] = useState(200);
   const [greutate, setGreutate] = useState(80);
   const [plan, setPlan] = useState(null);
+  const [openRecipe, setOpenRecipe] = useState({});
 
-  // Calculeaza caloriile: Proteine (4 cal/g) + Carbohidrați (4 cal/g)
-  const calculeazaCalorii = (p, c) => {
-    return Math.round(p * 4 + c * 4);
-  };
-
+  const calculeazaCalorii = (p, c) => Math.round(p * 4 + c * 4);
   const caloriiTotale = calculeazaCalorii(proteine, carbohidrati);
+
+  const toggleRecipe = (key) => {
+    setOpenRecipe((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
 
   const genereazaPlan = () => {
     if (proteine < 50 || carbohidrati < 50) {
-      alert("Proteina și carbohidrații trebuie să fie minim 50g");
+      alert("Proteina si carbohidratii trebuie sa fie minim 50g");
       return;
     }
 
     setIsCalculating(true);
 
-    // Genereaza plan nutrițional pe 7 zile
-    const zile = ["Luni", "Marți", "Miercuri", "Joi", "Vineri", "Sâmbătă", "Duminică"];
-    const mese = {
-      breakfast: {
-        name: "Mic Dejun",
-        time: "07:00",
-        icon: "🌅",
-      },
-      lunch: {
-        name: "Prânz",
-        time: "13:00",
-        icon: "☀️",
-      },
-      dinner: {
-        name: "Cină",
-        time: "19:00",
-        icon: "🌙",
-      },
+    const distributie = {
+      breakfast: { p: 0.3, c: 0.3 },
+      lunch: { p: 0.4, c: 0.4 },
+      dinner: { p: 0.3, c: 0.3 },
     };
 
-    const planZile = zile.map((zi) => ({
-      zi,
-      mese: [
+    const planZile = zileSaptamana.map((zi, indexZi) => {
+      const breakfastData = meniuri.breakfast[indexZi];
+      const lunchData = meniuri.lunch[indexZi];
+      const dinnerData = meniuri.dinner[indexZi];
+
+      const meals = [
         {
-          ...mese.breakfast,
-          proteine: Math.round(proteine / 3),
-          carbohidrati: Math.round(carbohidrati / 3),
-          calorii: calculeazaCalorii(Math.round(proteine / 3), Math.round(carbohidrati / 3)),
-          continut: "Omletă + Orez + Struguri",
+          name: "Mic dejun",
+          dish: breakfastData.name,
+          proteine: Math.round(proteine * distributie.breakfast.p),
+          carbohidrati: Math.round(carbohidrati * distributie.breakfast.c),
+          ingredients: breakfastData.ingredients,
+          steps: breakfastData.steps,
         },
         {
-          ...mese.lunch,
-          proteine: Math.round(proteine / 3),
-          carbohidrati: Math.round(carbohidrati / 3),
-          calorii: calculeazaCalorii(Math.round(proteine / 3), Math.round(carbohidrati / 3)),
-          continut: "Piept de pui + Cartofi + Verdeață",
+          name: "Pranz",
+          dish: lunchData.name,
+          proteine: Math.round(proteine * distributie.lunch.p),
+          carbohidrati: Math.round(carbohidrati * distributie.lunch.c),
+          ingredients: lunchData.ingredients,
+          steps: lunchData.steps,
         },
         {
-          ...mese.dinner,
-          proteine: Math.round(proteine / 3),
-          carbohidrati: Math.round(carbohidrati / 3),
-          calorii: calculeazaCalorii(Math.round(proteine / 3), Math.round(carbohidrati / 3)),
-          continut: "Pește + Broccoli + Orez integral",
+          name: "Cina",
+          dish: dinnerData.name,
+          proteine: Math.round(proteine * distributie.dinner.p),
+          carbohidrati: Math.round(carbohidrati * distributie.dinner.c),
+          ingredients: dinnerData.ingredients,
+          steps: dinnerData.steps,
         },
-      ],
-    }));
+      ].map((meal) => ({
+        ...meal,
+        calorii: calculeazaCalorii(meal.proteine, meal.carbohidrati),
+      }));
+
+      return { zi, mese: meals };
+    });
 
     setTimeout(() => {
       setPlan(planZile);
+      setOpenRecipe({});
       setIsCalculating(false);
-    }, 600);
+    }, 500);
   };
 
   if (plan) {
-    const totalProt = plan[0].mese.reduce((a, m) => a + m.proteine, 0) * 3;
-    const totalCarb = plan[0].mese.reduce((a, m) => a + m.carbohidrati, 0) * 3;
-    const totalCal = plan[0].mese.reduce((a, m) => a + m.calorii, 0) * 3;
-
     return (
-      <div className="bg-gradient-to-br from-green-900/20 to-gray-900 rounded-2xl p-8 border border-green-600/30 h-full flex flex-col">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold flex items-center gap-3">
-            <span>📋</span> Plan Nutrițional 7 Zile
-          </h2>
+      <div
+        className="p-5"
+        style={{
+          borderRadius: "1rem",
+          background: "rgba(2,6,23,0.58)",
+          border: "1px solid rgba(16,185,129,0.35)",
+        }}
+      >
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-2xl font-bold">Plan nutritional 7 zile</h2>
           <button
             onClick={() => setPlan(null)}
-            className="text-gray-400 hover:text-white text-2xl rounded-lg hover:bg-gray-700 p-1 transition-all"
+            className="inline-flex items-center gap-2 px-3 py-2"
+            style={{
+              borderRadius: 10,
+              border: "1px solid rgba(148,163,184,0.35)",
+              background: "rgba(30,41,59,0.68)",
+            }}
           >
-            ✕
+            <RotateCcw className="w-4 h-4" />
+            Refa
           </button>
         </div>
 
-        {/* Info General */}
-        <div className="grid grid-cols-3 gap-3 mb-6 pb-6 border-b border-green-600/30 text-center text-sm">
-          <div>
-            <p className="text-gray-400">Total Proteine</p>
-            <p className="font-bold text-blue-300">{totalProt}g</p>
-          </div>
-          <div>
-            <p className="text-gray-400">Total Carbohidrați</p>
-            <p className="font-bold text-orange-300">{totalCarb}g</p>
-          </div>
-          <div>
-            <p className="text-gray-400">Total Calorii</p>
-            <p className="font-bold text-green-300">{totalCal}</p>
-          </div>
-        </div>
-
-        {/* Grid Orizontal - 7 ZILE */}
-        <div className="flex-1 overflow-x-auto pb-4">
-          <div className="grid grid-cols-7 gap-3 min-w-max lg:min-w-full">
-            {plan.map((ziPlan, idx) => (
-              <div
-                key={idx}
-                className="bg-gradient-to-b from-gray-700/40 to-gray-800/30 rounded-lg p-4 border border-green-600/30 hover:border-green-500/60 transition-all min-w-[160px]"
-              >
-                {/* Header Zi */}
-                <h3 className="font-bold text-green-300 mb-4 text-center text-sm pb-2 border-b border-green-600/30">
-                  {ziPlan.zi}
-                </h3>
-
-                {/* Mese */}
-                <div className="space-y-3">
-                  {ziPlan.mese.map((masa, mIdx) => (
-                    <div key={mIdx} className="bg-gray-800/50 rounded p-2 border-l-2 border-green-500 text-xs">
-                      <div className="flex items-center gap-1 mb-1">
-                        <span className="text-lg">{masa.icon}</span>
-                        <span className="font-semibold text-white truncate text-xs">{masa.name}</span>
-                      </div>
-                      <p className="text-gray-300 mb-2 text-xs leading-tight">{masa.continut}</p>
-                      <div className="space-y-1">
-                        <div className="flex gap-1 text-xs">
-                          <span className="bg-blue-500/30 text-blue-300 px-1.5 py-0.5 rounded">
-                            P: {masa.proteine}g
-                          </span>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {plan.map((ziPlan, ziIdx) => (
+            <div
+              key={ziPlan.zi}
+              className="p-4"
+              style={{
+                borderRadius: "0.75rem",
+                border: "1px solid rgba(16,185,129,0.3)",
+                background: "rgba(15,23,42,0.7)",
+              }}
+            >
+              <p className="font-bold mb-2 text-emerald-300">{ziPlan.zi}</p>
+              <div className="space-y-2">
+                {ziPlan.mese.map((masa, mealIdx) => {
+                  const key = `${ziIdx}-${mealIdx}`;
+                  const isOpen = !!openRecipe[key];
+                  return (
+                    <div
+                      key={masa.name}
+                      className="p-3"
+                      style={{
+                        borderRadius: 10,
+                        border: "1px solid rgba(148,163,184,0.25)",
+                        background: "rgba(30,41,59,0.72)",
+                      }}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="font-semibold text-sm">{masa.name}</p>
+                          <p className="text-sm mb-1" style={{ color: "#e2e8f0" }}>{masa.dish}</p>
+                          <p className="text-xs" style={{ color: "#93c5fd" }}>P: {masa.proteine}g</p>
+                          <p className="text-xs" style={{ color: "#fdba74" }}>C: {masa.carbohidrati}g</p>
+                          <p className="text-xs" style={{ color: "#86efac" }}>Cal: {masa.calorii}</p>
                         </div>
-                        <div className="flex gap-1 text-xs">
-                          <span className="bg-orange-500/30 text-orange-300 px-1.5 py-0.5 rounded">
-                            C: {masa.carbohidrati}g
-                          </span>
-                        </div>
+
+                        <button
+                          onClick={() => toggleRecipe(key)}
+                          title="Vezi reteta"
+                          className="p-1.5 rounded-md"
+                          style={{
+                            border: "1px solid rgba(148,163,184,0.35)",
+                            background: "rgba(15,23,42,0.65)",
+                          }}
+                        >
+                          <ChevronDown
+                            className="w-4 h-4"
+                            style={{
+                              color: "#cbd5e1",
+                              transform: isOpen ? "rotate(180deg)" : "rotate(0deg)",
+                              transition: "transform 0.2s ease",
+                            }}
+                          />
+                        </button>
                       </div>
+
+                      <p className="text-xs mt-2" style={{ color: "#cbd5e1" }}>
+                        Ingrediente principale: {masa.ingredients.map((i) => `${i.item} ${i.grams}g`).join(", ")}
+                      </p>
+
+                      {isOpen ? (
+                        <div className="mt-3 pt-3" style={{ borderTop: "1px solid rgba(148,163,184,0.25)" }}>
+                          <p className="text-xs font-semibold mb-1" style={{ color: "#e2e8f0" }}>Ingrediente</p>
+                          <ul className="text-xs mb-2" style={{ color: "#cbd5e1" }}>
+                            {masa.ingredients.map((ing) => (
+                              <li key={ing.item}>- {ing.item}: {ing.grams}g</li>
+                            ))}
+                          </ul>
+
+                          <p className="text-xs font-semibold mb-1" style={{ color: "#e2e8f0" }}>Preparare</p>
+                          <ol className="text-xs" style={{ color: "#cbd5e1" }}>
+                            {masa.steps.map((step, idx) => (
+                              <li key={idx}>{idx + 1}. {step}</li>
+                            ))}
+                          </ol>
+                        </div>
+                      ) : null}
                     </div>
-                  ))}
-                </div>
-
-                {/* Rezumat Zi */}
-                <div className="mt-3 pt-3 border-t border-gray-600 text-xs font-semibold space-y-1">
-                  <div className="text-green-300">Total: {ziPlan.mese.reduce((a, m) => a + m.calorii, 0)} cal</div>
-                </div>
+                  );
+                })}
               </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Butoane */}
-        <div className="flex gap-3 pt-6 border-t border-green-600/30">
-          <button
-            onClick={() => setPlan(null)}
-            className="flex-1 py-3 bg-gray-700/50 hover:bg-gray-700 rounded-lg font-semibold transition-all"
-          >
-            ← Modifică
-          </button>
-          <button className="flex-1 py-3 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 rounded-lg font-semibold transition-all">
-            ✅ Salvează
-          </button>
+            </div>
+          ))}
         </div>
       </div>
     );
   }
 
   return (
-    <div className="bg-gradient-to-br from-green-900/20 to-gray-900 rounded-2xl p-8 border border-green-600/30 h-full flex flex-col">
-      <h2 className="text-2xl font-bold mb-2 flex items-center gap-3">
-        <span>🍎</span> Calculator Nutriție
-      </h2>
-      <p className="text-gray-400 text-sm mb-8">Setează macronutrienții zilnici</p>
+    <div
+      className="p-5"
+      style={{
+        borderRadius: "1rem",
+        background: "rgba(2,6,23,0.58)",
+        border: "1px solid rgba(16,185,129,0.35)",
+      }}
+    >
+      <h2 className="text-2xl font-bold mb-1">Calculator nutritie</h2>
+      <p className="text-sm mb-5" style={{ color: "#cbd5e1" }}>
+        Seteaza macronutrientii zilnici intr-un mod simplu.
+      </p>
 
-      {/* Greutate utilizator */}
-      <div className="mb-6 pb-6 border-b border-green-600/30">
-        <label className="text-sm text-gray-400 font-semibold mb-2 block">
-          Greutatea (kg)
-        </label>
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => setGreutate(Math.max(40, greutate - 5))}
-            className="p-2 rounded-lg bg-gray-700 hover:bg-gray-600 transition-all"
-          >
-            <Minus className="w-4 h-4" />
-          </button>
-          <input
-            type="number"
-            value={greutate}
-            onChange={(e) => setGreutate(Math.max(40, parseInt(e.target.value) || 0))}
-            className="flex-1 bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-center font-bold text-white"
-          />
-          <button
-            onClick={() => setGreutate(greutate + 5)}
-            className="p-2 rounded-lg bg-gray-700 hover:bg-gray-600 transition-all"
-          >
-            <Plus className="w-4 h-4" />
-          </button>
+      <StepInput
+        label="Greutate (kg)"
+        value={greutate}
+        setValue={setGreutate}
+        step={5}
+        min={40}
+        hint="Baza de calcul"
+        tone={{ border: "rgba(148,163,184,0.35)", bg: "rgba(30,41,59,0.45)" }}
+      />
+
+      <div className="h-3" />
+
+      <StepInput
+        label="Proteine (g/zi)"
+        value={proteine}
+        setValue={setProteine}
+        step={10}
+        min={50}
+        hint={`Recomandat: ${Math.round(greutate * 1.6)} - ${Math.round(greutate * 2.2)}g`}
+        tone={{ border: "rgba(59,130,246,0.35)", bg: "rgba(59,130,246,0.12)" }}
+      />
+
+      <div className="h-3" />
+
+      <StepInput
+        label="Carbohidrati (g/zi)"
+        value={carbohidrati}
+        setValue={setCarbohidrati}
+        step={10}
+        min={50}
+        hint={`Recomandat: ${Math.round(greutate * 3)} - ${Math.round(greutate * 5)}g`}
+        tone={{ border: "rgba(249,115,22,0.35)", bg: "rgba(249,115,22,0.12)" }}
+      />
+
+      <div className="grid grid-cols-3 gap-3 my-5">
+        <div className="p-3 text-center" style={{ borderRadius: 10, border: "1px solid rgba(59,130,246,0.35)", background: "rgba(59,130,246,0.12)" }}>
+          <p className="text-xs" style={{ color: "#cbd5e1" }}>Proteine</p>
+          <p className="text-xl font-bold text-blue-300">{proteine}g</p>
+        </div>
+        <div className="p-3 text-center" style={{ borderRadius: 10, border: "1px solid rgba(249,115,22,0.35)", background: "rgba(249,115,22,0.12)" }}>
+          <p className="text-xs" style={{ color: "#cbd5e1" }}>Carbohidrati</p>
+          <p className="text-xl font-bold text-orange-300">{carbohidrati}g</p>
+        </div>
+        <div className="p-3 text-center" style={{ borderRadius: 10, border: "1px solid rgba(16,185,129,0.35)", background: "rgba(16,185,129,0.12)" }}>
+          <p className="text-xs" style={{ color: "#cbd5e1" }}>Calorii</p>
+          <p className="text-xl font-bold text-emerald-300">{caloriiTotale}</p>
         </div>
       </div>
 
-      {/* Proteine */}
-      <div className="mb-6 pb-6 border-b border-green-600/30">
-        <label className="text-sm text-gray-400 font-semibold mb-2 block">
-          Proteine (g/zi)
-        </label>
-        <div className="flex items-center gap-3 mb-3">
-          <button
-            onClick={() => setProteine(Math.max(50, proteine - 10))}
-            className="p-2 rounded-lg bg-blue-600/30 hover:bg-blue-600/50 transition-all"
-          >
-            <Minus className="w-4 h-4 text-blue-300" />
-          </button>
-          <input
-            type="number"
-            value={proteine}
-            onChange={(e) => setProteine(Math.max(50, parseInt(e.target.value) || 0))}
-            className="flex-1 bg-gray-700 border border-blue-600 rounded-lg px-4 py-2 text-center font-bold text-white"
-          />
-          <button
-            onClick={() => setProteine(proteine + 10)}
-            className="p-2 rounded-lg bg-blue-600/30 hover:bg-blue-600/50 transition-all"
-          >
-            <Plus className="w-4 h-4 text-blue-300" />
-          </button>
-        </div>
-        <p className="text-blue-300 text-xs">
-          Recomandare: {Math.round(greutate * 1.6)} - {Math.round(greutate * 2.2)}g
-        </p>
-      </div>
-
-      {/* Carbohidrați */}
-      <div className="mb-8 pb-8 border-b border-green-600/30">
-        <label className="text-sm text-gray-400 font-semibold mb-2 block">
-          Carbohidrați (g/zi)
-        </label>
-        <div className="flex items-center gap-3 mb-3">
-          <button
-            onClick={() => setCarbohidrati(Math.max(50, carbohidrati - 10))}
-            className="p-2 rounded-lg bg-orange-600/30 hover:bg-orange-600/50 transition-all"
-          >
-            <Minus className="w-4 h-4 text-orange-300" />
-          </button>
-          <input
-            type="number"
-            value={carbohidrati}
-            onChange={(e) => setCarbohidrati(Math.max(50, parseInt(e.target.value) || 0))}
-            className="flex-1 bg-gray-700 border border-orange-600 rounded-lg px-4 py-2 text-center font-bold text-white"
-          />
-          <button
-            onClick={() => setCarbohidrati(carbohidrati + 10)}
-            className="p-2 rounded-lg bg-orange-600/30 hover:bg-orange-600/50 transition-all"
-          >
-            <Plus className="w-4 h-4 text-orange-300" />
-          </button>
-        </div>
-        <p className="text-orange-300 text-xs">
-          Recomandare: {Math.round(greutate * 3)} - {Math.round(greutate * 5)}g
-        </p>
-      </div>
-
-      {/* Rezumat */}
-      <div className="bg-gradient-to-r from-blue-900/30 to-orange-900/30 rounded-lg p-4 mb-6 border border-green-600/30">
-        <div className="grid grid-cols-3 gap-2 text-center">
-          <div>
-            <p className="text-gray-400 text-xs mb-1">Proteine</p>
-            <p className="font-bold text-blue-300 text-lg">{proteine}g</p>
-          </div>
-          <div>
-            <p className="text-gray-400 text-xs mb-1">Carbohidrați</p>
-            <p className="font-bold text-orange-300 text-lg">{carbohidrati}g</p>
-          </div>
-          <div>
-            <p className="text-gray-400 text-xs mb-1">Calorii</p>
-            <p className="font-bold text-green-300 text-lg">{caloriiTotale}</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Buton Creează */}
       <button
         onClick={genereazaPlan}
         disabled={isCalculating}
-        className="w-full py-4 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 disabled:opacity-50 rounded-lg font-bold transition-all transform hover:scale-105"
+        className="w-full py-3 rounded-lg font-bold"
+        style={{
+          background: "linear-gradient(90deg, #16a34a, #059669)",
+          color: "#fff",
+          opacity: isCalculating ? 0.6 : 1,
+        }}
       >
-        {isCalculating ? "Se generează..." : "🎯 Creează Plan"}
+        {isCalculating ? "Se genereaza..." : "Creeaza plan nutritional"}
       </button>
     </div>
   );

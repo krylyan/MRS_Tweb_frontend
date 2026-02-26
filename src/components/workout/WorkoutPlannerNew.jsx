@@ -1,93 +1,117 @@
 import React, { useState } from "react";
-import { Plus, X } from "lucide-react";
+import { Plus, X, Save, Download, Share2, Apple, Dumbbell, Sparkles } from "lucide-react";
 import NutritionCalculator from "./NutritionCalculator";
 import ExerciseSimplePlannerFixed from "./ExerciseSimplePlannerFixed";
+
+const panel = {
+  background: "linear-gradient(145deg, rgba(15,23,42,0.9), rgba(30,41,59,0.92))",
+  border: "1px solid rgba(148,163,184,0.2)",
+  borderRadius: "1rem",
+  backdropFilter: "blur(6px)",
+};
 
 export default function WorkoutPlanner() {
   const [isPlanCreated, setIsPlanCreated] = useState(false);
 
   return (
-    <div className="w-full">
+    <div className="w-full text-white">
       {!isPlanCreated ? (
-        // Vizualizare inițială - Butonul "Creaza Plan"
         <div className="flex items-center justify-center min-h-96 px-4">
-          <div className="text-center">
-            <div className="mb-8">
-              <div className="text-8xl mb-4">🎯</div>
-              <h2 className="text-4xl font-bold mb-2">Creează-ți Planul Personalizat</h2>
-              <p className="text-gray-400 mb-6 text-lg max-w-2xl mx-auto">
-                Combină nutriția cu antrenamentele tale și construiește-ți programul perfect
-              </p>
+          <div className="w-full max-w-5xl p-8 md:p-10" style={{ ...panel, border: "1px solid rgba(59,130,246,0.35)" }}>
+            <div className="inline-flex items-center gap-2 rounded-full px-3 py-1 mb-4" style={{ background: "rgba(59,130,246,0.15)", border: "1px solid rgba(59,130,246,0.35)" }}>
+              <Sparkles className="w-4 h-4 text-blue-300" />
+              <span className="text-sm text-blue-200">Start rapid</span>
             </div>
+            <h2 className="text-4xl md:text-5xl font-bold mb-3">Creeaza-ti planul personalizat</h2>
+            <p className="text-lg mb-8" style={{ color: "#d1d5db" }}>
+              Nutritie + antrenamente intr-un singur ecran, cu pasi simpli si rezumat clar.
+            </p>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-8">
+              <div className="rounded-lg p-4 text-sm font-semibold" style={{ border: "1px solid rgba(249,115,22,0.4)", background: "rgba(249,115,22,0.16)" }}>Nutritie calibrata pe target</div>
+              <div className="rounded-lg p-4 text-sm font-semibold" style={{ border: "1px solid rgba(59,130,246,0.4)", background: "rgba(59,130,246,0.16)" }}>Selectie antrenamente pe grupe</div>
+              <div className="rounded-lg p-4 text-sm font-semibold" style={{ border: "1px solid rgba(16,185,129,0.4)", background: "rgba(16,185,129,0.16)" }}>Rezumat usor de salvat</div>
+            </div>
+
             <button
               onClick={() => setIsPlanCreated(true)}
-              className="px-10 py-4 bg-gradient-to-r from-blue-500 via-blue-600 to-blue-700 hover:from-blue-600 hover:via-blue-700 hover:to-blue-800 rounded-xl font-bold text-lg transition-all transform hover:scale-105 shadow-lg flex items-center gap-3 mx-auto"
+              className="px-10 py-4 rounded-xl font-bold text-lg transition-all flex items-center gap-3"
+              style={{ background: "linear-gradient(90deg, #3b82f6 0%, #2563eb 55%, #16a34a 100%)", color: "#fff" }}
             >
               <Plus className="w-6 h-6" />
-              Creează Planul Meu
+              Creeaza planul meu
             </button>
           </div>
         </div>
       ) : (
-        // Vizualizare după apăsarea butonului - 2 Cadrane Side by Side
-        <div>
-          {/* Header */}
-          <div className="mb-8 flex items-center justify-between">
-            <h1 className="text-4xl font-bold">Planul Tău de Fitness</h1>
+        <div className="max-w-7xl mx-auto">
+          <div className="mb-8 flex items-start justify-between gap-4">
+            <div>
+              <h1 className="text-4xl font-bold mb-2">Planul tau de fitness</h1>
+              <p style={{ color: "#d1d5db" }}>Totul este aranjat pe doua coloane: nutritie la stanga, antrenament la dreapta.</p>
+            </div>
             <button
               onClick={() => setIsPlanCreated(false)}
-              className="p-3 rounded-lg bg-red-500/20 hover:bg-red-500/30 text-red-300 transition-all"
-              title="Închide planul"
+              className="p-3 rounded-lg transition-all"
+              style={{ background: "rgba(239,68,68,0.2)", color: "#fca5a5", border: "1px solid rgba(239,68,68,0.35)" }}
+              title="Inchide planul"
             >
               <X className="w-6 h-6" />
             </button>
           </div>
 
-          {/* 2 Cadrane în Grid - Nutriție STÂNGA, Antrenamente DREAPTA */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-            {/* Cadranul STÂNGA - Nutriție */}
-            <div className="h-auto lg:h-[700px]">
+          <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 mb-8">
+            <div className="xl:col-span-7 p-4" style={panel}>
+              <div className="inline-flex items-center gap-2 mb-3 px-3 py-1 rounded-full" style={{ background: "rgba(16,185,129,0.15)", border: "1px solid rgba(16,185,129,0.35)" }}>
+                <Apple className="w-4 h-4 text-emerald-300" />
+                <span className="text-xs font-semibold text-emerald-200">Nutritie</span>
+              </div>
               <NutritionCalculator />
             </div>
 
-            {/* Cadranul DREAPTA - Antrenamente */}
-            <div className="h-auto lg:h-[700px]">
+            <div className="xl:col-span-5 p-4" style={panel}>
+              <div className="inline-flex items-center gap-2 mb-3 px-3 py-1 rounded-full" style={{ background: "rgba(59,130,246,0.15)", border: "1px solid rgba(59,130,246,0.35)" }}>
+                <Dumbbell className="w-4 h-4 text-blue-300" />
+                <span className="text-xs font-semibold text-blue-200">Antrenament</span>
+              </div>
               <ExerciseSimplePlannerFixed />
             </div>
           </div>
 
-          {/* Footer Summary */}
-          <div className="bg-gradient-to-r from-gray-800 to-gray-900 rounded-2xl p-8 border border-white/10">
-            <h2 className="text-2xl font-bold mb-6">📊 Rezumatul Planului Tău</h2>
-            
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-              <div className="bg-gray-700/30 rounded-lg p-4 border border-blue-600/30">
-                <p className="text-gray-400 text-sm mb-2">Plan Nutrițional</p>
-                <p className="text-2xl font-bold text-blue-300">7 Zile</p>
+          <div className="p-6 md:p-8" style={panel}>
+            <h2 className="text-2xl font-bold mb-5">Rezumatul planului tau</h2>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
+              <div className="rounded-lg p-4" style={{ border: "1px solid rgba(59,130,246,0.35)", background: "rgba(59,130,246,0.14)" }}>
+                <p className="text-sm mb-1" style={{ color: "#d1d5db" }}>Plan nutritional</p>
+                <p className="text-3xl font-bold" style={{ color: "#93c5fd" }}>7 zile</p>
               </div>
-              <div className="bg-gray-700/30 rounded-lg p-4 border border-orange-600/30">
-                <p className="text-gray-400 text-sm mb-2">Calorii Zilnice</p>
-                <p className="text-2xl font-bold text-orange-300">~1400</p>
+              <div className="rounded-lg p-4" style={{ border: "1px solid rgba(249,115,22,0.35)", background: "rgba(249,115,22,0.14)" }}>
+                <p className="text-sm mb-1" style={{ color: "#d1d5db" }}>Calorii zilnice</p>
+                <p className="text-3xl font-bold" style={{ color: "#fdba74" }}>~1400</p>
               </div>
-              <div className="bg-gray-700/30 rounded-lg p-4 border border-green-600/30">
-                <p className="text-gray-400 text-sm mb-2">Antrenamente</p>
-                <p className="text-2xl font-bold text-green-300">6x/săpt</p>
+              <div className="rounded-lg p-4" style={{ border: "1px solid rgba(16,185,129,0.35)", background: "rgba(16,185,129,0.14)" }}>
+                <p className="text-sm mb-1" style={{ color: "#d1d5db" }}>Antrenamente</p>
+                <p className="text-3xl font-bold" style={{ color: "#6ee7b7" }}>6x/sapt</p>
               </div>
-              <div className="bg-gray-700/30 rounded-lg p-4 border border-purple-600/30">
-                <p className="text-gray-400 text-sm mb-2">Intensitate</p>
-                <p className="text-2xl font-bold text-purple-300">⭐⭐⭐</p>
+              <div className="rounded-lg p-4" style={{ border: "1px solid rgba(168,85,247,0.35)", background: "rgba(168,85,247,0.14)" }}>
+                <p className="text-sm mb-1" style={{ color: "#d1d5db" }}>Intensitate</p>
+                <p className="text-3xl font-bold" style={{ color: "#c4b5fd" }}>Mediu+</p>
               </div>
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-4">
-              <button className="flex-1 py-3 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 rounded-lg font-semibold transition-all text-white">
-                ✅ Salvează Planul
+            <div className="flex flex-col md:flex-row gap-3">
+              <button className="flex-1 py-3 rounded-lg font-semibold text-white flex items-center justify-center gap-2" style={{ background: "linear-gradient(90deg,#16a34a,#059669)" }}>
+                <Save className="w-4 h-4" />
+                Salveaza planul
               </button>
-              <button className="flex-1 py-3 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 rounded-lg font-semibold transition-all text-white">
-                📥 Descarcă PDF
+              <button className="flex-1 py-3 rounded-lg font-semibold text-white flex items-center justify-center gap-2" style={{ background: "linear-gradient(90deg,#3b82f6,#2563eb)" }}>
+                <Download className="w-4 h-4" />
+                Descarca PDF
               </button>
-              <button className="flex-1 py-3 bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 rounded-lg font-semibold transition-all text-white">
-                📤 Partajează
+              <button className="flex-1 py-3 rounded-lg font-semibold text-white flex items-center justify-center gap-2" style={{ background: "linear-gradient(90deg,#a855f7,#7c3aed)" }}>
+                <Share2 className="w-4 h-4" />
+                Partajeaza
               </button>
             </div>
           </div>
