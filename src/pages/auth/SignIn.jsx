@@ -42,6 +42,16 @@ export default function SignIn() {
           10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
           20%, 40%, 60%, 80% { transform: translateX(5px); }
         }
+        @keyframes authCardEnter {
+          from {
+            opacity: 0;
+            transform: translateY(20px) scale(0.98);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+          }
+        }
         .auth-card-error {
           animation: shake 0.5s cubic-bezier(0.36, 0, 0.66, -0.56);
         }
@@ -62,6 +72,7 @@ export default function SignIn() {
           backdrop-filter: blur(8px);
           box-shadow: 0 24px 80px rgba(0, 0, 0, 0.35);
           padding: 16px;
+          animation: authCardEnter 0.5s cubic-bezier(0.4, 0, 0.2, 1);
         }
         .signin-grid {
           display: grid;
