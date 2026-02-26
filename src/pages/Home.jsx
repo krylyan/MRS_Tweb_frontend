@@ -251,6 +251,9 @@ export default function Home() {
             <a href="#terms" className="text-gray-400 hover:text-white transition-colors">
               Terms of Service
             </a>
+            <Link to="/faq" className="text-gray-400 hover:text-white transition-colors">
+              FAQ
+            </Link>
             <div className="text-gray-400">
               © 2026 FitLife. All rights reserved.
             </div>

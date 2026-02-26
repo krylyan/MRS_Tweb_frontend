@@ -1,0 +1,15 @@
+This project uses:
+
+- React 18
+- Vite
+- Tailwind CSS v4
+- Radix UI components
+- Lucide React icons
+- React Router
+
+There is NO App.css file.
+All styling must be done using Tailwind utility classes.
+Do NOT create external CSS files.
+Keep the existing dark theme.
+Follow the current color palette (dark blue background + green accent).
+Use Radix UI where appropriate.
