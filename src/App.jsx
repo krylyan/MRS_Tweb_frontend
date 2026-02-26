@@ -3,6 +3,7 @@ import Home from "./pages/Home";
 import SignIn from "./pages/auth/SignIn";
 import SignUp from "./pages/auth/SignUp";
 import Dashboard from "./pages/Dashboard";
+import ProtectedRoute from "./components/auth/ProtectedRoute";
 
 /**
  * App.jsx - Main router configuration for FitLife SPA
@@ -10,7 +11,7 @@ import Dashboard from "./pages/Dashboard";
  * - / → Home (landing page)
  * - /signin → Sign In page
  * - /signup → Sign Up page
- * - /dashboard → Dashboard (protected after login)
+ * - /dashboard → Dashboard (🔒 PROTECTED - Only accessible if logged in)
  */
 export default function App() {
   return (
@@ -19,7 +20,14 @@ export default function App() {
         <Route path="/" element={<Home />} />
         <Route path="/signin" element={<SignIn />} />
         <Route path="/signup" element={<SignUp />} />
-        <Route path="/dashboard" element={<Dashboard />} />
+        <Route
+          path="/dashboard"
+          element={
+            <ProtectedRoute>
+              <Dashboard />
+            </ProtectedRoute>
+          }
+        />
       </Routes>
     </BrowserRouter>
   );

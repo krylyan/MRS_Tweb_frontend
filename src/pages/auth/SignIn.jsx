@@ -37,7 +37,7 @@ export default function SignIn() {
       // Store login info
       localStorage.setItem("isLoggedIn", "true");
       localStorage.setItem("userEmail", email);
-      navigate("/", { replace: true });
+      navigate("/dashboard", { replace: true });
     } else {
       setLoading(false);
       setError("Invalid email or password. Try admin/admin");

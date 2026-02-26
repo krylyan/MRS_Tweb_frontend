@@ -3,6 +3,7 @@ import { Card } from "../components/ui/card.jsx";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback.jsx";
 import { Apple, Dumbbell, TrendingUp, Target, Heart, Zap } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
 
 /**
  * Home Page - FitLife landing page with all features
@@ -10,9 +11,20 @@ import { Link, useNavigate } from "react-router-dom";
  */
 export default function Home() {
   const navigate = useNavigate();
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  useEffect(() => {
+    // Verifica dacă utilizatorul este logat
+    const loggedInStatus = localStorage.getItem("isLoggedIn") === "true";
+    setIsLoggedIn(loggedInStatus);
+  }, []);
 
   const goToSignIn = () => {
     navigate("/signin");
+  };
+
+  const goToDashboard = () => {
+    navigate("/dashboard");
   };
 
   return (
@@ -36,12 +48,21 @@ export default function Home() {
           <a href="#about" className="text-gray-300 hover:text-white transition-colors">
             About
           </a>
-          <Link
-            to="/signin"
-            className="bg-gradient-to-r from-emerald-500 to-blue-500 hover:from-emerald-600 hover:to-blue-600 text-white font-medium px-6 py-2 rounded-md transition-all duration-300 border-0"
-          >
-            Sign In
-          </Link>
+          {isLoggedIn ? (
+            <button
+              onClick={goToDashboard}
+              className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-medium px-6 py-2 rounded-md transition-all duration-300 border-0"
+            >
+              Dashboard
+            </button>
+          ) : (
+            <Link
+              to="/signin"
+              className="bg-gradient-to-r from-emerald-500 to-blue-500 hover:from-emerald-600 hover:to-blue-600 text-white font-medium px-6 py-2 rounded-md transition-all duration-300 border-0"
+            >
+              Sign In
+            </Link>
+          )}
         </div>
       </nav>
 
