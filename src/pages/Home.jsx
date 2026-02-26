@@ -41,6 +41,9 @@ export default function Home() {
           <a href="#about" className="text-gray-300 hover:text-white transition-colors">
             About
           </a>
+          <Link to="/faq" className="text-gray-300 hover:text-white transition-colors">
+            FAQ
+          </Link>
           <button
             onClick={handleLogout}
             className="text-white font-medium px-6 py-2 rounded-md transition-all duration-300 border-0"
