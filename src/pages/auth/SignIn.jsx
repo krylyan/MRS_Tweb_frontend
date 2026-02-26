@@ -1,47 +1,40 @@
-import React, { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import React, { useEffect, useState } from "react";
+import { useNavigate, Link, useLocation } from "react-router-dom";
 import AuthCard from "../../components/auth/AuthCard";
 import AuthInput from "../../components/auth/AuthInput";
 import AuthButton from "../../components/auth/AuthButton";
+import AuthUtils from "../../utils/authUtils";
 
-/**
- * SignIn Page - Complete rebuild with strict 8px spacing grid
- * 
- * Spacing structure:
- * - Title to first input: 24px (from card)
- * - Label to input: 8px (in component)
- * - Input to next label: 24px
- * - Input to button: 24px
- * - Button to link: 24px
- * 
- * All spacing uses 8px grid: 8px, 16px, 24px, 32px, 40px, 48px
- */
 export default function SignIn() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const successMessage = location.state?.message || "";
+
+  useEffect(() => {
+    if (AuthUtils.isAuthenticated()) {
+      navigate("/", { replace: true });
+    }
+  }, [navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
     setLoading(true);
 
-    // Simulate network delay
-    await new Promise((resolve) => setTimeout(resolve, 400));
+    await new Promise((resolve) => setTimeout(resolve, 300));
 
-    // Mock authentication
-    if (email === "admin" && password === "admin") {
+    if (AuthUtils.login(email, password)) {
       setLoading(false);
-      // Store login info
-      localStorage.setItem("isLoggedIn", "true");
-      localStorage.setItem("userEmail", email);
       navigate("/", { replace: true });
-    } else {
-      setLoading(false);
-      setError("Invalid email or password. Try admin/admin");
+      return;
     }
+
+    setLoading(false);
+    setError("Invalid credentials. Test account: admin / admin");
   };
 
   return (
@@ -57,27 +50,26 @@ export default function SignIn() {
         }
       `}</style>
 
-      {/* Home Button - Top Left | Design System Navigation Button */}
-      <button
-        onClick={() => navigate("/")}
-        className="fixed z-50 inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors border-0 h-9 px-4 py-2 bg-gradient-to-r from-emerald-500 to-blue-500 hover:from-emerald-600 hover:to-blue-600 text-white shadow-md hover:shadow-lg outline-none focus-visible:ring-3"
-        style={{
-          top: "24px",
-          left: "24px",
-        }}
-      >
-        <span>←</span>
-        <span>Home</span>
-      </button>
-
       <AuthCard title="Sign in" titleColor="emerald">
         <form onSubmit={handleSubmit} className={error ? "auth-card-error" : ""}>
-          {/* Email Input */}
+          {successMessage && (
+            <p
+              className="text-xs text-emerald-300 bg-emerald-500/10 border border-emerald-500/30 rounded-lg px-3 py-2"
+              style={{ marginBottom: "16px" }}
+            >
+              {successMessage}
+            </p>
+          )}
+
+          <p className="text-gray-400 text-xs" style={{ marginBottom: "16px", lineHeight: 1.5 }}>
+            Test account: <span className="text-emerald-300 font-semibold">admin / admin</span>
+          </p>
+
           <div style={{ marginBottom: "24px" }}>
             <AuthInput
-              label="Email"
-              type="email"
-              placeholder="you@example.com"
+              label="Email or Username"
+              type="text"
+              placeholder="admin"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               error=""
@@ -85,7 +77,6 @@ export default function SignIn() {
             />
           </div>
 
-          {/* Password Input */}
           <div style={{ marginBottom: error ? "16px" : "24px" }}>
             <AuthInput
               label="Password"
@@ -99,7 +90,6 @@ export default function SignIn() {
             />
           </div>
 
-          {/* Forgot Password Link */}
           <div style={{ marginBottom: "24px", textAlign: "center" }}>
             <Link
               to="#"
@@ -109,17 +99,15 @@ export default function SignIn() {
             </Link>
           </div>
 
-          {/* Submit Button */}
           <div style={{ marginBottom: "24px" }}>
             <AuthButton onClick={handleSubmit} loading={loading}>
               Login
             </AuthButton>
           </div>
 
-          {/* Sign Up Link */}
           <div style={{ textAlign: "center" }}>
             <p className="text-gray-400 text-xs" style={{ margin: 0, lineHeight: 1.5 }}>
-              Don't have an account?{" "}
+              Don&apos;t have an account?{" "}
               <Link
                 to="/signup"
                 className="text-emerald-400 hover:text-emerald-300 font-semibold transition-colors duration-200"

@@ -1,22 +1,10 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import AuthCard from "../../components/auth/AuthCard";
 import AuthInput from "../../components/auth/AuthInput";
 import AuthButton from "../../components/auth/AuthButton";
+import AuthUtils from "../../utils/authUtils";
 
-/**
- * SignUp Page - Complete rebuild with strict 8px spacing grid
- * 
- * Spacing structure:
- * - Title to first input: 24px (from card)
- * - Label to input: 8px (in component)
- * - Input to next label: 24px
- * - Error to next label: 16px
- * - Input to button: 24px
- * - Button to link: 24px
- * 
- * All spacing uses 8px grid: 8px, 16px, 24px, 32px, 40px, 48px
- */
 export default function SignUp() {
   const navigate = useNavigate();
   const [fullName, setFullName] = useState("");
@@ -26,35 +14,47 @@ export default function SignUp() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
+  useEffect(() => {
+    if (AuthUtils.isAuthenticated()) {
+      navigate("/", { replace: true });
+    }
+  }, [navigate]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
 
-    // Validation
     if (!fullName.trim()) {
       setError("Full name is required");
       return;
     }
+
     if (!email.trim()) {
       setError("Email is required");
       return;
     }
+
     if (password.length < 6) {
       setError("Password must be at least 6 characters");
       return;
     }
+
     if (password !== confirmPassword) {
       setError("Passwords do not match");
       return;
     }
 
     setLoading(true);
+    await new Promise((resolve) => setTimeout(resolve, 300));
 
-    // Simulate network delay
-    await new Promise((resolve) => setTimeout(resolve, 500));
-
+    const result = AuthUtils.register(email, password, fullName);
     setLoading(false);
-    // After successful signup, redirect to signin
+
+    if (!result.ok) {
+      setError(result.message);
+      return;
+    }
+
     navigate("/signin", {
       state: { message: "Account created successfully! Please sign in." },
       replace: true,
@@ -74,22 +74,8 @@ export default function SignUp() {
         }
       `}</style>
 
-      {/* Home Button - Top Left | Design System Navigation Button */}
-      <button
-        onClick={() => navigate("/")}
-        className="fixed z-50 inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors border-0 h-9 px-4 py-2 bg-gradient-to-r from-emerald-500 to-blue-500 hover:from-emerald-600 hover:to-blue-600 text-white shadow-md hover:shadow-lg outline-none focus-visible:ring-3"
-        style={{
-          top: "24px",
-          left: "24px",
-        }}
-      >
-        <span>←</span>
-        <span>Home</span>
-      </button>
-
       <AuthCard title="Sign up" titleColor="emerald">
         <form onSubmit={handleSubmit} className={error ? "auth-card-error" : ""}>
-          {/* Full Name Input */}
           <div style={{ marginBottom: "24px" }}>
             <AuthInput
               label="Full Name"
@@ -102,7 +88,6 @@ export default function SignUp() {
             />
           </div>
 
-          {/* Email Input */}
           <div style={{ marginBottom: "24px" }}>
             <AuthInput
               label="Email"
@@ -115,7 +100,6 @@ export default function SignUp() {
             />
           </div>
 
-          {/* Password Input */}
           <div style={{ marginBottom: "24px" }}>
             <AuthInput
               label="Password"
@@ -129,7 +113,6 @@ export default function SignUp() {
             />
           </div>
 
-          {/* Confirm Password Input */}
           <div style={{ marginBottom: error ? "16px" : "24px" }}>
             <AuthInput
               label="Confirm Password"
@@ -143,14 +126,12 @@ export default function SignUp() {
             />
           </div>
 
-          {/* Submit Button */}
           <div style={{ marginBottom: "24px" }}>
             <AuthButton onClick={handleSubmit} loading={loading}>
               Sign up
             </AuthButton>
           </div>
 
-          {/* Sign In Link */}
           <div style={{ textAlign: "center" }}>
             <p className="text-gray-400 text-xs" style={{ margin: 0, lineHeight: 1.5 }}>
               Already have an account?{" "}
