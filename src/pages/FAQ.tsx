@@ -55,7 +55,7 @@ export default function FAQ() {
   return (
     <main className="relative min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 px-4 py-16 text-white md:px-12 md:py-24">
       <Link
-        to="/"
+        to="/home"
         aria-label="Go to home page"
         className="inline-flex items-center space-x-3"
         style={{ position: "absolute", top: "20px", left: "20px", zIndex: 30 }}

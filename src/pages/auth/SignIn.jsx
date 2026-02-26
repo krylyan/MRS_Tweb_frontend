@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { useNavigate, Link, useLocation } from "react-router-dom";
 import AuthCard from "../../components/auth/AuthCard";
 import AuthInput from "../../components/auth/AuthInput";
@@ -14,12 +14,6 @@ export default function SignIn() {
   const [loading, setLoading] = useState(false);
   const successMessage = location.state?.message || "";
 
-  useEffect(() => {
-    if (AuthUtils.isAuthenticated()) {
-      navigate("/", { replace: true });
-    }
-  }, [navigate]);
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
@@ -29,7 +23,11 @@ export default function SignIn() {
 
     if (AuthUtils.login(email, password)) {
       setLoading(false);
-      navigate("/", { replace: true });
+      if (AuthUtils.isQuestionnaireRequired()) {
+        navigate("/questionnaire", { replace: true });
+        return;
+      }
+      navigate("/home", { replace: true });
       return;
     }
 

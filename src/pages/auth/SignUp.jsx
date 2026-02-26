@@ -16,7 +16,7 @@ export default function SignUp() {
 
   useEffect(() => {
     if (AuthUtils.isAuthenticated()) {
-      navigate("/", { replace: true });
+      navigate("/home", { replace: true });
     }
   }, [navigate]);
 

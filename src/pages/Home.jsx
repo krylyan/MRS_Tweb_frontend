@@ -24,7 +24,7 @@ export default function Home() {
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white">
       {/* Navigation */}
       <nav className="flex items-center justify-between p-6 md:px-12 md:py-8 border-b border-white/10">
-        <Link to="/" className="flex items-center space-x-3 hover:opacity-80 transition-opacity duration-200">
+        <Link to="/home" className="flex items-center space-x-3 hover:opacity-80 transition-opacity duration-200">
           <div className="bg-gradient-to-br from-emerald-400 to-blue-500 p-2 rounded-lg">
             <Heart className="w-6 h-6 text-white" />
           </div>
@@ -246,7 +246,7 @@ export default function Home() {
       {/* Footer */}
       <footer className="border-t border-white/10 p-6 md:p-8">
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between">
-          <Link to="/" className="flex items-center space-x-3 mb-4 md:mb-0 hover:opacity-80 transition-opacity duration-200">
+          <Link to="/home" className="flex items-center space-x-3 mb-4 md:mb-0 hover:opacity-80 transition-opacity duration-200">
             <div className="bg-gradient-to-br from-emerald-400 to-blue-500 p-2 rounded-lg">
               <Heart className="w-5 h-5 text-white" />
             </div>

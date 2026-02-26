@@ -1,6 +1,8 @@
-const LOGIN_KEY = "isLoggedIn";
-const USER_KEY = "userEmail";
+const LOGIN_KEY = "fitlife_session_logged_in";
+const USER_KEY = "fitlife_session_user";
 const USERS_KEY = "fitlife_users";
+const QUESTIONNAIRE_KEY = "fitlife_questionnaire";
+const QUESTIONNAIRE_PENDING_KEY = "fitlife_questionnaire_pending";
 
 const DEFAULT_USERS = {
   admin: {
@@ -30,18 +32,45 @@ const ensureUsers = () => {
 };
 
 const setAuthSession = (username) => {
-  localStorage.setItem(LOGIN_KEY, "true");
-  localStorage.setItem(USER_KEY, username);
+  sessionStorage.setItem(LOGIN_KEY, "true");
+  sessionStorage.setItem(USER_KEY, username);
+};
+
+const readQuestionnaireData = () => {
+  const raw = localStorage.getItem(QUESTIONNAIRE_KEY);
+  if (!raw) {
+    return {};
+  }
+
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return {};
+  }
+};
+
+const writeQuestionnaireData = (data) => {
+  localStorage.setItem(QUESTIONNAIRE_KEY, JSON.stringify(data));
+};
+
+const setQuestionnairePending = (value) => {
+  sessionStorage.setItem(QUESTIONNAIRE_PENDING_KEY, value ? "true" : "false");
+};
+
+const clearLegacyLoginStorage = () => {
+  localStorage.removeItem("isLoggedIn");
+  localStorage.removeItem("userEmail");
 };
 
 export const AuthUtils = {
-  isAuthenticated: () => localStorage.getItem(LOGIN_KEY) === "true",
+  isAuthenticated: () => sessionStorage.getItem(LOGIN_KEY) === "true",
 
-  getCurrentUserEmail: () => localStorage.getItem(USER_KEY),
+  getCurrentUserEmail: () => sessionStorage.getItem(USER_KEY),
 
   setLoginInfo: (username) => setAuthSession(username),
 
   login: (username, password) => {
+    clearLegacyLoginStorage();
     const users = ensureUsers();
     const normalized = username.trim();
     const user = users[normalized];
@@ -51,6 +80,7 @@ export const AuthUtils = {
     }
 
     setAuthSession(normalized);
+    setQuestionnairePending(normalized === "admin");
     return true;
   },
 
@@ -72,13 +102,53 @@ export const AuthUtils = {
   },
 
   logout: () => {
-    localStorage.removeItem(LOGIN_KEY);
-    localStorage.removeItem(USER_KEY);
+    sessionStorage.removeItem(LOGIN_KEY);
+    sessionStorage.removeItem(USER_KEY);
+    sessionStorage.removeItem(QUESTIONNAIRE_PENDING_KEY);
+    clearLegacyLoginStorage();
+  },
+
+  isQuestionnaireRequired: () => {
+    const currentUser = sessionStorage.getItem(USER_KEY);
+    const pending = sessionStorage.getItem(QUESTIONNAIRE_PENDING_KEY) === "true";
+    return currentUser === "admin" && pending;
+  },
+
+  saveQuestionnaireAnswers: (answers) => {
+    const currentUser = sessionStorage.getItem(USER_KEY);
+    if (!currentUser) {
+      return;
+    }
+
+    const questionnaireData = readQuestionnaireData();
+    questionnaireData[currentUser] = {
+      skipped: false,
+      answers,
+      completedAt: new Date().toISOString(),
+    };
+    writeQuestionnaireData(questionnaireData);
+    setQuestionnairePending(false);
+  },
+
+  skipQuestionnaire: () => {
+    const currentUser = sessionStorage.getItem(USER_KEY);
+    if (!currentUser) {
+      return;
+    }
+
+    const questionnaireData = readQuestionnaireData();
+    questionnaireData[currentUser] = {
+      skipped: true,
+      answers: null,
+      completedAt: new Date().toISOString(),
+    };
+    writeQuestionnaireData(questionnaireData);
+    setQuestionnairePending(false);
   },
 
   checkAuthStatus: () => {
-    const isLoggedIn = localStorage.getItem(LOGIN_KEY) === "true";
-    const userEmail = localStorage.getItem(USER_KEY);
+    const isLoggedIn = sessionStorage.getItem(LOGIN_KEY) === "true";
+    const userEmail = sessionStorage.getItem(USER_KEY);
     return { isLoggedIn, userEmail };
   },
 };
