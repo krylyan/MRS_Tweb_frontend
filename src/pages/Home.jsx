@@ -44,6 +44,9 @@ export default function Home() {
           <Link to="/faq" className="text-gray-300 hover:text-white transition-colors">
             FAQ
           </Link>
+          <Link to="/profile" className="text-gray-300 hover:text-white transition-colors">
+            Profile
+          </Link>
           <button
             onClick={handleLogout}
             className="text-white font-medium px-6 py-2 rounded-md transition-all duration-300 border-0"

@@ -3,6 +3,7 @@ import Home from "./pages/Home";
 import SignIn from "./pages/auth/SignIn";
 import SignUp from "./pages/auth/SignUp";
 import FAQ from "./pages/FAQ";
+import Profile from "./pages/Profile";
 import Questionnaire from "./pages/Questionnaire";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 
@@ -34,6 +35,14 @@ export default function App() {
           element={
             <ProtectedRoute>
               <Questionnaire />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/profile"
+          element={
+            <ProtectedRoute>
+              <Profile />
             </ProtectedRoute>
           }
         />
