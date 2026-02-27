@@ -1,14 +1,13 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import * as Accordion from "@radix-ui/react-accordion";
-import { ChevronDown } from "lucide-react";
-import { Heart } from "lucide-react";
+import { ChevronDown, Heart } from "lucide-react";
 import { Link } from "react-router-dom";
 
-type FAQItem = {
+interface FAQItem {
   id: string;
   question: string;
   answer: string;
-};
+}
 
 const faqItems: FAQItem[] = [
   {
@@ -43,6 +42,14 @@ const faqItems: FAQItem[] = [
   },
 ];
 
+const ITEM_DELAY_CLASSES = [
+  "delay-0",
+  "delay-75",
+  "delay-150",
+  "delay-200",
+  "delay-300",
+] as const;
+
 export default function FAQ() {
   const [openItem, setOpenItem] = useState<string>("payments");
   const [isLoaded, setIsLoaded] = useState(false);
@@ -57,23 +64,19 @@ export default function FAQ() {
       <Link
         to="/home"
         aria-label="Go to home page"
-        className="inline-flex items-center space-x-3"
-        style={{ position: "absolute", top: "20px", left: "20px", zIndex: 30 }}
+        className="absolute left-5 top-5 z-30 inline-flex items-center space-x-3"
       >
-        <div className="bg-gradient-to-br from-emerald-400 to-blue-500 p-2 rounded-lg">
-          <Heart className="w-6 h-6 text-white" />
+        <div className="rounded-lg bg-gradient-to-br from-emerald-400 to-blue-500 p-2">
+          <Heart className="h-6 w-6 text-white" />
         </div>
         <span className="text-4xl font-bold text-white md:text-2xl">FitLife</span>
       </Link>
 
       <section aria-labelledby="faq-title" className="mx-auto w-full max-w-4xl">
         <div
-          className="rounded-2xl border border-white/10 bg-white/5 p-6 shadow-xl backdrop-blur-sm md:p-8"
-          style={{
-            opacity: isLoaded ? 1 : 0,
-            transform: isLoaded ? "translateY(0px)" : "translateY(20px)",
-            transition: "opacity 600ms ease-out, transform 600ms ease-out",
-          }}
+          className={`rounded-2xl border border-white/10 bg-white/5 p-6 shadow-xl backdrop-blur-sm transition-all duration-700 ease-out md:p-8 ${
+            isLoaded ? "translate-y-0 opacity-100" : "translate-y-5 opacity-0"
+          }`}
         >
           <header className="mb-10 text-center">
             <h1 id="faq-title" className="text-5xl font-bold text-emerald-400 md:text-5xl">
@@ -86,60 +89,41 @@ export default function FAQ() {
             type="single"
             collapsible
             value={openItem}
-            onValueChange={setOpenItem}
+            onValueChange={(value) => setOpenItem(value)}
             aria-label="Frequently asked questions"
           >
             {faqItems.map((item, index) => {
               const isOpen = openItem === item.id;
+              const delayClass = ITEM_DELAY_CLASSES[index] ?? "delay-0";
 
               return (
                 <Accordion.Item
                   key={item.id}
                   value={item.id}
-                  className="border-b border-white/10 transition-all duration-300 hover:bg-white/10 hover:shadow-emerald-500/20"
-                  style={{
-                    opacity: isLoaded ? 1 : 0,
-                    transform: isLoaded
-                      ? `translateY(0px) scale(${isOpen ? 1.01 : 1})`
-                      : "translateY(20px) scale(1)",
-                    backgroundColor: isOpen ? "rgba(255,255,255,0.02)" : "transparent",
-                    boxShadow: isOpen
-                      ? "0 8px 24px rgba(16, 185, 129, 0.08)"
-                      : "0 0 0 rgba(0,0,0,0)",
-                    transition: `opacity 600ms ease-out ${index * 80}ms, transform 600ms ease-out ${index * 80}ms, background-color 300ms cubic-bezier(0.4, 0, 0.2, 1), box-shadow 300ms cubic-bezier(0.4, 0, 0.2, 1)`,
-                  }}
+                  className={`border-b border-white/10 transition-all duration-300 ${delayClass} ${
+                    isLoaded ? "translate-y-0 opacity-100" : "translate-y-5 opacity-0"
+                  } ${isOpen ? "scale-[1.01] bg-white/[0.02] shadow-[0_8px_24px_rgba(16,185,129,0.08)]" : "hover:bg-white/10"}`}
                 >
                   <Accordion.Header>
-                    <Accordion.Trigger
-                      className="flex w-full items-center justify-between py-6 text-gray-300 transition-all duration-300 hover:text-white outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
-                      style={{ "--ring": "rgb(52 211 153 / 0.75)" } as React.CSSProperties}
-                    >
+                    <Accordion.Trigger className="flex w-full items-center justify-between py-6 text-gray-300 outline-none transition-all duration-300 hover:text-white focus-visible:ring-[3px] focus-visible:ring-emerald-400/75">
                       <span>{item.question}</span>
                       <ChevronDown
-                        className="h-4 w-4 transition-transform"
-                        style={{
-                          color: isOpen ? "#34d399" : "#9ca3af",
-                          transform: isOpen ? "rotate(180deg)" : "rotate(0deg)",
-                          transitionDuration: "250ms",
-                          transitionTimingFunction: "cubic-bezier(0.4, 0, 0.2, 1)",
-                        }}
+                        className={`h-4 w-4 transition-all duration-300 ${
+                          isOpen ? "rotate-180 text-emerald-400" : "text-gray-400"
+                        }`}
                       />
                     </Accordion.Trigger>
                   </Accordion.Header>
 
                   <Accordion.Content
-                    className="overflow-hidden data-[state=open]:opacity-100 data-[state=closed]:opacity-0"
+                    className={`overflow-hidden transition-all duration-300 ${
+                      isOpen ? "max-h-48 opacity-100" : "max-h-0 opacity-0"
+                    }`}
                   >
                     <div
-                      className="text-sm leading-relaxed text-gray-400 data-[state=open]:opacity-100 data-[state=closed]:opacity-0"
-                      data-state={isOpen ? "open" : "closed"}
-                      style={{
-                        maxHeight: isOpen ? "180px" : "0px",
-                        opacity: isOpen ? 1 : 0,
-                        transform: isOpen ? "translateY(0px)" : "translateY(5px)",
-                        paddingBottom: isOpen ? "24px" : "0px",
-                        transition: "max-height 300ms cubic-bezier(0.4, 0, 0.2, 1), opacity 300ms cubic-bezier(0.4, 0, 0.2, 1), transform 300ms cubic-bezier(0.4, 0, 0.2, 1), padding-bottom 300ms cubic-bezier(0.4, 0, 0.2, 1)",
-                      }}
+                      className={`text-sm leading-relaxed text-gray-400 transition-all duration-300 ${
+                        isOpen ? "translate-y-0 pb-6" : "translate-y-1 pb-0"
+                      }`}
                     >
                       {item.answer}
                     </div>
@@ -153,3 +137,4 @@ export default function FAQ() {
     </main>
   );
 }
+
