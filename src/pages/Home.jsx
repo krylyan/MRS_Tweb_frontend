@@ -1,8 +1,9 @@
-import { Button } from "../components/ui/button.jsx";
+﻿import { Button } from "../components/ui/button.jsx";
 import { Card } from "../components/ui/card.jsx";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback.jsx";
 import { Apple, Dumbbell, TrendingUp, Target, Heart, Zap } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
+import AuthUtils from "../utils/authUtils";
 
 /**
  * Home Page - FitLife landing page with all features
@@ -10,16 +11,20 @@ import { Link, useNavigate } from "react-router-dom";
  */
 export default function Home() {
   const navigate = useNavigate();
+  const goToFaq = () => {
+    navigate("/faq");
+  };
 
-  const goToSignIn = () => {
-    navigate("/signin");
+  const handleLogout = () => {
+    AuthUtils.logout();
+    navigate("/signin", { replace: true });
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white">
       {/* Navigation */}
       <nav className="flex items-center justify-between p-6 md:px-12 md:py-8 border-b border-white/10">
-        <Link to="/" className="flex items-center space-x-3 hover:opacity-80 transition-opacity duration-200">
+        <Link to="/home" className="flex items-center space-x-3 hover:opacity-80 transition-opacity duration-200">
           <div className="bg-gradient-to-br from-emerald-400 to-blue-500 p-2 rounded-lg">
             <Heart className="w-6 h-6 text-white" />
           </div>
@@ -36,12 +41,22 @@ export default function Home() {
           <a href="#about" className="text-gray-300 hover:text-white transition-colors">
             About
           </a>
-          <Link
-            to="/signin"
-            className="bg-gradient-to-r from-emerald-500 to-blue-500 hover:from-emerald-600 hover:to-blue-600 text-white font-medium px-6 py-2 rounded-md transition-all duration-300 border-0"
-          >
-            Sign In
+          <Link to="/faq" className="text-gray-300 hover:text-white transition-colors">
+            FAQ
           </Link>
+          <Link to="/profile" className="text-gray-300 hover:text-white transition-colors">
+            Profile
+          </Link>
+          <button
+            onClick={handleLogout}
+            className="text-white font-medium px-6 py-2 rounded-md transition-all duration-300 border-0"
+            style={{
+              backgroundColor: "rgba(220, 38, 38, 0.45)",
+              border: "1px solid rgba(248, 113, 113, 0.35)",
+            }}
+          >
+            Log out
+          </button>
         </div>
       </nav>
 
@@ -87,33 +102,33 @@ export default function Home() {
                 </div>
                 
                 <h2 className="text-3xl md:text-4xl font-bold mb-4 text-emerald-50">
-                  Antrenament Afară
+                  Antrenament AfarÄƒ
                 </h2>
                 
                 <p className="text-gray-300 text-lg leading-relaxed mb-8">
-                  Antrenamente în aer liber cu exerciții de greutate corporală, alergare și calistenie. 
-                  Durabilitate, flexibilitate și conexiune cu natura. Programe adaptate pentru fitness outdoor profesional.
+                  Antrenamente Ã®n aer liber cu exerciÈ›ii de greutate corporalÄƒ, alergare È™i calistenie. 
+                  Durabilitate, flexibilitate È™i conexiune cu natura. Programe adaptate pentru fitness outdoor profesional.
                 </p>
                 
                 <div className="space-y-3 mb-8">
                   <div className="flex items-center gap-3 text-emerald-300">
                     <TrendingUp className="w-5 h-5" />
-                    <span>Programe de calistenie și greutate corporală</span>
+                    <span>Programe de calistenie È™i greutate corporalÄƒ</span>
                   </div>
                   <div className="flex items-center gap-3 text-emerald-300">
                     <Target className="w-5 h-5" />
-                    <span>Antrenamente de alergare și rezistență</span>
+                    <span>Antrenamente de alergare È™i rezistenÈ›Äƒ</span>
                   </div>
                   <div className="flex items-center gap-3 text-emerald-300">
                     <Heart className="w-5 h-5" />
-                    <span>Alimentație pentru activități outdoor</span>
+                    <span>AlimentaÈ›ie pentru activitÄƒÈ›i outdoor</span>
                   </div>
                 </div>
                 
                 <Button 
-                  onClick={goToSignIn}
+                  onClick={goToFaq}
                   className="w-full bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white font-semibold py-6 text-lg border-0 shadow-lg shadow-emerald-500/30">
-                  Crează Plan Outdoor
+                  CreazÄƒ Plan Outdoor
                 </Button>
               </div>
             </Card>
@@ -135,34 +150,34 @@ export default function Home() {
                 </div>
                 
                 <h2 className="text-3xl md:text-4xl font-bold mb-4 text-blue-50">
-                  Antrenament la Sală
+                  Antrenament la SalÄƒ
                 </h2>
                 
                 <p className="text-gray-300 text-lg leading-relaxed mb-8">
-                  Antrenamente structurate cu greutăți și echipament profesional. 
-                  Dezvoltare musculară, forță și rezistență prin programe progressive. 
-                  Rezultate optime cu programe personalizate la sală.
+                  Antrenamente structurate cu greutÄƒÈ›i È™i echipament profesional. 
+                  Dezvoltare muscularÄƒ, forÈ›Äƒ È™i rezistenÈ›Äƒ prin programe progressive. 
+                  Rezultate optime cu programe personalizate la salÄƒ.
                 </p>
                 
                 <div className="space-y-3 mb-8">
                   <div className="flex items-center gap-3 text-blue-300">
                     <TrendingUp className="w-5 h-5" />
-                    <span>Programe de forță și hipertrofie</span>
+                    <span>Programe de forÈ›Äƒ È™i hipertrofie</span>
                   </div>
                   <div className="flex items-center gap-3 text-blue-300">
                     <Target className="w-5 h-5" />
-                    <span>Antrenamente cu progresie structurată</span>
+                    <span>Antrenamente cu progresie structuratÄƒ</span>
                   </div>
                   <div className="flex items-center gap-3 text-blue-300">
                     <Zap className="w-5 h-5" />
-                    <span>Alimentație pentru dezvoltare musculară</span>
+                    <span>AlimentaÈ›ie pentru dezvoltare muscularÄƒ</span>
                   </div>
                 </div>
                 
                 <Button 
-                  onClick={goToSignIn}
+                  onClick={goToFaq}
                   className="w-full bg-gradient-to-r from-blue-500 to-red-600 hover:from-blue-600 hover:to-red-700 text-white font-semibold py-6 text-lg border-0 shadow-lg shadow-blue-500/30">
-                  Crează Plan Sală
+                  CreazÄƒ Plan SalÄƒ
                 </Button>
               </div>
             </Card>
@@ -237,7 +252,7 @@ export default function Home() {
       {/* Footer */}
       <footer className="border-t border-white/10 p-6 md:p-8">
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between">
-          <Link to="/" className="flex items-center space-x-3 mb-4 md:mb-0 hover:opacity-80 transition-opacity duration-200">
+          <Link to="/home" className="flex items-center space-x-3 mb-4 md:mb-0 hover:opacity-80 transition-opacity duration-200">
             <div className="bg-gradient-to-br from-emerald-400 to-blue-500 p-2 rounded-lg">
               <Heart className="w-5 h-5 text-white" />
             </div>
@@ -255,7 +270,7 @@ export default function Home() {
               FAQ
             </Link>
             <div className="text-gray-400">
-              © 2026 FitLife. All rights reserved.
+              Â© 2026 FitLife. All rights reserved.
             </div>
           </div>
         </div>
@@ -263,3 +278,6 @@ export default function Home() {
     </div>
   );
 }
+
+
+
