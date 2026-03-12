@@ -15,7 +15,7 @@ import { Link } from "react-router-dom";
 import ActivitiesList from "../components/ActivitiesList";
 import WorkoutPreview from "../components/WorkoutPreview";
 import { exerciseService } from "../services/exerciseService";
-import type { Exercise, MuscleGroup } from "../types/exercise";
+import type { Exercise, ExerciseType } from "../types/exercise";
 
 interface SidebarItem {
   id: string;
@@ -62,22 +62,22 @@ const SIDEBAR_ITEMS: SidebarItem[] = [
   { id: "tasks", label: "Tasks", icon: ClipboardCheck },
 ];
 
-const EXERCISE_ICON_BY_GROUP: Record<MuscleGroup, LucideIcon> = {
-  chest: Trophy,
-  back: CalendarCheck2,
-  legs: Users,
-  arms: UserRoundPlus,
-  core: Grid3X3,
+const EXERCISE_ICON_BY_TYPE: Record<ExerciseType, LucideIcon> = {
+  strength: Trophy,
   cardio: Heart,
+  core: Grid3X3,
+  mobility: Users,
+  plyometric: UserRoundPlus,
+  recovery: CalendarCheck2,
 };
 
 const INITIAL_DAY_EXERCISE_IDS = [
-  "Barbell_Bench_Press_-_Medium_Grip",
-  "Bent_Over_Barbell_Row",
-  "Barbell_Full_Squat",
+  2,
+  3,
+  1,
 ];
 
-const getExercisesByIds = (allExercises: Exercise[], ids: string[]): Exercise[] =>
+const getExercisesByIds = (allExercises: Exercise[], ids: number[]): Exercise[] =>
   ids
     .map((id) => allExercises.find((exercise) => exercise.id === id))
     .filter((exercise): exercise is Exercise => !!exercise);
@@ -206,7 +206,7 @@ export default function GymPlanMenu() {
     { id: "day-3", label: "Day 3", exercises: [] },
   ]);
   const [activeDayId, setActiveDayId] = useState<string>("day-1");
-  const [selectedExerciseByDay, setSelectedExerciseByDay] = useState<Record<string, string | null>>({
+  const [selectedExerciseByDay, setSelectedExerciseByDay] = useState<Record<string, number | null>>({
     "day-1": INITIAL_DAY_EXERCISE_IDS[0] ?? null,
     "day-2": null,
     "day-3": null,
@@ -241,8 +241,8 @@ export default function GymPlanMenu() {
   const selectedExercise =
     activeDayExercises.find((exercise) => exercise.id === selectedExerciseId) ?? null;
 
-  const getIconForMuscleGroup = (muscleGroup: MuscleGroup): LucideIcon =>
-    EXERCISE_ICON_BY_GROUP[muscleGroup];
+  const getIconForExerciseType = (type: ExerciseType): LucideIcon =>
+    EXERCISE_ICON_BY_TYPE[type];
 
   const handleSidebarAction = (item: SidebarItem): void => {
     setActiveSidebarItem(item.id);
@@ -310,7 +310,7 @@ export default function GymPlanMenu() {
     setSelectedExerciseByDay((prev) => ({ ...prev, [activeDayId]: exercise.id }));
   };
 
-  const handleDeleteExerciseFromActiveDay = (exerciseId: string): void => {
+  const handleDeleteExerciseFromActiveDay = (exerciseId: number): void => {
     const deletedExercise = activeDayExercises.find((exercise) => exercise.id === exerciseId);
     if (!deletedExercise) {
       return;
@@ -347,7 +347,7 @@ export default function GymPlanMenu() {
           ? {
               ...workout,
               name: exerciseForWorkout.name,
-              volume: `${activeDayExercises.length || 1} exercises`,
+              volume: exerciseForWorkout.duration ?? `${activeDayExercises.length || exerciseForWorkout.defaultSets} sets`,
             }
           : workout,
       ),
@@ -475,7 +475,7 @@ export default function GymPlanMenu() {
               <ActivitiesList
                 dayExercises={activeDayExercises}
                 selectedExerciseId={selectedExerciseId}
-                getIconForMuscleGroup={getIconForMuscleGroup}
+                getIconForExerciseType={getIconForExerciseType}
                 searchExercises={exerciseService.searchExercises}
                 onAddExercise={handleAddExerciseToActiveDay}
                 onSelectExercise={handleSelectExercise}

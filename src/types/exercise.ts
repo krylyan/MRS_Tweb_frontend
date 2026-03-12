@@ -1,11 +1,16 @@
-export type MuscleGroup = "chest" | "back" | "legs" | "arms" | "core" | "cardio";
+export type ExerciseType =
+  | "strength"
+  | "cardio"
+  | "core"
+  | "mobility"
+  | "plyometric"
+  | "recovery";
 
 export interface Exercise {
-  id: string;
+  id: number;
   name: string;
-  muscleGroup: MuscleGroup;
-  gifUrl: string;
+  type: ExerciseType;
   instructions: string;
-  targetMuscle?: string;
-  previewFrames?: string[];
+  defaultSets: number;
+  duration?: string;
 }

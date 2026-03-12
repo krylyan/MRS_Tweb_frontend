@@ -1,23 +1,23 @@
 import { Search } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { Exercise, MuscleGroup } from "../types/exercise";
+import type { Exercise, ExerciseType } from "../types/exercise";
 import ActivityCard from "./ActivityCard";
 
 interface ActivitiesListProps {
   dayExercises: Exercise[];
-  selectedExerciseId: string | null;
-  getIconForMuscleGroup: (muscleGroup: MuscleGroup) => LucideIcon;
+  selectedExerciseId: number | null;
+  getIconForExerciseType: (type: ExerciseType) => LucideIcon;
   searchExercises: (query: string) => Exercise[];
   onAddExercise: (exercise: Exercise) => void;
   onSelectExercise: (exercise: Exercise) => void;
-  onDeleteExercise: (exerciseId: string) => void;
+  onDeleteExercise: (exerciseId: number) => void;
 }
 
 export default function ActivitiesList({
   dayExercises,
   selectedExerciseId,
-  getIconForMuscleGroup,
+  getIconForExerciseType,
   searchExercises,
   onAddExercise,
   onSelectExercise,
@@ -72,7 +72,7 @@ export default function ActivitiesList({
           <div className="absolute left-0 right-0 top-[calc(100%+8px)] z-30 max-h-72 overflow-auto rounded-[10px] border border-white/12 bg-slate-900/95 p-1 shadow-[0_14px_28px_rgba(0,0,0,0.35)] backdrop-blur-[8px]">
             {results.length ? (
               results.map((exercise) => {
-                const Icon = getIconForMuscleGroup(exercise.muscleGroup);
+                const Icon = getIconForExerciseType(exercise.type);
                 const alreadyAdded = addedIds.has(exercise.id);
 
                 return (
@@ -91,7 +91,7 @@ export default function ActivitiesList({
                       </div>
                       <div>
                         <p className="text-sm font-semibold text-slate-100">{exercise.name}</p>
-                        <p className="text-xs capitalize text-slate-400">{exercise.muscleGroup}</p>
+                        <p className="text-xs capitalize text-slate-400">{exercise.type}</p>
                       </div>
                     </div>
                     {alreadyAdded ? <span className="text-[11px] font-semibold text-emerald-300">Added</span> : null}
@@ -111,7 +111,7 @@ export default function ActivitiesList({
             <ActivityCard
               key={exercise.id}
               exercise={exercise}
-              icon={getIconForMuscleGroup(exercise.muscleGroup)}
+              icon={getIconForExerciseType(exercise.type)}
               isSelected={selectedExerciseId === exercise.id}
               onSelect={onSelectExercise}
               onDelete={onDeleteExercise}
