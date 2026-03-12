@@ -1,10 +1,10 @@
 import { exercises } from "../data/exercises";
-import type { Exercise, ExerciseType } from "../types/exercise";
+import type { Exercise, MuscleGroup } from "../types/exercise";
 
 const getAllExercises = (): Exercise[] => exercises;
 
-const getExercisesByType = (type: ExerciseType): Exercise[] =>
-  exercises.filter((exercise) => exercise.type === type);
+const getExercisesByMuscleGroup = (muscleGroup: MuscleGroup): Exercise[] =>
+  exercises.filter((exercise) => exercise.muscleGroup === muscleGroup);
 
 const searchExercises = (query: string): Exercise[] => {
   const normalized = query.trim().toLowerCase();
@@ -17,6 +17,6 @@ const searchExercises = (query: string): Exercise[] => {
 
 export const exerciseService = {
   getAllExercises,
-  getExercisesByType,
+  getExercisesByMuscleGroup,
   searchExercises,
 };

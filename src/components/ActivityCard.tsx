@@ -7,7 +7,7 @@ interface ActivityCardProps {
   icon: LucideIcon;
   isSelected: boolean;
   onSelect: (exercise: Exercise) => void;
-  onDelete: (exerciseId: number) => void;
+  onDelete: (exerciseId: string) => void;
 }
 
 export default function ActivityCard({
@@ -17,8 +17,6 @@ export default function ActivityCard({
   onSelect,
   onDelete,
 }: ActivityCardProps) {
-  const detail = exercise.duration ?? `${exercise.defaultSets} sets`;
-
   return (
     <div
       className={`flex items-center justify-between rounded-[10px] border px-3 py-2.5 transition-all ${
@@ -38,7 +36,7 @@ export default function ActivityCard({
         <div className="min-w-0">
           <p className="truncate text-sm font-semibold text-slate-100">{exercise.name}</p>
           <p className="text-xs capitalize text-slate-300">
-            {exercise.type} | {detail}
+            {exercise.muscleGroup}
           </p>
         </div>
       </button>
