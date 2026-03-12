@@ -6,12 +6,12 @@ import ActivityCard from "./ActivityCard";
 
 interface ActivitiesListProps {
   dayExercises: Exercise[];
-  selectedExerciseId: number | null;
+  selectedExerciseId: string | null;
   getIconForMuscleGroup: (muscleGroup: MuscleGroup) => LucideIcon;
   searchExercises: (query: string) => Exercise[];
   onAddExercise: (exercise: Exercise) => void;
   onSelectExercise: (exercise: Exercise) => void;
-  onDeleteExercise: (exerciseId: number) => void;
+  onDeleteExercise: (exerciseId: string) => void;
 }
 
 export default function ActivitiesList({
@@ -126,4 +126,3 @@ export default function ActivitiesList({
     </section>
   );
 }
-

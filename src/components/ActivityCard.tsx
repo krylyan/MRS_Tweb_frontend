@@ -7,7 +7,7 @@ interface ActivityCardProps {
   icon: LucideIcon;
   isSelected: boolean;
   onSelect: (exercise: Exercise) => void;
-  onDelete: (exerciseId: number) => void;
+  onDelete: (exerciseId: string) => void;
 }
 
 export default function ActivityCard({
@@ -17,7 +17,7 @@ export default function ActivityCard({
   onSelect,
   onDelete,
 }: ActivityCardProps) {
-  const detail = exercise.duration ?? `${exercise.defaultSets} sets`;
+  const detail = exercise.targetMuscle ?? exercise.muscleGroup;
 
   return (
     <div
@@ -38,7 +38,7 @@ export default function ActivityCard({
         <div className="min-w-0">
           <p className="truncate text-sm font-semibold text-slate-100">{exercise.name}</p>
           <p className="text-xs capitalize text-slate-300">
-            {exercise.muscleGroup} • {detail}
+            {exercise.muscleGroup} | {detail}
           </p>
         </div>
       </button>
@@ -54,4 +54,3 @@ export default function ActivityCard({
     </div>
   );
 }
-
