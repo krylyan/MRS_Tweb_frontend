@@ -30,11 +30,33 @@ interface WorkoutItem {
   note: string;
 }
 
-interface ActivitiesPanelProps {
-  activities: Exercise[];
-  onSelectExercise: (exercise: Exercise) => void;
-  onDeleteActivity: (exerciseId: number) => void;
+interface DayPlan {
+  id: string;
+  label: string;
+  exercises: Exercise[];
+}
+
+interface DaysSelectorProps {
+  days: DayPlan[];
+  activeDayId: string;
+  onSelectDay: (day: DayPlan) => void;
+  onAddDay: () => void;
+}
+
+interface ActivitiesListProps {
+  exercises: Exercise[];
   getIconForType: (type: ExerciseType) => LucideIcon;
+  onSelectExercise: (exercise: Exercise) => void;
+  onDeleteExercise: (exerciseId: number) => void;
+}
+
+interface ActivityDetailsProps {
+  activeDayLabel: string;
+  selectedExercises: Exercise[];
+  activeWorkout: WorkoutItem;
+  onWorkoutVolumeChange: (value: string) => void;
+  onWorkoutNoteChange: (value: string) => void;
+  onApplyToWorkout: () => void;
 }
 
 const SIDEBAR_ITEMS: SidebarItem[] = [
@@ -55,41 +77,161 @@ const EXERCISE_ICON_BY_TYPE: Record<ExerciseType, LucideIcon> = {
   recovery: Heart,
 };
 
-const INITIAL_ACTIVITY_IDS = [2, 5, 17];
+const INITIAL_DAY_EXERCISE_IDS = [2, 5, 17];
 
-function ActivitiesPanel({
-  activities,
-  onSelectExercise,
-  onDeleteActivity,
+const getExercisesByIds = (ids: number[]): Exercise[] =>
+  ids
+    .map((id) => exerciseDatabase.find((exercise) => exercise.id === id))
+    .filter((exercise): exercise is Exercise => !!exercise);
+
+const createInitialDays = (): DayPlan[] => [
+  { id: "day-1", label: "Day 1", exercises: getExercisesByIds(INITIAL_DAY_EXERCISE_IDS) },
+  { id: "day-2", label: "Day 2", exercises: [] },
+  { id: "day-3", label: "Day 3", exercises: [] },
+];
+
+function DaysSelector({ days, activeDayId, onSelectDay, onAddDay }: DaysSelectorProps) {
+  return (
+    <section className="mb-4 rounded-[14px] border border-white/12 bg-white/4 p-4 shadow-[0_14px_28px_rgba(0,0,0,0.25)] backdrop-blur-[6px]">
+      <div className="mb-3 flex items-center justify-between">
+        <h2 className="text-lg font-semibold text-slate-50">Days</h2>
+        <button
+          type="button"
+          onClick={onAddDay}
+          className="inline-flex h-9 w-9 items-center justify-center rounded-[10px] border-0 bg-gradient-to-r from-emerald-500 to-blue-500 text-white transition-all duration-300 hover:from-emerald-600 hover:to-blue-600"
+        >
+          <Plus className="h-4 w-4" />
+        </button>
+      </div>
+
+      <div className="flex flex-wrap gap-2.5">
+        {days.map((day) => {
+          const isActive = day.id === activeDayId;
+          return (
+            <button
+              key={day.id}
+              type="button"
+              onClick={() => onSelectDay(day)}
+              className={`rounded-[10px] border px-4 py-2 text-sm font-semibold transition-colors ${
+                isActive
+                  ? "border-emerald-400/40 bg-emerald-500/15 text-emerald-200"
+                  : "border-white/10 bg-white/[0.02] text-slate-200 hover:bg-white/[0.08]"
+              }`}
+            >
+              {day.label}
+            </button>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+function ActivitiesList({
+  exercises,
   getIconForType,
-}: ActivitiesPanelProps) {
+  onSelectExercise,
+  onDeleteExercise,
+}: ActivitiesListProps) {
   return (
     <section className="rounded-[14px] border border-white/12 bg-white/4 p-4 shadow-[0_14px_28px_rgba(0,0,0,0.25)] backdrop-blur-[6px]">
       <h2 className="mb-3 text-lg font-semibold text-slate-50">Activities</h2>
 
       <ExerciseSearch
         exercises={exerciseDatabase}
-        addedExerciseIds={activities.map((activity) => activity.id)}
+        addedExerciseIds={exercises.map((exercise) => exercise.id)}
         getIconForType={getIconForType}
         onSelectExercise={onSelectExercise}
       />
 
       <div className="max-h-[620px] space-y-2.5 overflow-auto pr-1">
-        {activities.length ? (
-          activities.map((activity) => (
+        {exercises.length ? (
+          exercises.map((exercise) => (
             <ActivityItem
-              key={activity.id}
-              exercise={activity}
-              Icon={getIconForType(activity.type)}
-              onDelete={onDeleteActivity}
+              key={exercise.id}
+              exercise={exercise}
+              Icon={getIconForType(exercise.type)}
+              onDelete={onDeleteExercise}
             />
           ))
         ) : (
           <p className="rounded-[10px] border border-white/10 bg-white/[0.02] px-3 py-2 text-sm text-slate-300">
-            No activities selected yet. Search and add exercises above.
+            No activities selected for this day yet.
           </p>
         )}
       </div>
+    </section>
+  );
+}
+
+function ActivityDetails({
+  activeDayLabel,
+  selectedExercises,
+  activeWorkout,
+  onWorkoutVolumeChange,
+  onWorkoutNoteChange,
+  onApplyToWorkout,
+}: ActivityDetailsProps) {
+  const primaryExercise = selectedExercises[0];
+
+  return (
+    <section className="rounded-[14px] border border-white/12 bg-white/4 p-4 shadow-[0_14px_28px_rgba(0,0,0,0.25)] backdrop-blur-[6px]">
+      <h2 className="mb-3 text-lg font-semibold text-slate-50">Activity details</h2>
+
+      <div className="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-1">
+        <div className="rounded-[10px] border border-white/10 bg-white/[0.03] px-3 py-2">
+          <p className="text-[11px] uppercase tracking-wide text-slate-400">Active day</p>
+          <p className="text-sm font-semibold text-slate-100">{activeDayLabel}</p>
+        </div>
+        <div className="rounded-[10px] border border-white/10 bg-white/[0.03] px-3 py-2">
+          <p className="text-[11px] uppercase tracking-wide text-slate-400">Selected activities</p>
+          <p className="text-sm font-semibold text-slate-100">{selectedExercises.length}</p>
+        </div>
+      </div>
+
+      <div className="mt-4 space-y-3">
+        <div>
+          <label className="mb-1 block text-xs font-semibold text-slate-300">Workout title</label>
+          <p className="rounded-[10px] border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-slate-100">
+            {activeWorkout.name}
+          </p>
+        </div>
+
+        <div>
+          <label className="mb-1 block text-xs font-semibold text-slate-300">Volume</label>
+          <input
+            type="text"
+            value={activeWorkout.volume}
+            onChange={(event) => onWorkoutVolumeChange(event.target.value)}
+            className="h-10 w-full rounded-[10px] border border-white/20 bg-white/[0.03] px-3 text-sm text-slate-100 outline-none transition-all focus:border-emerald-500/60 focus:shadow-[0_0_16px_rgba(16,185,129,0.2)]"
+          />
+        </div>
+
+        <div>
+          <label className="mb-1 block text-xs font-semibold text-slate-300">Primary activity</label>
+          <p className="rounded-[10px] border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-slate-100">
+            {primaryExercise?.name ?? "No activity selected"}
+          </p>
+        </div>
+
+        <div>
+          <label className="mb-1 block text-xs font-semibold text-slate-300">Notes</label>
+          <textarea
+            value={activeWorkout.note}
+            onChange={(event) => onWorkoutNoteChange(event.target.value)}
+            className="h-28 w-full resize-none rounded-[10px] border border-white/20 bg-white/[0.03] px-3 py-2 text-sm text-slate-100 outline-none transition-all focus:border-emerald-500/60 focus:shadow-[0_0_16px_rgba(16,185,129,0.2)]"
+            placeholder="Add workout notes..."
+          />
+        </div>
+      </div>
+
+      <button
+        type="button"
+        onClick={onApplyToWorkout}
+        className="mt-4 w-full rounded-[10px] border-0 bg-gradient-to-r from-emerald-500 to-blue-500 py-2.5 text-sm font-semibold text-white shadow-lg transition-all duration-300 hover:from-emerald-600 hover:to-blue-600"
+      >
+        Update workout details
+      </button>
     </section>
   );
 }
@@ -99,11 +241,8 @@ export default function GymPlanMenu() {
   const [statusMessage, setStatusMessage] = useState<string>(
     "Search from the exercise database and build your workout list.",
   );
-  const [days, setDays] = useState<string[]>(["Day 1", "Day 2", "Day 3"]);
-  const [activeDay, setActiveDay] = useState<string>("Day 1");
-  const [activities, setActivities] = useState<Exercise[]>(
-    exerciseDatabase.filter((exercise) => INITIAL_ACTIVITY_IDS.includes(exercise.id)),
-  );
+  const [days, setDays] = useState<DayPlan[]>(() => createInitialDays());
+  const [activeDayId, setActiveDayId] = useState<string>("day-1");
   const [workouts, setWorkouts] = useState<WorkoutItem[]>([
     {
       id: "workout-1",
@@ -125,7 +264,11 @@ export default function GymPlanMenu() {
     );
   }, [activeWorkoutId, workouts]);
 
-  const primarySelectedActivity = activities[0];
+  const activeDay = useMemo<DayPlan | undefined>(
+    () => days.find((day) => day.id === activeDayId),
+    [days, activeDayId],
+  );
+  const activeDayExercises = activeDay?.exercises ?? [];
 
   const getIconForType = (type: ExerciseType): LucideIcon => EXERCISE_ICON_BY_TYPE[type];
 
@@ -149,53 +292,75 @@ export default function GymPlanMenu() {
     setStatusMessage(`${newWorkout.name} created.`);
   };
 
+  const handleSelectDay = (day: DayPlan): void => {
+    setActiveDayId(day.id);
+    setStatusMessage(`${day.label} selected.`);
+  };
+
   const handleAddDay = (): void => {
-    const nextDay = `Day ${days.length + 1}`;
+    const nextDayNumber = days.length + 1;
+    const nextDay: DayPlan = {
+      id: `day-${nextDayNumber}`,
+      label: `Day ${nextDayNumber}`,
+      exercises: [],
+    };
     setDays((prev) => [...prev, nextDay]);
-    setActiveDay(nextDay);
-    setStatusMessage(`${nextDay} added to your schedule.`);
+    setActiveDayId(nextDay.id);
+    setStatusMessage(`${nextDay.label} added to your schedule.`);
   };
 
   const handleSelectExercise = (exercise: Exercise): void => {
-    const alreadyAdded = activities.some((activity) => activity.id === exercise.id);
+    const alreadyAdded = activeDayExercises.some((activity) => activity.id === exercise.id);
     if (alreadyAdded) {
-      setStatusMessage(`${exercise.name} is already in the activities list.`);
+      setStatusMessage(`${exercise.name} is already in ${activeDay?.label ?? "this day"}.`);
       return;
     }
 
-    setActivities((prev) => [...prev, exercise]);
-    setStatusMessage(`${exercise.name} added to activities.`);
+    setDays((prev) =>
+      prev.map((day) =>
+        day.id === activeDayId ? { ...day, exercises: [...day.exercises, exercise] } : day,
+      ),
+    );
+    setStatusMessage(`${exercise.name} added to ${activeDay?.label ?? "current day"}.`);
   };
 
-  const handleDeleteActivity = (exerciseId: number): void => {
-    const deletedActivity = activities.find((activity) => activity.id === exerciseId);
-    if (!deletedActivity) {
+  const handleDeleteExercise = (exerciseId: number): void => {
+    const deletedExercise = activeDayExercises.find((exercise) => exercise.id === exerciseId);
+    if (!deletedExercise) {
       return;
     }
 
-    setActivities((prev) => prev.filter((activity) => activity.id !== exerciseId));
-    setStatusMessage(`${deletedActivity.name} removed from activities.`);
+    setDays((prev) =>
+      prev.map((day) =>
+        day.id === activeDayId
+          ? { ...day, exercises: day.exercises.filter((exercise) => exercise.id !== exerciseId) }
+          : day,
+      ),
+    );
+    setStatusMessage(`${deletedExercise.name} removed from ${activeDay?.label ?? "current day"}.`);
   };
 
   const handleApplySelectedActivities = (): void => {
-    if (!activities.length) {
-      setStatusMessage("Add at least one exercise first.");
+    if (!activeDayExercises.length) {
+      setStatusMessage("Add at least one exercise for the selected day first.");
       return;
     }
 
-    const primaryActivity = activities[0];
+    const primaryActivity = activeDayExercises[0];
     setWorkouts((prev) =>
       prev.map((workout) =>
         workout.id === activeWorkoutId
           ? {
               ...workout,
               name: primaryActivity.name,
-              volume: `${activities.length} selected exercises`,
+              volume: `${activeDayExercises.length} selected exercises`,
             }
           : workout,
       ),
     );
-    setStatusMessage(`${activities.length} activities linked to ${activeDay}.`);
+    setStatusMessage(
+      `${activeDayExercises.length} activities linked to ${activeDay?.label ?? "selected day"}.`,
+    );
   };
 
   const handleWorkoutVolumeChange = (value: string): void => {
@@ -305,118 +470,40 @@ export default function GymPlanMenu() {
               </div>
             </header>
 
+            <DaysSelector
+              days={days}
+              activeDayId={activeDayId}
+              onSelectDay={handleSelectDay}
+              onAddDay={handleAddDay}
+            />
+
             <div className="grid w-full gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)]">
-              <section className="space-y-4">
-                <article className="rounded-[14px] border border-white/12 bg-white/4 p-4 shadow-[0_14px_28px_rgba(0,0,0,0.25)] backdrop-blur-[6px]">
-                  <h2 className="mb-3 text-lg font-semibold text-slate-50">Workout image</h2>
-                  <div className="overflow-hidden rounded-[10px] border border-white/10">
-                    <ImageWithFallback
-                      src="https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080"
-                      alt="Gym training"
-                      className="h-[250px] w-full object-cover md:h-[280px]"
-                    />
-                  </div>
-                </article>
-
-                <article className="rounded-[14px] border border-white/12 bg-white/4 p-4 shadow-[0_14px_28px_rgba(0,0,0,0.25)] backdrop-blur-[6px]">
-                  <div className="mb-3 flex items-center justify-between">
-                    <h2 className="text-lg font-semibold text-slate-50">Days</h2>
-                    <button
-                      type="button"
-                      onClick={handleAddDay}
-                      className="inline-flex h-9 w-9 items-center justify-center rounded-[10px] border-0 bg-gradient-to-r from-emerald-500 to-blue-500 text-white transition-all duration-300 hover:from-emerald-600 hover:to-blue-600"
-                    >
-                      <Plus className="h-4 w-4" />
-                    </button>
-                  </div>
-
-                  <div className="space-y-2.5">
-                    {days.map((day) => {
-                      const isActive = day === activeDay;
-                      return (
-                        <button
-                          key={day}
-                          type="button"
-                          onClick={() => setActiveDay(day)}
-                          className={`w-full rounded-[10px] border px-3.5 py-3 text-left text-sm font-semibold transition-colors ${
-                            isActive
-                              ? "border-emerald-400/40 bg-emerald-500/15 text-emerald-200"
-                              : "border-white/10 bg-white/[0.02] text-slate-200 hover:bg-white/[0.08]"
-                          }`}
-                        >
-                          {day}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </article>
+              <section className="rounded-[14px] border border-white/12 bg-white/4 p-4 shadow-[0_14px_28px_rgba(0,0,0,0.25)] backdrop-blur-[6px]">
+                <h2 className="mb-3 text-lg font-semibold text-slate-50">Workout image</h2>
+                <div className="overflow-hidden rounded-[10px] border border-white/10">
+                  <ImageWithFallback
+                    src="https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080"
+                    alt="Gym training"
+                    className="h-[250px] w-full object-cover md:h-[280px]"
+                  />
+                </div>
               </section>
 
-              <ActivitiesPanel
-                activities={activities}
-                onSelectExercise={handleSelectExercise}
-                onDeleteActivity={handleDeleteActivity}
+              <ActivitiesList
+                exercises={activeDayExercises}
                 getIconForType={getIconForType}
+                onSelectExercise={handleSelectExercise}
+                onDeleteExercise={handleDeleteExercise}
               />
 
-              <section className="rounded-[14px] border border-white/12 bg-white/4 p-4 shadow-[0_14px_28px_rgba(0,0,0,0.25)] backdrop-blur-[6px]">
-                <h2 className="mb-3 text-lg font-semibold text-slate-50">Activity details</h2>
-
-                <div className="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-1">
-                  <div className="rounded-[10px] border border-white/10 bg-white/[0.03] px-3 py-2">
-                    <p className="text-[11px] uppercase tracking-wide text-slate-400">Active day</p>
-                    <p className="text-sm font-semibold text-slate-100">{activeDay}</p>
-                  </div>
-                  <div className="rounded-[10px] border border-white/10 bg-white/[0.03] px-3 py-2">
-                    <p className="text-[11px] uppercase tracking-wide text-slate-400">Selected activities</p>
-                    <p className="text-sm font-semibold text-slate-100">{activities.length}</p>
-                  </div>
-                </div>
-
-                <div className="mt-4 space-y-3">
-                  <div>
-                    <label className="mb-1 block text-xs font-semibold text-slate-300">Workout title</label>
-                    <p className="rounded-[10px] border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-slate-100">
-                      {activeWorkout.name}
-                    </p>
-                  </div>
-
-                  <div>
-                    <label className="mb-1 block text-xs font-semibold text-slate-300">Volume</label>
-                    <input
-                      type="text"
-                      value={activeWorkout.volume}
-                      onChange={(event) => handleWorkoutVolumeChange(event.target.value)}
-                      className="h-10 w-full rounded-[10px] border border-white/20 bg-white/[0.03] px-3 text-sm text-slate-100 outline-none transition-all focus:border-emerald-500/60 focus:shadow-[0_0_16px_rgba(16,185,129,0.2)]"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="mb-1 block text-xs font-semibold text-slate-300">Primary activity</label>
-                    <p className="rounded-[10px] border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-slate-100">
-                      {primarySelectedActivity?.name ?? "No activity selected"}
-                    </p>
-                  </div>
-
-                  <div>
-                    <label className="mb-1 block text-xs font-semibold text-slate-300">Notes</label>
-                    <textarea
-                      value={activeWorkout.note}
-                      onChange={(event) => handleWorkoutNoteChange(event.target.value)}
-                      className="h-28 w-full resize-none rounded-[10px] border border-white/20 bg-white/[0.03] px-3 py-2 text-sm text-slate-100 outline-none transition-all focus:border-emerald-500/60 focus:shadow-[0_0_16px_rgba(16,185,129,0.2)]"
-                      placeholder="Add workout notes..."
-                    />
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={handleApplySelectedActivities}
-                  className="mt-4 w-full rounded-[10px] border-0 bg-gradient-to-r from-emerald-500 to-blue-500 py-2.5 text-sm font-semibold text-white shadow-lg transition-all duration-300 hover:from-emerald-600 hover:to-blue-600"
-                >
-                  Update workout details
-                </button>
-              </section>
+              <ActivityDetails
+                activeDayLabel={activeDay?.label ?? "Day"}
+                selectedExercises={activeDayExercises}
+                activeWorkout={activeWorkout}
+                onWorkoutVolumeChange={handleWorkoutVolumeChange}
+                onWorkoutNoteChange={handleWorkoutNoteChange}
+                onApplyToWorkout={handleApplySelectedActivities}
+              />
             </div>
           </div>
         </div>
