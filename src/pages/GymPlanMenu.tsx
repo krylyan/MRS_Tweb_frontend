@@ -1,12 +1,10 @@
 import {
   CalendarCheck2,
-  Check,
   ClipboardCheck,
   Grid3X3,
   Heart,
   Plus,
   Search,
-  Trash2,
   Trophy,
   UserRoundPlus,
   Users,
@@ -14,18 +12,14 @@ import {
 import type { LucideIcon } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import ActivityItem from "../components/ActivityItem";
+import ExerciseSearch from "../components/ExerciseSearch";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
+import { exercises as exerciseDatabase, type Exercise, type ExerciseType } from "../data/exercises";
 
 interface SidebarItem {
   id: string;
   label: string;
-  icon: LucideIcon;
-}
-
-interface ActivityItem {
-  id: string;
-  name: string;
-  detail: string;
   icon: LucideIcon;
 }
 
@@ -37,11 +31,10 @@ interface WorkoutItem {
 }
 
 interface ActivitiesPanelProps {
-  activities: ActivityItem[];
-  selectedActivities: Record<string, boolean>;
-  onAddActivity: () => void;
-  onToggleActivity: (activity: ActivityItem) => void;
-  onDeleteActivity: (activityId: string) => void;
+  activities: Exercise[];
+  onSelectExercise: (exercise: Exercise) => void;
+  onDeleteActivity: (exerciseId: number) => void;
+  getIconForType: (type: ExerciseType) => LucideIcon;
 }
 
 const SIDEBAR_ITEMS: SidebarItem[] = [
@@ -53,116 +46,47 @@ const SIDEBAR_ITEMS: SidebarItem[] = [
   { id: "tasks", label: "Tasks", icon: ClipboardCheck },
 ];
 
-const ACTIVITY_POOL: ActivityItem[] = [
-  { id: "squat", name: "Squat", detail: "5 sets", icon: Trophy },
-  { id: "bicep-curl", name: "Bicep curl", detail: "3 sets", icon: UserRoundPlus },
-  { id: "running", name: "Running", detail: "10 min", icon: CalendarCheck2 },
-  { id: "sumo-squat", name: "Sumo squat", detail: "5 sets", icon: Users },
-  { id: "chest-fly", name: "Chest fly", detail: "3 sets", icon: Heart },
-  { id: "jumping-jacks", name: "Jumping jacks", detail: "1 minute", icon: Grid3X3 },
-  { id: "plank", name: "Plank", detail: "60 sec", icon: ClipboardCheck },
-  { id: "deadlift", name: "Deadlift", detail: "4 sets", icon: Search },
-];
+const EXERCISE_ICON_BY_TYPE: Record<ExerciseType, LucideIcon> = {
+  strength: Trophy,
+  cardio: CalendarCheck2,
+  core: Grid3X3,
+  mobility: ClipboardCheck,
+  plyometric: Users,
+  recovery: Heart,
+};
+
+const INITIAL_ACTIVITY_IDS = [2, 5, 17];
 
 function ActivitiesPanel({
   activities,
-  selectedActivities,
-  onAddActivity,
-  onToggleActivity,
+  onSelectExercise,
   onDeleteActivity,
+  getIconForType,
 }: ActivitiesPanelProps) {
-  const [searchQuery, setSearchQuery] = useState("");
-
-  const filteredActivities = useMemo(() => {
-    const query = searchQuery.trim().toLowerCase();
-    if (!query) {
-      return activities;
-    }
-    return activities.filter((activity) => activity.name.toLowerCase().includes(query));
-  }, [activities, searchQuery]);
-
   return (
     <section className="rounded-[14px] border border-white/12 bg-white/4 p-4 shadow-[0_14px_28px_rgba(0,0,0,0.25)] backdrop-blur-[6px]">
-      <div className="mb-3 flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-slate-50">Activities</h2>
-        <button
-          type="button"
-          onClick={onAddActivity}
-          className="inline-flex h-9 w-9 items-center justify-center rounded-[10px] border-0 bg-gradient-to-r from-emerald-500 to-blue-500 text-white transition-all duration-300 hover:from-emerald-600 hover:to-blue-600"
-        >
-          <Plus className="h-4 w-4" />
-        </button>
-      </div>
+      <h2 className="mb-3 text-lg font-semibold text-slate-50">Activities</h2>
 
-      <div className="relative mb-3">
-        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-        <input
-          type="text"
-          value={searchQuery}
-          onChange={(event) => setSearchQuery(event.target.value)}
-          placeholder="Search exercises..."
-          className="h-10 w-full rounded-[10px] border border-white/20 bg-white/[0.03] pl-10 pr-3 text-sm text-slate-100 outline-none transition-all placeholder:text-slate-400 focus:border-emerald-500/60 focus:shadow-[0_0_16px_rgba(16,185,129,0.2)]"
-        />
-      </div>
+      <ExerciseSearch
+        exercises={exerciseDatabase}
+        addedExerciseIds={activities.map((activity) => activity.id)}
+        getIconForType={getIconForType}
+        onSelectExercise={onSelectExercise}
+      />
 
       <div className="max-h-[620px] space-y-2.5 overflow-auto pr-1">
-        {filteredActivities.length ? (
-          filteredActivities.map((activity) => {
-            const Icon = activity.icon;
-            const isSelected = !!selectedActivities[activity.id];
-
-            return (
-              <div
-                key={activity.id}
-                className={`flex items-center justify-between rounded-[10px] border px-3 py-2.5 transition-all ${
-                  isSelected
-                    ? "border-emerald-400/40 bg-emerald-500/12"
-                    : "border-white/10 bg-white/[0.02] hover:bg-white/[0.08]"
-                }`}
-              >
-                <button
-                  type="button"
-                  onClick={() => onToggleActivity(activity)}
-                  className="flex min-w-0 flex-1 items-center gap-3 text-left"
-                >
-                  <div className="rounded-[8px] border border-white/10 bg-white/10 p-2 text-slate-200">
-                    <Icon className="h-4.5 w-4.5" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold text-slate-100">{activity.name}</p>
-                    <p className="text-xs text-slate-300">{activity.detail}</p>
-                  </div>
-                </button>
-
-                <div className="ml-2 flex items-center gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() => onToggleActivity(activity)}
-                    className={`inline-flex h-5 w-5 items-center justify-center rounded border text-white transition-colors ${
-                      isSelected
-                        ? "border-emerald-400/60 bg-emerald-500 text-white"
-                        : "border-white/30 bg-transparent text-transparent hover:border-white/50"
-                    }`}
-                    aria-label={`Toggle ${activity.name}`}
-                  >
-                    <Check className="h-3.5 w-3.5" />
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => onDeleteActivity(activity.id)}
-                    className="inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-[8px] text-slate-300 transition-all hover:bg-rose-500/15 hover:text-rose-300"
-                    aria-label={`Delete ${activity.name}`}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </div>
-              </div>
-            );
-          })
+        {activities.length ? (
+          activities.map((activity) => (
+            <ActivityItem
+              key={activity.id}
+              exercise={activity}
+              Icon={getIconForType(activity.type)}
+              onDelete={onDeleteActivity}
+            />
+          ))
         ) : (
           <p className="rounded-[10px] border border-white/10 bg-white/[0.02] px-3 py-2 text-sm text-slate-300">
-            No exercises match your search.
+            No activities selected yet. Search and add exercises above.
           </p>
         )}
       </div>
@@ -172,14 +96,14 @@ function ActivitiesPanel({
 
 export default function GymPlanMenu() {
   const [activeSidebarItem, setActiveSidebarItem] = useState<string>("search");
-  const [statusMessage, setStatusMessage] = useState<string>("Ready to build your gym workout.");
+  const [statusMessage, setStatusMessage] = useState<string>(
+    "Search from the exercise database and build your workout list.",
+  );
   const [days, setDays] = useState<string[]>(["Day 1", "Day 2", "Day 3"]);
   const [activeDay, setActiveDay] = useState<string>("Day 1");
-  const [activities, setActivities] = useState<ActivityItem[]>(ACTIVITY_POOL.slice(0, 6));
-  const [selectedActivities, setSelectedActivities] = useState<Record<string, boolean>>({
-    "bicep-curl": true,
-    "chest-fly": true,
-  });
+  const [activities, setActivities] = useState<Exercise[]>(
+    exerciseDatabase.filter((exercise) => INITIAL_ACTIVITY_IDS.includes(exercise.id)),
+  );
   const [workouts, setWorkouts] = useState<WorkoutItem[]>([
     {
       id: "workout-1",
@@ -201,8 +125,9 @@ export default function GymPlanMenu() {
     );
   }, [activeWorkoutId, workouts]);
 
-  const selectedActivityList = activities.filter((activity) => selectedActivities[activity.id]);
-  const primarySelectedActivity = selectedActivityList[0];
+  const primarySelectedActivity = activities[0];
+
+  const getIconForType = (type: ExerciseType): LucideIcon => EXERCISE_ICON_BY_TYPE[type];
 
   const handleSidebarAction = (item: SidebarItem): void => {
     setActiveSidebarItem(item.id);
@@ -231,72 +156,46 @@ export default function GymPlanMenu() {
     setStatusMessage(`${nextDay} added to your schedule.`);
   };
 
-  const handleAddActivity = (): void => {
-    const currentIds = new Set(activities.map((activity) => activity.id));
-    const unusedActivity = ACTIVITY_POOL.find((activity) => !currentIds.has(activity.id));
-
-    if (unusedActivity) {
-      setActivities((prev) => [...prev, unusedActivity]);
-      setSelectedActivities((prev) => ({ ...prev, [unusedActivity.id]: true }));
-      setStatusMessage(`${unusedActivity.name} added to activities.`);
+  const handleSelectExercise = (exercise: Exercise): void => {
+    const alreadyAdded = activities.some((activity) => activity.id === exercise.id);
+    if (alreadyAdded) {
+      setStatusMessage(`${exercise.name} is already in the activities list.`);
       return;
     }
 
-    const baseActivity = ACTIVITY_POOL[activities.length % ACTIVITY_POOL.length];
-    const duplicatedActivity: ActivityItem = {
-      ...baseActivity,
-      id: `${baseActivity.id}-${Date.now()}`,
-      name: `${baseActivity.name} Pro`,
-    };
-    setActivities((prev) => [...prev, duplicatedActivity]);
-    setSelectedActivities((prev) => ({ ...prev, [duplicatedActivity.id]: true }));
-    setStatusMessage(`${duplicatedActivity.name} added to activities.`);
+    setActivities((prev) => [...prev, exercise]);
+    setStatusMessage(`${exercise.name} added to activities.`);
   };
 
-  const handleToggleActivity = (activity: ActivityItem): void => {
-    const nextValue = !selectedActivities[activity.id];
-    setSelectedActivities((prev) => ({ ...prev, [activity.id]: nextValue }));
-    setStatusMessage(
-      nextValue
-        ? `${activity.name} selected for ${activeDay}.`
-        : `${activity.name} removed from ${activeDay}.`,
-    );
-  };
-
-  const handleDeleteActivity = (activityId: string): void => {
-    const deletedActivity = activities.find((activity) => activity.id === activityId);
+  const handleDeleteActivity = (exerciseId: number): void => {
+    const deletedActivity = activities.find((activity) => activity.id === exerciseId);
     if (!deletedActivity) {
       return;
     }
 
-    setActivities((prev) => prev.filter((activity) => activity.id !== activityId));
-    setSelectedActivities((prev) => {
-      const next = { ...prev };
-      delete next[activityId];
-      return next;
-    });
+    setActivities((prev) => prev.filter((activity) => activity.id !== exerciseId));
     setStatusMessage(`${deletedActivity.name} removed from activities.`);
   };
 
   const handleApplySelectedActivities = (): void => {
-    if (!selectedActivityList.length) {
-      setStatusMessage("Select at least one activity first.");
+    if (!activities.length) {
+      setStatusMessage("Add at least one exercise first.");
       return;
     }
 
-    const primaryActivity = selectedActivityList[0];
+    const primaryActivity = activities[0];
     setWorkouts((prev) =>
       prev.map((workout) =>
         workout.id === activeWorkoutId
           ? {
               ...workout,
               name: primaryActivity.name,
-              volume: `${selectedActivityList.length} active exercises`,
+              volume: `${activities.length} selected exercises`,
             }
           : workout,
       ),
     );
-    setStatusMessage(`${selectedActivityList.length} activities linked to ${activeDay}.`);
+    setStatusMessage(`${activities.length} activities linked to ${activeDay}.`);
   };
 
   const handleWorkoutVolumeChange = (value: string): void => {
@@ -455,10 +354,9 @@ export default function GymPlanMenu() {
 
               <ActivitiesPanel
                 activities={activities}
-                selectedActivities={selectedActivities}
-                onAddActivity={handleAddActivity}
-                onToggleActivity={handleToggleActivity}
+                onSelectExercise={handleSelectExercise}
                 onDeleteActivity={handleDeleteActivity}
+                getIconForType={getIconForType}
               />
 
               <section className="rounded-[14px] border border-white/12 bg-white/4 p-4 shadow-[0_14px_28px_rgba(0,0,0,0.25)] backdrop-blur-[6px]">
@@ -471,7 +369,7 @@ export default function GymPlanMenu() {
                   </div>
                   <div className="rounded-[10px] border border-white/10 bg-white/[0.03] px-3 py-2">
                     <p className="text-[11px] uppercase tracking-wide text-slate-400">Selected activities</p>
-                    <p className="text-sm font-semibold text-slate-100">{selectedActivityList.length}</p>
+                    <p className="text-sm font-semibold text-slate-100">{activities.length}</p>
                   </div>
                 </div>
 
@@ -526,3 +424,4 @@ export default function GymPlanMenu() {
     </main>
   );
 }
+
