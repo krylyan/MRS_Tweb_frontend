@@ -12,10 +12,10 @@ import {
 import type { LucideIcon } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import ActivityItem from "../components/ActivityItem";
-import ExerciseSearch from "../components/ExerciseSearch";
-import { ImageWithFallback } from "../components/figma/ImageWithFallback";
-import { exercises as exerciseDatabase, type Exercise, type ExerciseType } from "../data/exercises";
+import ActivitiesList from "../components/ActivitiesList";
+import WorkoutPreview from "../components/WorkoutPreview";
+import { exerciseService } from "../services/exerciseService";
+import type { Exercise, MuscleGroup } from "../types/exercise";
 
 interface SidebarItem {
   id: string;
@@ -43,16 +43,10 @@ interface DaysSelectorProps {
   onAddDay: () => void;
 }
 
-interface ActivitiesListProps {
-  exercises: Exercise[];
-  getIconForType: (type: ExerciseType) => LucideIcon;
-  onSelectExercise: (exercise: Exercise) => void;
-  onDeleteExercise: (exerciseId: number) => void;
-}
-
 interface ActivityDetailsProps {
   activeDayLabel: string;
-  selectedExercises: Exercise[];
+  selectedExercisesCount: number;
+  selectedExerciseName: string | null;
   activeWorkout: WorkoutItem;
   onWorkoutVolumeChange: (value: string) => void;
   onWorkoutNoteChange: (value: string) => void;
@@ -68,27 +62,21 @@ const SIDEBAR_ITEMS: SidebarItem[] = [
   { id: "tasks", label: "Tasks", icon: ClipboardCheck },
 ];
 
-const EXERCISE_ICON_BY_TYPE: Record<ExerciseType, LucideIcon> = {
-  strength: Trophy,
-  cardio: CalendarCheck2,
+const EXERCISE_ICON_BY_GROUP: Record<MuscleGroup, LucideIcon> = {
+  chest: Trophy,
+  back: CalendarCheck2,
+  legs: Users,
+  arms: UserRoundPlus,
   core: Grid3X3,
-  mobility: ClipboardCheck,
-  plyometric: Users,
-  recovery: Heart,
+  cardio: Heart,
 };
 
 const INITIAL_DAY_EXERCISE_IDS = [2, 5, 17];
 
-const getExercisesByIds = (ids: number[]): Exercise[] =>
+const getExercisesByIds = (allExercises: Exercise[], ids: number[]): Exercise[] =>
   ids
-    .map((id) => exerciseDatabase.find((exercise) => exercise.id === id))
+    .map((id) => allExercises.find((exercise) => exercise.id === id))
     .filter((exercise): exercise is Exercise => !!exercise);
-
-const createInitialDays = (): DayPlan[] => [
-  { id: "day-1", label: "Day 1", exercises: getExercisesByIds(INITIAL_DAY_EXERCISE_IDS) },
-  { id: "day-2", label: "Day 2", exercises: [] },
-  { id: "day-3", label: "Day 3", exercises: [] },
-];
 
 function DaysSelector({ days, activeDayId, onSelectDay, onAddDay }: DaysSelectorProps) {
   return (
@@ -127,53 +115,15 @@ function DaysSelector({ days, activeDayId, onSelectDay, onAddDay }: DaysSelector
   );
 }
 
-function ActivitiesList({
-  exercises,
-  getIconForType,
-  onSelectExercise,
-  onDeleteExercise,
-}: ActivitiesListProps) {
-  return (
-    <section className="rounded-[14px] border border-white/12 bg-white/4 p-4 shadow-[0_14px_28px_rgba(0,0,0,0.25)] backdrop-blur-[6px]">
-      <h2 className="mb-3 text-lg font-semibold text-slate-50">Activities</h2>
-
-      <ExerciseSearch
-        exercises={exerciseDatabase}
-        addedExerciseIds={exercises.map((exercise) => exercise.id)}
-        getIconForType={getIconForType}
-        onSelectExercise={onSelectExercise}
-      />
-
-      <div className="max-h-[620px] space-y-2.5 overflow-auto pr-1">
-        {exercises.length ? (
-          exercises.map((exercise) => (
-            <ActivityItem
-              key={exercise.id}
-              exercise={exercise}
-              Icon={getIconForType(exercise.type)}
-              onDelete={onDeleteExercise}
-            />
-          ))
-        ) : (
-          <p className="rounded-[10px] border border-white/10 bg-white/[0.02] px-3 py-2 text-sm text-slate-300">
-            No activities selected for this day yet.
-          </p>
-        )}
-      </div>
-    </section>
-  );
-}
-
 function ActivityDetails({
   activeDayLabel,
-  selectedExercises,
+  selectedExercisesCount,
+  selectedExerciseName,
   activeWorkout,
   onWorkoutVolumeChange,
   onWorkoutNoteChange,
   onApplyToWorkout,
 }: ActivityDetailsProps) {
-  const primaryExercise = selectedExercises[0];
-
   return (
     <section className="rounded-[14px] border border-white/12 bg-white/4 p-4 shadow-[0_14px_28px_rgba(0,0,0,0.25)] backdrop-blur-[6px]">
       <h2 className="mb-3 text-lg font-semibold text-slate-50">Activity details</h2>
@@ -185,7 +135,7 @@ function ActivityDetails({
         </div>
         <div className="rounded-[10px] border border-white/10 bg-white/[0.03] px-3 py-2">
           <p className="text-[11px] uppercase tracking-wide text-slate-400">Selected activities</p>
-          <p className="text-sm font-semibold text-slate-100">{selectedExercises.length}</p>
+          <p className="text-sm font-semibold text-slate-100">{selectedExercisesCount}</p>
         </div>
       </div>
 
@@ -208,9 +158,9 @@ function ActivityDetails({
         </div>
 
         <div>
-          <label className="mb-1 block text-xs font-semibold text-slate-300">Primary activity</label>
+          <label className="mb-1 block text-xs font-semibold text-slate-300">Selected exercise</label>
           <p className="rounded-[10px] border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-slate-100">
-            {primaryExercise?.name ?? "No activity selected"}
+            {selectedExerciseName ?? "No exercise selected"}
           </p>
         </div>
 
@@ -237,18 +187,32 @@ function ActivityDetails({
 }
 
 export default function GymPlanMenu() {
+  const allExercises = useMemo(() => exerciseService.getAllExercises(), []);
   const [activeSidebarItem, setActiveSidebarItem] = useState<string>("search");
   const [statusMessage, setStatusMessage] = useState<string>(
-    "Search from the exercise database and build your workout list.",
+    "Search the professional database and configure exercises per day.",
   );
-  const [days, setDays] = useState<DayPlan[]>(() => createInitialDays());
+  const [days, setDays] = useState<DayPlan[]>(() => [
+    {
+      id: "day-1",
+      label: "Day 1",
+      exercises: getExercisesByIds(allExercises, INITIAL_DAY_EXERCISE_IDS),
+    },
+    { id: "day-2", label: "Day 2", exercises: [] },
+    { id: "day-3", label: "Day 3", exercises: [] },
+  ]);
   const [activeDayId, setActiveDayId] = useState<string>("day-1");
+  const [selectedExerciseByDay, setSelectedExerciseByDay] = useState<Record<string, number | null>>({
+    "day-1": INITIAL_DAY_EXERCISE_IDS[0] ?? null,
+    "day-2": null,
+    "day-3": null,
+  });
   const [workouts, setWorkouts] = useState<WorkoutItem[]>([
     {
       id: "workout-1",
-      name: "Bicep curl",
-      volume: "12x 20 kg / 10x 22 kg",
-      note: "Keep elbows close to your torso and avoid swinging.",
+      name: "Workout",
+      volume: "4 sets",
+      note: "Keep good form and controlled tempo.",
     },
   ]);
   const [activeWorkoutId, setActiveWorkoutId] = useState<string>("workout-1");
@@ -269,8 +233,12 @@ export default function GymPlanMenu() {
     [days, activeDayId],
   );
   const activeDayExercises = activeDay?.exercises ?? [];
+  const selectedExerciseId = selectedExerciseByDay[activeDayId] ?? null;
+  const selectedExercise =
+    activeDayExercises.find((exercise) => exercise.id === selectedExerciseId) ?? null;
 
-  const getIconForType = (type: ExerciseType): LucideIcon => EXERCISE_ICON_BY_TYPE[type];
+  const getIconForMuscleGroup = (muscleGroup: MuscleGroup): LucideIcon =>
+    EXERCISE_ICON_BY_GROUP[muscleGroup];
 
   const handleSidebarAction = (item: SidebarItem): void => {
     setActiveSidebarItem(item.id);
@@ -283,8 +251,8 @@ export default function GymPlanMenu() {
     const newWorkout: WorkoutItem = {
       id: newWorkoutId,
       name: `Workout ${nextWorkoutNumber}`,
-      volume: "3 sets / 8 reps",
-      note: "Add your focus and progression notes here.",
+      volume: "4 sets",
+      note: "Add your progression notes for this workout.",
     };
 
     setWorkouts((prev) => [...prev, newWorkout]);
@@ -304,63 +272,83 @@ export default function GymPlanMenu() {
       label: `Day ${nextDayNumber}`,
       exercises: [],
     };
+
     setDays((prev) => [...prev, nextDay]);
+    setSelectedExerciseByDay((prev) => ({ ...prev, [nextDay.id]: null }));
     setActiveDayId(nextDay.id);
     setStatusMessage(`${nextDay.label} added to your schedule.`);
   };
 
   const handleSelectExercise = (exercise: Exercise): void => {
-    const alreadyAdded = activeDayExercises.some((activity) => activity.id === exercise.id);
-    if (alreadyAdded) {
-      setStatusMessage(`${exercise.name} is already in ${activeDay?.label ?? "this day"}.`);
+    const existsInActiveDay = activeDayExercises.some((item) => item.id === exercise.id);
+    if (!existsInActiveDay) {
       return;
     }
 
-    setDays((prev) =>
-      prev.map((day) =>
-        day.id === activeDayId ? { ...day, exercises: [...day.exercises, exercise] } : day,
-      ),
-    );
-    setStatusMessage(`${exercise.name} added to ${activeDay?.label ?? "current day"}.`);
+    setSelectedExerciseByDay((prev) => ({ ...prev, [activeDayId]: exercise.id }));
+    setStatusMessage(`${exercise.name} selected.`);
   };
 
-  const handleDeleteExercise = (exerciseId: number): void => {
+  const handleAddExerciseToActiveDay = (exercise: Exercise): void => {
+    const existsInActiveDay = activeDayExercises.some((item) => item.id === exercise.id);
+
+    if (!existsInActiveDay) {
+      setDays((prev) =>
+        prev.map((day) =>
+          day.id === activeDayId ? { ...day, exercises: [...day.exercises, exercise] } : day,
+        ),
+      );
+      setStatusMessage(`${exercise.name} added to ${activeDay?.label ?? "current day"}.`);
+    } else {
+      setStatusMessage(`${exercise.name} is already in ${activeDay?.label ?? "current day"}.`);
+    }
+
+    setSelectedExerciseByDay((prev) => ({ ...prev, [activeDayId]: exercise.id }));
+  };
+
+  const handleDeleteExerciseFromActiveDay = (exerciseId: number): void => {
     const deletedExercise = activeDayExercises.find((exercise) => exercise.id === exerciseId);
     if (!deletedExercise) {
       return;
     }
 
+    const remainingExercises = activeDayExercises.filter((exercise) => exercise.id !== exerciseId);
+
     setDays((prev) =>
       prev.map((day) =>
-        day.id === activeDayId
-          ? { ...day, exercises: day.exercises.filter((exercise) => exercise.id !== exerciseId) }
-          : day,
+        day.id === activeDayId ? { ...day, exercises: remainingExercises } : day,
       ),
     );
+
+    setSelectedExerciseByDay((prev) => {
+      if (prev[activeDayId] !== exerciseId) {
+        return prev;
+      }
+      return { ...prev, [activeDayId]: remainingExercises[0]?.id ?? null };
+    });
+
     setStatusMessage(`${deletedExercise.name} removed from ${activeDay?.label ?? "current day"}.`);
   };
 
   const handleApplySelectedActivities = (): void => {
-    if (!activeDayExercises.length) {
-      setStatusMessage("Add at least one exercise for the selected day first.");
+    const exerciseForWorkout = selectedExercise ?? activeDayExercises[0];
+    if (!exerciseForWorkout) {
+      setStatusMessage("Select an exercise for the active day first.");
       return;
     }
 
-    const primaryActivity = activeDayExercises[0];
     setWorkouts((prev) =>
       prev.map((workout) =>
         workout.id === activeWorkoutId
           ? {
               ...workout,
-              name: primaryActivity.name,
-              volume: `${activeDayExercises.length} selected exercises`,
+              name: exerciseForWorkout.name,
+              volume: `${activeDayExercises.length || exerciseForWorkout.defaultSets} sets`,
             }
           : workout,
       ),
     );
-    setStatusMessage(
-      `${activeDayExercises.length} activities linked to ${activeDay?.label ?? "selected day"}.`,
-    );
+    setStatusMessage(`${exerciseForWorkout.name} linked to ${activeDay?.label ?? "current day"}.`);
   };
 
   const handleWorkoutVolumeChange = (value: string): void => {
@@ -478,27 +466,22 @@ export default function GymPlanMenu() {
             />
 
             <div className="grid w-full gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)]">
-              <section className="rounded-[14px] border border-white/12 bg-white/4 p-4 shadow-[0_14px_28px_rgba(0,0,0,0.25)] backdrop-blur-[6px]">
-                <h2 className="mb-3 text-lg font-semibold text-slate-50">Workout image</h2>
-                <div className="overflow-hidden rounded-[10px] border border-white/10">
-                  <ImageWithFallback
-                    src="https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080"
-                    alt="Gym training"
-                    className="h-[250px] w-full object-cover md:h-[280px]"
-                  />
-                </div>
-              </section>
+              <WorkoutPreview selectedExercise={selectedExercise} />
 
               <ActivitiesList
-                exercises={activeDayExercises}
-                getIconForType={getIconForType}
+                dayExercises={activeDayExercises}
+                selectedExerciseId={selectedExerciseId}
+                getIconForMuscleGroup={getIconForMuscleGroup}
+                searchExercises={exerciseService.searchExercises}
+                onAddExercise={handleAddExerciseToActiveDay}
                 onSelectExercise={handleSelectExercise}
-                onDeleteExercise={handleDeleteExercise}
+                onDeleteExercise={handleDeleteExerciseFromActiveDay}
               />
 
               <ActivityDetails
                 activeDayLabel={activeDay?.label ?? "Day"}
-                selectedExercises={activeDayExercises}
+                selectedExercisesCount={activeDayExercises.length}
+                selectedExerciseName={selectedExercise?.name ?? null}
                 activeWorkout={activeWorkout}
                 onWorkoutVolumeChange={handleWorkoutVolumeChange}
                 onWorkoutNoteChange={handleWorkoutNoteChange}

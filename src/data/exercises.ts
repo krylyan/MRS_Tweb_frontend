@@ -1,64 +1,166 @@
-export type ExerciseType =
-  | "strength"
-  | "cardio"
-  | "core"
-  | "mobility"
-  | "plyometric"
-  | "recovery";
+import type { Exercise, MuscleGroup } from "../types/exercise";
 
-export interface Exercise {
-  id: number;
+interface ExerciseSeed {
   name: string;
-  type: ExerciseType;
+  instructions: string;
   defaultSets: number;
   duration?: string;
 }
 
-export const exercises: Exercise[] = [
-  { id: 1, name: "Squat", type: "strength", defaultSets: 5 },
-  { id: 2, name: "Bicep Curl", type: "strength", defaultSets: 3 },
-  { id: 3, name: "Push-up", type: "strength", defaultSets: 4 },
-  { id: 4, name: "Bench Press", type: "strength", defaultSets: 4 },
-  { id: 5, name: "Deadlift", type: "strength", defaultSets: 4 },
-  { id: 6, name: "Overhead Press", type: "strength", defaultSets: 4 },
-  { id: 7, name: "Lat Pulldown", type: "strength", defaultSets: 4 },
-  { id: 8, name: "Seated Row", type: "strength", defaultSets: 4 },
-  { id: 9, name: "Incline Dumbbell Press", type: "strength", defaultSets: 4 },
-  { id: 10, name: "Romanian Deadlift", type: "strength", defaultSets: 4 },
-  { id: 11, name: "Leg Press", type: "strength", defaultSets: 4 },
-  { id: 12, name: "Lunge", type: "strength", defaultSets: 3 },
-  { id: 13, name: "Hip Thrust", type: "strength", defaultSets: 4 },
-  { id: 14, name: "Calf Raise", type: "strength", defaultSets: 4 },
-  { id: 15, name: "Tricep Dip", type: "strength", defaultSets: 3 },
-  { id: 16, name: "Hammer Curl", type: "strength", defaultSets: 3 },
-  { id: 17, name: "Running", type: "cardio", defaultSets: 1, duration: "10 min" },
-  { id: 18, name: "Cycling", type: "cardio", defaultSets: 1, duration: "20 min" },
-  { id: 19, name: "Rowing", type: "cardio", defaultSets: 1, duration: "12 min" },
-  { id: 20, name: "Jump Rope", type: "cardio", defaultSets: 1, duration: "8 min" },
-  { id: 21, name: "Stair Climber", type: "cardio", defaultSets: 1, duration: "15 min" },
-  { id: 22, name: "Elliptical", type: "cardio", defaultSets: 1, duration: "18 min" },
-  { id: 23, name: "Mountain Climbers", type: "cardio", defaultSets: 3, duration: "45 sec" },
-  { id: 24, name: "High Knees", type: "cardio", defaultSets: 3, duration: "30 sec" },
-  { id: 25, name: "Plank", type: "core", defaultSets: 3, duration: "60 sec" },
-  { id: 26, name: "Side Plank", type: "core", defaultSets: 3, duration: "40 sec" },
-  { id: 27, name: "Russian Twist", type: "core", defaultSets: 3, duration: "45 sec" },
-  { id: 28, name: "Leg Raise", type: "core", defaultSets: 3 },
-  { id: 29, name: "Hollow Hold", type: "core", defaultSets: 3, duration: "35 sec" },
-  { id: 30, name: "Bird Dog", type: "core", defaultSets: 3 },
-  { id: 31, name: "Dynamic Hamstring Stretch", type: "mobility", defaultSets: 2, duration: "30 sec" },
-  { id: 32, name: "Hip Flexor Stretch", type: "mobility", defaultSets: 2, duration: "30 sec" },
-  { id: 33, name: "Thoracic Rotation", type: "mobility", defaultSets: 2, duration: "30 sec" },
-  { id: 34, name: "Ankle Mobility Drill", type: "mobility", defaultSets: 2, duration: "30 sec" },
-  { id: 35, name: "Shoulder Dislocates", type: "mobility", defaultSets: 2 },
-  { id: 36, name: "World's Greatest Stretch", type: "mobility", defaultSets: 2 },
-  { id: 37, name: "Jump Squat", type: "plyometric", defaultSets: 4 },
-  { id: 38, name: "Burpee", type: "plyometric", defaultSets: 4 },
-  { id: 39, name: "Box Jump", type: "plyometric", defaultSets: 4 },
-  { id: 40, name: "Skater Jump", type: "plyometric", defaultSets: 4 },
-  { id: 41, name: "Medicine Ball Slam", type: "plyometric", defaultSets: 4 },
-  { id: 42, name: "Clap Push-up", type: "plyometric", defaultSets: 3 },
-  { id: 43, name: "Foam Rolling Quads", type: "recovery", defaultSets: 2, duration: "60 sec" },
-  { id: 44, name: "Foam Rolling Back", type: "recovery", defaultSets: 2, duration: "60 sec" },
-  { id: 45, name: "Breathing Drill", type: "recovery", defaultSets: 2, duration: "90 sec" },
-];
+const EXERCISE_SEEDS: Record<MuscleGroup, ExerciseSeed[]> = {
+  chest: [
+    { name: "Barbell Bench Press", instructions: "Lower the bar to mid-chest and press explosively.", defaultSets: 4 },
+    { name: "Dumbbell Bench Press", instructions: "Press dumbbells up while keeping wrists stacked over elbows.", defaultSets: 4 },
+    { name: "Incline Barbell Press", instructions: "Press from upper chest and avoid flaring elbows too wide.", defaultSets: 4 },
+    { name: "Incline Dumbbell Press", instructions: "Drive dumbbells upward and control the negative phase.", defaultSets: 4 },
+    { name: "Decline Bench Press", instructions: "Keep shoulders pinned and press through full range.", defaultSets: 4 },
+    { name: "Push-Up", instructions: "Lower chest toward the floor and push back with a tight core.", defaultSets: 4 },
+    { name: "Chest Dip", instructions: "Lean forward and lower until chest is stretched, then press up.", defaultSets: 3 },
+    { name: "Dumbbell Fly", instructions: "Open arms wide with soft elbows and squeeze chest at top.", defaultSets: 3 },
+    { name: "Incline Dumbbell Fly", instructions: "Lower slowly on incline and bring dumbbells together above chest.", defaultSets: 3 },
+    { name: "Cable Crossover", instructions: "Pull handles inward in an arc and squeeze chest at center.", defaultSets: 3 },
+    { name: "Low Cable Fly", instructions: "Raise cables from low pulleys upward across the chest.", defaultSets: 3 },
+    { name: "Pec Deck Fly", instructions: "Keep shoulders down and squeeze handles together under control.", defaultSets: 3 },
+    { name: "Machine Chest Press", instructions: "Press handles forward and avoid locking elbows aggressively.", defaultSets: 4 },
+    { name: "Smith Machine Bench Press", instructions: "Lower to chest line and press with stable tempo.", defaultSets: 4 },
+    { name: "Svend Press", instructions: "Press plate forward while keeping constant chest tension.", defaultSets: 3 },
+    { name: "Single-Arm Cable Press", instructions: "Press one handle forward while resisting torso rotation.", defaultSets: 3 },
+    { name: "Landmine Press", instructions: "Press the bar in an arc and keep ribs down.", defaultSets: 3 },
+    { name: "Decline Push-Up", instructions: "Elevate feet and lower chest deeply before pressing up.", defaultSets: 4 },
+    { name: "Plyometric Push-Up", instructions: "Explode off the floor and land with control.", defaultSets: 3 },
+    { name: "Resistance Band Chest Press", instructions: "Step forward into band tension and press straight out.", defaultSets: 3 },
+  ],
+  back: [
+    { name: "Pull-Up", instructions: "Pull chest toward bar and lower under control.", defaultSets: 4 },
+    { name: "Chin-Up", instructions: "Use a supinated grip and drive elbows down.", defaultSets: 4 },
+    { name: "Wide Grip Lat Pulldown", instructions: "Pull bar to upper chest while keeping torso stable.", defaultSets: 4 },
+    { name: "Neutral Grip Lat Pulldown", instructions: "Drive elbows to hips and squeeze lats at bottom.", defaultSets: 4 },
+    { name: "Barbell Bent-Over Row", instructions: "Row to lower ribs with a flat back position.", defaultSets: 4 },
+    { name: "One-Arm Dumbbell Row", instructions: "Pull elbow past torso and avoid torso twisting.", defaultSets: 4 },
+    { name: "Seated Cable Row", instructions: "Pull handle to abdomen and control return.", defaultSets: 4 },
+    { name: "Chest-Supported Row", instructions: "Row with chest supported to isolate upper back.", defaultSets: 4 },
+    { name: "T-Bar Row", instructions: "Pull toward sternum and keep lower back neutral.", defaultSets: 4 },
+    { name: "Inverted Row", instructions: "Keep body straight and pull chest toward the bar.", defaultSets: 3 },
+    { name: "Straight-Arm Pulldown", instructions: "Pull bar down with straight arms and engage lats.", defaultSets: 3 },
+    { name: "Face Pull", instructions: "Pull rope toward face and externally rotate shoulders.", defaultSets: 3 },
+    { name: "Meadows Row", instructions: "Row landmine handle explosively and pause at top.", defaultSets: 3 },
+    { name: "Machine Row", instructions: "Drive elbows back and keep shoulders depressed.", defaultSets: 4 },
+    { name: "Rack Pull", instructions: "Lift from pins with strong hip extension and braced core.", defaultSets: 4 },
+    { name: "Deadlift", instructions: "Push floor away and keep bar close to shins.", defaultSets: 4 },
+    { name: "Back Extension", instructions: "Hinge at hips and extend spine without over-arching.", defaultSets: 3 },
+    { name: "Good Morning", instructions: "Hinge with soft knees and maintain neutral spine.", defaultSets: 3 },
+    { name: "Resistance Band Row", instructions: "Row bands to torso and squeeze shoulder blades.", defaultSets: 3 },
+    { name: "Superman Hold", instructions: "Lift arms and legs and hold with glute tension.", defaultSets: 3, duration: "30 sec" },
+  ],
+  legs: [
+    { name: "Back Squat", instructions: "Sit down and back while keeping chest tall.", defaultSets: 5 },
+    { name: "Front Squat", instructions: "Keep elbows high and descend under control.", defaultSets: 4 },
+    { name: "Goblet Squat", instructions: "Hold dumbbell close to chest and drive knees out.", defaultSets: 4 },
+    { name: "Leg Press", instructions: "Lower sled to full depth and press through mid-foot.", defaultSets: 4 },
+    { name: "Bulgarian Split Squat", instructions: "Lower back knee and keep front knee tracking toes.", defaultSets: 4 },
+    { name: "Walking Lunge", instructions: "Step long, drop knee, and drive up through front leg.", defaultSets: 3 },
+    { name: "Romanian Deadlift", instructions: "Hinge at hips and stretch hamstrings before standing.", defaultSets: 4 },
+    { name: "Stiff Leg Deadlift", instructions: "Lower bar with minimal knee bend and neutral spine.", defaultSets: 3 },
+    { name: "Hip Thrust", instructions: "Drive hips up and pause at full lockout.", defaultSets: 4 },
+    { name: "Glute Bridge", instructions: "Press heels down and lift hips with glute squeeze.", defaultSets: 3 },
+    { name: "Leg Extension", instructions: "Extend knees fully and lower slowly.", defaultSets: 3 },
+    { name: "Lying Leg Curl", instructions: "Curl heels toward glutes and control eccentric.", defaultSets: 3 },
+    { name: "Seated Leg Curl", instructions: "Keep hips fixed and contract hamstrings hard.", defaultSets: 3 },
+    { name: "Hack Squat", instructions: "Descend to depth and push evenly through feet.", defaultSets: 4 },
+    { name: "Sumo Squat", instructions: "Use wide stance and sit between hips.", defaultSets: 4 },
+    { name: "Step-Up", instructions: "Step on platform and drive through working leg.", defaultSets: 3 },
+    { name: "Calf Raise", instructions: "Lift heels high and pause before lowering.", defaultSets: 4 },
+    { name: "Pistol Squat", instructions: "Descend on one leg with controlled tempo.", defaultSets: 3 },
+    { name: "Leg Abduction Machine", instructions: "Push pads outward and hold outer-glute tension.", defaultSets: 3 },
+    { name: "Leg Adduction Machine", instructions: "Squeeze pads inward with controlled tempo.", defaultSets: 3 },
+  ],
+  arms: [
+    { name: "Barbell Curl", instructions: "Curl bar up while keeping elbows pinned.", defaultSets: 4 },
+    { name: "Dumbbell Curl", instructions: "Supinate wrists as you curl each dumbbell.", defaultSets: 4 },
+    { name: "Alternating Dumbbell Curl", instructions: "Curl one arm at a time without swinging.", defaultSets: 3 },
+    { name: "Hammer Curl", instructions: "Keep neutral grip and raise dumbbells to shoulders.", defaultSets: 3 },
+    { name: "Preacher Curl", instructions: "Lower fully and curl up with strict form.", defaultSets: 3 },
+    { name: "Concentration Curl", instructions: "Brace elbow against thigh and squeeze at top.", defaultSets: 3 },
+    { name: "EZ Bar Curl", instructions: "Use controlled tempo and avoid torso momentum.", defaultSets: 3 },
+    { name: "Cable Curl", instructions: "Maintain constant cable tension throughout the rep.", defaultSets: 3 },
+    { name: "Reverse Curl", instructions: "Use pronated grip and lift with forearm control.", defaultSets: 3 },
+    { name: "Zottman Curl", instructions: "Supinate on the way up and pronate on the way down.", defaultSets: 3 },
+    { name: "Tricep Pushdown", instructions: "Extend elbows fully while shoulders stay fixed.", defaultSets: 4 },
+    { name: "Rope Pushdown", instructions: "Spread rope apart at bottom for full contraction.", defaultSets: 3 },
+    { name: "Overhead Tricep Extension", instructions: "Lower behind head and extend elbows upward.", defaultSets: 3 },
+    { name: "Cable Overhead Extension", instructions: "Keep elbows close and extend under cable tension.", defaultSets: 3 },
+    { name: "Skull Crusher", instructions: "Lower bar near forehead and extend without elbow flare.", defaultSets: 3 },
+    { name: "Close-Grip Bench Press", instructions: "Press with narrow grip and keep elbows tucked.", defaultSets: 4 },
+    { name: "Bench Dip", instructions: "Lower body with control and press back up.", defaultSets: 3 },
+    { name: "Diamond Push-Up", instructions: "Keep hands close and press while core is braced.", defaultSets: 3 },
+    { name: "Dumbbell Tricep Kickback", instructions: "Extend elbow fully and pause at lockout.", defaultSets: 3 },
+    { name: "Single-Arm Overhead Tricep Extension", instructions: "Extend arm overhead without torso sway.", defaultSets: 3 },
+  ],
+  core: [
+    { name: "Plank", instructions: "Keep body straight and brace abs continuously.", defaultSets: 3, duration: "45 sec" },
+    { name: "Side Plank", instructions: "Stack hips and hold a straight line from ankle to head.", defaultSets: 3, duration: "30 sec" },
+    { name: "Dead Bug", instructions: "Extend opposite arm and leg while lower back stays flat.", defaultSets: 3 },
+    { name: "Bird Dog", instructions: "Reach opposite limbs and avoid hip rotation.", defaultSets: 3 },
+    { name: "Crunch", instructions: "Lift shoulder blades off floor and control descent.", defaultSets: 3 },
+    { name: "Bicycle Crunch", instructions: "Alternate elbow-to-knee while rotating torso.", defaultSets: 3 },
+    { name: "Reverse Crunch", instructions: "Curl pelvis off floor using lower abs.", defaultSets: 3 },
+    { name: "Hanging Knee Raise", instructions: "Raise knees toward chest without swinging.", defaultSets: 3 },
+    { name: "Hanging Leg Raise", instructions: "Lift straight legs to hip level with control.", defaultSets: 3 },
+    { name: "Lying Leg Raise", instructions: "Keep legs straight and lower slowly.", defaultSets: 3 },
+    { name: "Russian Twist", instructions: "Rotate torso side to side with tight core.", defaultSets: 3, duration: "40 sec" },
+    { name: "V-Up", instructions: "Lift torso and legs together to form a V shape.", defaultSets: 3 },
+    { name: "Hollow Body Hold", instructions: "Press low back to floor and hold tension.", defaultSets: 3, duration: "30 sec" },
+    { name: "Flutter Kicks", instructions: "Kick legs quickly while core remains braced.", defaultSets: 3, duration: "30 sec" },
+    { name: "Toe Touch", instructions: "Reach hands toward toes using abdominal contraction.", defaultSets: 3 },
+    { name: "Heel Tap", instructions: "Tap each heel while keeping shoulders raised.", defaultSets: 3 },
+    { name: "Seated Knee Tuck", instructions: "Draw knees inward and extend back out.", defaultSets: 3 },
+    { name: "Ab Wheel Rollout", instructions: "Roll forward under control and keep hips tucked.", defaultSets: 3 },
+    { name: "Cable Crunch", instructions: "Crunch down by flexing spine against cable resistance.", defaultSets: 3 },
+    { name: "Pallof Press", instructions: "Press band or cable forward resisting rotation.", defaultSets: 3, duration: "30 sec" },
+  ],
+  cardio: [
+    { name: "Running", instructions: "Maintain steady pace and controlled breathing rhythm.", defaultSets: 1, duration: "15 min" },
+    { name: "Treadmill Incline Walk", instructions: "Walk briskly at incline with upright posture.", defaultSets: 1, duration: "15 min" },
+    { name: "Sprint Intervals", instructions: "Alternate all-out sprints with short recovery periods.", defaultSets: 6, duration: "20 sec" },
+    { name: "Cycling", instructions: "Maintain cadence and keep upper body relaxed.", defaultSets: 1, duration: "20 min" },
+    { name: "Stationary Bike", instructions: "Pedal at moderate resistance with smooth cadence.", defaultSets: 1, duration: "18 min" },
+    { name: "Rowing", instructions: "Drive with legs first then pull with arms.", defaultSets: 1, duration: "12 min" },
+    { name: "Elliptical", instructions: "Move with full stride and consistent tempo.", defaultSets: 1, duration: "15 min" },
+    { name: "Stair Climber", instructions: "Step rhythmically and avoid leaning on handles.", defaultSets: 1, duration: "12 min" },
+    { name: "Jump Rope", instructions: "Use short wrist turns and soft landings.", defaultSets: 4, duration: "60 sec" },
+    { name: "Jumping Jacks", instructions: "Jump feet wide while raising arms overhead.", defaultSets: 4, duration: "45 sec" },
+    { name: "High Knees", instructions: "Drive knees high while pumping arms quickly.", defaultSets: 4, duration: "30 sec" },
+    { name: "Burpee", instructions: "Drop to plank, jump feet back in, and explode upward.", defaultSets: 4, duration: "30 sec" },
+    { name: "Mountain Climber", instructions: "Alternate knee drives quickly from plank position.", defaultSets: 4, duration: "40 sec" },
+    { name: "Battle Ropes", instructions: "Create powerful rope waves while core stays tight.", defaultSets: 4, duration: "30 sec" },
+    { name: "Shadow Boxing", instructions: "Throw combinations at pace with active footwork.", defaultSets: 4, duration: "60 sec" },
+    { name: "Swimming", instructions: "Maintain stroke rhythm and controlled breathing.", defaultSets: 1, duration: "20 min" },
+    { name: "Hiking", instructions: "Walk uphill terrain at sustainable intensity.", defaultSets: 1, duration: "30 min" },
+    { name: "Ski Erg", instructions: "Drive handles down using core and lats repeatedly.", defaultSets: 4, duration: "45 sec" },
+    { name: "Assault Bike", instructions: "Push and pull handles while pedaling hard.", defaultSets: 5, duration: "30 sec" },
+    { name: "Farmer Carry March", instructions: "March in place carrying heavy dumbbells with posture control.", defaultSets: 4, duration: "40 sec" },
+  ],
+};
+
+const slugify = (value: string): string =>
+  value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "");
+
+let nextId = 1;
+
+export const exercises: Exercise[] = (
+  Object.entries(EXERCISE_SEEDS) as Array<[MuscleGroup, ExerciseSeed[]]>
+).flatMap(([muscleGroup, seeds]) =>
+  seeds.map((seed) => ({
+    id: nextId++,
+    name: seed.name,
+    muscleGroup,
+    videoUrl: `/videos/exercises/${slugify(seed.name)}.mp4`,
+    instructions: seed.instructions,
+    defaultSets: seed.defaultSets,
+    duration: seed.duration,
+  })),
+);
 
