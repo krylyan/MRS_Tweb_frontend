@@ -4,8 +4,6 @@ import {
   ClipboardCheck,
   Grid3X3,
   Heart,
-  MessageCircle,
-  Play,
   Plus,
   Search,
   Trophy,
@@ -14,7 +12,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 
 interface SidebarItem {
@@ -44,8 +42,6 @@ const SIDEBAR_ITEMS: SidebarItem[] = [
   { id: "coach", label: "Coach", icon: UserRoundPlus },
   { id: "calendar", label: "Calendar", icon: CalendarCheck2 },
   { id: "tasks", label: "Tasks", icon: ClipboardCheck },
-  { id: "support", label: "Support", icon: MessageCircle },
-  { id: "awards", label: "Awards", icon: Trophy },
 ];
 
 const ACTIVITY_POOL: ActivityItem[] = [
@@ -60,9 +56,8 @@ const ACTIVITY_POOL: ActivityItem[] = [
 ];
 
 export default function GymPlanMenu() {
-  const navigate = useNavigate();
   const [activeSidebarItem, setActiveSidebarItem] = useState<string>("search");
-  const [statusMessage, setStatusMessage] = useState<string>("Ready to build your gym plan.");
+  const [statusMessage, setStatusMessage] = useState<string>("Ready to build your gym workout.");
   const [days, setDays] = useState<string[]>(["Day 1", "Day 2", "Day 3"]);
   const [activeDay, setActiveDay] = useState<string>("Day 1");
   const [activities, setActivities] = useState<ActivityItem[]>(ACTIVITY_POOL.slice(0, 6));
@@ -79,9 +74,6 @@ export default function GymPlanMenu() {
     },
   ]);
   const [activeWorkoutId, setActiveWorkoutId] = useState<string>("workout-1");
-  const [isSessionLive, setIsSessionLive] = useState<boolean>(false);
-  const [likedPreview, setLikedPreview] = useState<boolean>(false);
-  const [likesCount, setLikesCount] = useState<number>(132);
 
   const activeWorkout = useMemo<WorkoutItem>(() => {
     return (
@@ -95,6 +87,7 @@ export default function GymPlanMenu() {
   }, [activeWorkoutId, workouts]);
 
   const selectedActivityList = activities.filter((activity) => selectedActivities[activity.id]);
+  const primarySelectedActivity = selectedActivityList[0];
 
   const handleSidebarAction = (item: SidebarItem): void => {
     setActiveSidebarItem(item.id);
@@ -176,21 +169,12 @@ export default function GymPlanMenu() {
     setStatusMessage(`${selectedActivityList.length} activities linked to ${activeDay}.`);
   };
 
-  const handleSessionToggle = (): void => {
-    const nextIsLive = !isSessionLive;
-    setIsSessionLive(nextIsLive);
-    setStatusMessage(nextIsLive ? `Session started for ${activeDay}.` : "Session paused.");
-  };
-
-  const handleLikeToggle = (): void => {
-    if (likedPreview) {
-      setLikedPreview(false);
-      setLikesCount((prev) => Math.max(0, prev - 1));
-      return;
-    }
-
-    setLikedPreview(true);
-    setLikesCount((prev) => prev + 1);
+  const handleWorkoutVolumeChange = (value: string): void => {
+    setWorkouts((prev) =>
+      prev.map((workout) =>
+        workout.id === activeWorkoutId ? { ...workout, volume: value } : workout,
+      ),
+    );
   };
 
   const handleWorkoutNoteChange = (value: string): void => {
@@ -202,284 +186,256 @@ export default function GymPlanMenu() {
   };
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-gradient-to-br from-gray-950 via-slate-900 to-gray-950 px-3 py-4 text-white sm:px-6 sm:py-8">
-      <div className="pointer-events-none absolute -left-24 top-1/2 h-[340px] w-[340px] -translate-y-1/2 rounded-full bg-gradient-to-br from-orange-500/80 to-red-500/80 blur-2xl" />
-      <div className="pointer-events-none absolute -right-28 top-16 h-[300px] w-[300px] rounded-full bg-gradient-to-br from-blue-500/35 to-indigo-500/25 blur-3xl" />
-
-      <div className="relative mx-auto flex w-full max-w-[1260px] overflow-hidden rounded-[34px] border border-white/15 bg-white/95 text-gray-900 shadow-[0_28px_90px_rgba(8,18,43,0.45)]">
-        <aside className="hidden w-[88px] shrink-0 flex-col justify-between bg-gradient-to-b from-[#40273f] to-[#261828] p-3 text-white lg:flex">
-          <div className="space-y-2">
-            <div className="mb-3 flex justify-center">
-              <Link
-                to="/home"
-                className="rounded-lg border border-white/20 px-3 py-2 text-xs font-bold tracking-[0.2em] text-white/90 transition-colors hover:bg-white/10"
-              >
-                FL
-              </Link>
-            </div>
-            {SIDEBAR_ITEMS.map((item) => {
-              const Icon = item.icon;
-              const isActive = activeSidebarItem === item.id;
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => handleSidebarAction(item)}
-                  title={item.label}
-                  className={`flex h-11 w-11 items-center justify-center rounded-xl border transition-all duration-200 ${
-                    isActive
-                      ? "border-blue-300/50 bg-blue-500/30 text-white"
-                      : "border-transparent text-white/75 hover:border-white/20 hover:bg-white/10"
-                  }`}
+    <main className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-slate-900 text-slate-200">
+      <div className="mx-auto w-full max-w-[1400px] px-3 py-4 sm:px-6 sm:py-8">
+        <div className="flex gap-4 lg:gap-5">
+          <aside className="hidden w-[78px] shrink-0 rounded-[14px] border border-white/12 bg-white/4 p-2.5 shadow-[0_14px_28px_rgba(0,0,0,0.25)] backdrop-blur-[6px] lg:flex lg:flex-col lg:justify-between">
+            <div className="space-y-1.5">
+              <div className="mb-3 flex justify-center">
+                <Link
+                  to="/home"
+                  className="rounded-[10px] border border-white/20 bg-white/5 px-3 py-2 text-xs font-bold tracking-[0.2em] text-white transition-colors hover:bg-white/10"
                 >
-                  <Icon className="h-5 w-5" />
-                </button>
-              );
-            })}
-          </div>
-          <button
-            type="button"
-            onClick={() => navigate("/home")}
-            className="rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-white/20"
-          >
-            Home
-          </button>
-        </aside>
-
-        <div className="flex-1 p-4 sm:p-6 xl:p-8">
-          <header className="mb-5 flex flex-col gap-3 sm:mb-7 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h1 className="text-3xl font-extrabold tracking-tight text-[#322538] sm:text-5xl">Workout editor</h1>
-              <p className="mt-2 text-sm font-medium text-slate-500">{statusMessage}</p>
-            </div>
-
-            <div className="flex flex-wrap gap-2">
-              <Link
-                to="/home"
-                className="rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-100"
-              >
-                Back to Home
-              </Link>
-              <button
-                type="button"
-                onClick={handleCreateWorkout}
-                className="inline-flex items-center gap-2 rounded-full border border-blue-400/70 bg-gradient-to-r from-blue-500 to-cyan-500 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-blue-400/30 transition-all hover:from-blue-600 hover:to-cyan-600"
-              >
-                <Plus className="h-4 w-4" />
-                Create workout
-              </button>
-            </div>
-          </header>
-
-          <div className="mb-5 flex flex-wrap gap-2 lg:hidden">
-            {SIDEBAR_ITEMS.slice(0, 5).map((item) => {
-              const Icon = item.icon;
-              const isActive = activeSidebarItem === item.id;
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => handleSidebarAction(item)}
-                  className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${
-                    isActive
-                      ? "border-blue-300 bg-blue-100 text-blue-700"
-                      : "border-slate-300 bg-white text-slate-600 hover:bg-slate-100"
-                  }`}
-                >
-                  <Icon className="h-3.5 w-3.5" />
-                  {item.label}
-                </button>
-              );
-            })}
-          </div>
-
-          <div className="grid gap-4 xl:grid-cols-[1.05fr_1fr_0.9fr]">
-            <section className="space-y-4">
-              <div className="overflow-hidden rounded-[24px] bg-slate-200">
-                <ImageWithFallback
-                  src="https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080"
-                  alt="Gym training"
-                  className="h-[220px] w-full object-cover"
-                />
+                  FL
+                </Link>
               </div>
+              {SIDEBAR_ITEMS.map((item) => {
+                const Icon = item.icon;
+                const isActive = activeSidebarItem === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => handleSidebarAction(item)}
+                    title={item.label}
+                    className={`mx-auto flex h-10 w-10 items-center justify-center rounded-[10px] border transition-all duration-200 ${
+                      isActive
+                        ? "border-emerald-400/40 bg-emerald-500/20 text-emerald-200"
+                        : "border-transparent bg-transparent text-slate-300 hover:border-white/20 hover:bg-white/10 hover:text-white"
+                    }`}
+                  >
+                    <Icon className="h-4.5 w-4.5" />
+                  </button>
+                );
+              })}
+            </div>
+            <Link
+              to="/home"
+              className="mx-auto inline-flex rounded-[10px] border border-white/20 bg-white/8 px-3 py-2 text-xs font-semibold text-slate-100 transition-colors hover:bg-white/14"
+            >
+              Home
+            </Link>
+          </aside>
 
-              <div className="rounded-[24px] bg-slate-200 p-4 sm:p-5">
-                <div className="mb-3 flex items-center justify-between">
-                  <h2 className="text-3xl font-bold text-[#332739]">Days</h2>
+          <div className="w-full">
+            <header className="mb-4 rounded-[14px] border border-white/12 bg-white/4 p-4 shadow-[0_14px_28px_rgba(0,0,0,0.25)] backdrop-blur-[6px] md:p-5">
+              <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <h1 className="text-3xl font-bold leading-tight text-slate-50 md:text-4xl">Workout editor</h1>
+                  <p className="mt-1 text-sm text-slate-300">{statusMessage}</p>
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  <Link
+                    to="/home"
+                    className="rounded-[10px] border border-white/25 bg-white/8 px-4 py-2 text-sm font-semibold text-slate-100 transition-colors hover:bg-white/14"
+                  >
+                    Back to Home
+                  </Link>
                   <button
                     type="button"
-                    onClick={handleAddDay}
-                    className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-blue-500 text-white shadow-md transition-colors hover:bg-blue-600"
+                    onClick={handleCreateWorkout}
+                    className="inline-flex items-center gap-2 rounded-[10px] border-0 bg-gradient-to-r from-emerald-500 to-blue-500 px-4 py-2 text-sm font-semibold text-white shadow-lg transition-all duration-300 hover:from-emerald-600 hover:to-blue-600"
                   >
-                    <Plus className="h-5 w-5" />
+                    <Plus className="h-4 w-4" />
+                    Create workout
                   </button>
                 </div>
-                <div className="space-y-2.5">
-                  {days.map((day) => {
-                    const isActive = day === activeDay;
-                    return (
-                      <button
-                        key={day}
-                        type="button"
-                        onClick={() => setActiveDay(day)}
-                        className={`w-full rounded-xl border px-4 py-3 text-left font-semibold transition-colors ${
-                          isActive
-                            ? "border-blue-300 bg-blue-50 text-blue-700"
-                            : "border-transparent bg-white/75 text-slate-600 hover:bg-white"
-                        }`}
-                      >
-                        {day}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            </section>
-
-            <section className="rounded-[24px] bg-slate-200 p-4 sm:p-5">
-              <div className="mb-3 flex items-center justify-between">
-                <h2 className="text-4xl font-bold text-[#332739]">Activities</h2>
-                <button
-                  type="button"
-                  onClick={handleAddActivity}
-                  className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-blue-500 text-white shadow-md transition-colors hover:bg-blue-600"
-                >
-                  <Plus className="h-5 w-5" />
-                </button>
               </div>
 
-              <div className="max-h-[490px] space-y-2.5 overflow-auto pr-1">
-                {activities.map((activity) => {
-                  const Icon = activity.icon;
-                  const isSelected = !!selectedActivities[activity.id];
+              <div className="mt-4 flex flex-wrap gap-2 lg:hidden">
+                {SIDEBAR_ITEMS.map((item) => {
+                  const Icon = item.icon;
+                  const isActive = activeSidebarItem === item.id;
                   return (
                     <button
-                      key={activity.id}
+                      key={item.id}
                       type="button"
-                      onClick={() => handleToggleActivity(activity)}
-                      className={`flex w-full items-center justify-between rounded-2xl border px-3 py-2.5 text-left transition-all ${
-                        isSelected
-                          ? "border-blue-200 bg-white shadow-sm shadow-blue-100/80"
-                          : "border-transparent bg-white/80 hover:bg-white"
+                      onClick={() => handleSidebarAction(item)}
+                      className={`inline-flex items-center gap-1.5 rounded-[10px] border px-3 py-1.5 text-xs font-semibold transition-colors ${
+                        isActive
+                          ? "border-emerald-400/40 bg-emerald-500/20 text-emerald-200"
+                          : "border-white/20 bg-white/6 text-slate-200 hover:bg-white/12"
                       }`}
                     >
-                      <div className="flex items-center gap-3">
-                        <div className="rounded-xl bg-slate-100 p-2 text-slate-600">
-                          <Icon className="h-5 w-5" />
-                        </div>
-                        <div>
-                          <p className="text-xl font-semibold text-[#3a2e40]">{activity.name}</p>
-                          <p className="text-sm text-slate-500">{activity.detail}</p>
-                        </div>
-                      </div>
-                      <span
-                        className={`inline-flex h-6 w-6 items-center justify-center rounded border text-white transition-colors ${
-                          isSelected
-                            ? "border-blue-500 bg-blue-500"
-                            : "border-slate-300 bg-transparent text-transparent"
-                        }`}
-                      >
-                        <Check className="h-4 w-4" />
-                      </span>
+                      <Icon className="h-3.5 w-3.5" />
+                      {item.label}
                     </button>
                   );
                 })}
               </div>
-            </section>
+            </header>
 
-            <section className="space-y-4">
-              <div className="rounded-[24px] bg-slate-200 p-4 sm:p-5">
-                <h2 className="mb-3 text-4xl font-bold text-[#332739]">{activeWorkout.name}</h2>
-                <div className="overflow-hidden rounded-2xl">
-                  <ImageWithFallback
-                    src="https://images.unsplash.com/photo-1594737625785-a6cbdabd333c?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080"
-                    alt="Gym bench training"
-                    className="h-[205px] w-full object-cover"
-                  />
-                </div>
-                <div className="mt-3 grid grid-cols-2 gap-2">
-                  <div className="rounded-xl bg-white p-3 text-center">
-                    <p className="text-xs uppercase tracking-wide text-slate-500">Volume</p>
-                    <p className="text-sm font-semibold text-slate-700">{activeWorkout.volume}</p>
+            <div className="grid w-full gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)]">
+              <section className="space-y-4">
+                <article className="rounded-[14px] border border-white/12 bg-white/4 p-4 shadow-[0_14px_28px_rgba(0,0,0,0.25)] backdrop-blur-[6px]">
+                  <h2 className="mb-3 text-lg font-semibold text-slate-50">Workout image</h2>
+                  <div className="overflow-hidden rounded-[10px] border border-white/10">
+                    <ImageWithFallback
+                      src="https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080"
+                      alt="Gym training"
+                      className="h-[250px] w-full object-cover md:h-[280px]"
+                    />
                   </div>
-                  <div className="rounded-xl bg-white p-3 text-center">
-                    <p className="text-xs uppercase tracking-wide text-slate-500">Selected</p>
-                    <p className="text-sm font-semibold text-slate-700">{selectedActivityList.length} activities</p>
+                </article>
+
+                <article className="rounded-[14px] border border-white/12 bg-white/4 p-4 shadow-[0_14px_28px_rgba(0,0,0,0.25)] backdrop-blur-[6px]">
+                  <div className="mb-3 flex items-center justify-between">
+                    <h2 className="text-lg font-semibold text-slate-50">Days</h2>
+                    <button
+                      type="button"
+                      onClick={handleAddDay}
+                      className="inline-flex h-9 w-9 items-center justify-center rounded-[10px] border-0 bg-gradient-to-r from-emerald-500 to-blue-500 text-white transition-all duration-300 hover:from-emerald-600 hover:to-blue-600"
+                    >
+                      <Plus className="h-4 w-4" />
+                    </button>
                   </div>
-                </div>
-                <textarea
-                  value={activeWorkout.note}
-                  onChange={(event) => handleWorkoutNoteChange(event.target.value)}
-                  className="mt-3 h-24 w-full resize-none rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none ring-blue-400 transition focus:ring-2"
-                  placeholder="Add note..."
-                />
-              </div>
 
-              <div className="mx-auto w-full max-w-[345px] rounded-[34px] border border-slate-200 bg-white p-4 shadow-xl shadow-slate-300/60">
-                <div className="mb-3 overflow-hidden rounded-[22px]">
-                  <ImageWithFallback
-                    src="https://images.unsplash.com/photo-1518310383802-640c2de311b2?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080"
-                    alt="Workout shoes"
-                    className="h-[205px] w-full object-cover"
-                  />
-                </div>
+                  <div className="space-y-2.5">
+                    {days.map((day) => {
+                      const isActive = day === activeDay;
+                      return (
+                        <button
+                          key={day}
+                          type="button"
+                          onClick={() => setActiveDay(day)}
+                          className={`w-full rounded-[10px] border px-3.5 py-3 text-left text-sm font-semibold transition-colors ${
+                            isActive
+                              ? "border-emerald-400/40 bg-emerald-500/15 text-emerald-200"
+                              : "border-white/10 bg-white/[0.02] text-slate-200 hover:bg-white/[0.08]"
+                          }`}
+                        >
+                          {day}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </article>
+              </section>
 
+              <section className="rounded-[14px] border border-white/12 bg-white/4 p-4 shadow-[0_14px_28px_rgba(0,0,0,0.25)] backdrop-blur-[6px]">
                 <div className="mb-3 flex items-center justify-between">
+                  <h2 className="text-lg font-semibold text-slate-50">Activities</h2>
                   <button
                     type="button"
-                    onClick={handleLikeToggle}
-                    className="inline-flex items-center gap-2 text-3xl font-bold text-[#2f2634] transition-colors hover:text-red-500"
+                    onClick={handleAddActivity}
+                    className="inline-flex h-9 w-9 items-center justify-center rounded-[10px] border-0 bg-gradient-to-r from-emerald-500 to-blue-500 text-white transition-all duration-300 hover:from-emerald-600 hover:to-blue-600"
                   >
-                    <Heart className={`h-6 w-6 ${likedPreview ? "fill-red-500 text-red-500" : "text-red-400"}`} />
-                    {likesCount}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleSessionToggle}
-                    className={`inline-flex h-16 w-16 items-center justify-center rounded-full text-white shadow-lg transition-colors ${
-                      isSessionLive ? "bg-emerald-500 hover:bg-emerald-600" : "bg-blue-500 hover:bg-blue-600"
-                    }`}
-                  >
-                    <Play className="h-7 w-7" />
+                    <Plus className="h-4 w-4" />
                   </button>
                 </div>
 
-                <div className="space-y-2">
-                  {selectedActivityList.slice(0, 2).map((activity) => {
+                <div className="max-h-[620px] space-y-2.5 overflow-auto pr-1">
+                  {activities.map((activity) => {
                     const Icon = activity.icon;
+                    const isSelected = !!selectedActivities[activity.id];
                     return (
-                      <div
+                      <button
                         key={activity.id}
-                        className="flex items-center justify-between rounded-2xl bg-slate-100 px-3 py-2"
+                        type="button"
+                        onClick={() => handleToggleActivity(activity)}
+                        className={`flex w-full items-center justify-between rounded-[10px] border px-3 py-2.5 text-left transition-all ${
+                          isSelected
+                            ? "border-emerald-400/40 bg-emerald-500/12"
+                            : "border-white/10 bg-white/[0.02] hover:bg-white/[0.08]"
+                        }`}
                       >
-                        <div className="flex items-center gap-2">
-                          <div className="rounded-lg bg-white p-1.5 text-slate-600">
-                            <Icon className="h-4 w-4" />
+                        <div className="flex items-center gap-3">
+                          <div className="rounded-[8px] border border-white/10 bg-white/10 p-2 text-slate-200">
+                            <Icon className="h-4.5 w-4.5" />
                           </div>
                           <div>
-                            <p className="text-lg font-semibold text-[#3a2e40]">{activity.name}</p>
-                            <p className="text-xs text-slate-500">{activity.detail}</p>
+                            <p className="text-sm font-semibold text-slate-100">{activity.name}</p>
+                            <p className="text-xs text-slate-300">{activity.detail}</p>
                           </div>
                         </div>
-                        <Check className="h-4 w-4 text-emerald-500" />
-                      </div>
+                        <span
+                          className={`inline-flex h-5 w-5 items-center justify-center rounded border text-white transition-colors ${
+                            isSelected
+                              ? "border-emerald-400/60 bg-emerald-500 text-white"
+                              : "border-white/30 bg-transparent text-transparent"
+                          }`}
+                        >
+                          <Check className="h-3.5 w-3.5" />
+                        </span>
+                      </button>
                     );
                   })}
+                </div>
+              </section>
+
+              <section className="rounded-[14px] border border-white/12 bg-white/4 p-4 shadow-[0_14px_28px_rgba(0,0,0,0.25)] backdrop-blur-[6px]">
+                <h2 className="mb-3 text-lg font-semibold text-slate-50">Activity details</h2>
+
+                <div className="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-1">
+                  <div className="rounded-[10px] border border-white/10 bg-white/[0.03] px-3 py-2">
+                    <p className="text-[11px] uppercase tracking-wide text-slate-400">Active day</p>
+                    <p className="text-sm font-semibold text-slate-100">{activeDay}</p>
+                  </div>
+                  <div className="rounded-[10px] border border-white/10 bg-white/[0.03] px-3 py-2">
+                    <p className="text-[11px] uppercase tracking-wide text-slate-400">Selected activities</p>
+                    <p className="text-sm font-semibold text-slate-100">{selectedActivityList.length}</p>
+                  </div>
+                </div>
+
+                <div className="mt-4 space-y-3">
+                  <div>
+                    <label className="mb-1 block text-xs font-semibold text-slate-300">Workout title</label>
+                    <p className="rounded-[10px] border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-slate-100">
+                      {activeWorkout.name}
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="mb-1 block text-xs font-semibold text-slate-300">Volume</label>
+                    <input
+                      type="text"
+                      value={activeWorkout.volume}
+                      onChange={(event) => handleWorkoutVolumeChange(event.target.value)}
+                      className="h-10 w-full rounded-[10px] border border-white/20 bg-white/[0.03] px-3 text-sm text-slate-100 outline-none transition-all focus:border-emerald-500/60 focus:shadow-[0_0_16px_rgba(16,185,129,0.2)]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-1 block text-xs font-semibold text-slate-300">Primary activity</label>
+                    <p className="rounded-[10px] border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-slate-100">
+                      {primarySelectedActivity?.name ?? "No activity selected"}
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="mb-1 block text-xs font-semibold text-slate-300">Notes</label>
+                    <textarea
+                      value={activeWorkout.note}
+                      onChange={(event) => handleWorkoutNoteChange(event.target.value)}
+                      className="h-28 w-full resize-none rounded-[10px] border border-white/20 bg-white/[0.03] px-3 py-2 text-sm text-slate-100 outline-none transition-all focus:border-emerald-500/60 focus:shadow-[0_0_16px_rgba(16,185,129,0.2)]"
+                      placeholder="Add workout notes..."
+                    />
+                  </div>
                 </div>
 
                 <button
                   type="button"
                   onClick={handleApplySelectedActivities}
-                  className="mt-4 w-full rounded-full bg-gradient-to-r from-blue-500 to-cyan-500 px-4 py-3 text-lg font-semibold text-white shadow-md transition-colors hover:from-blue-600 hover:to-cyan-600"
+                  className="mt-4 w-full rounded-[10px] border-0 bg-gradient-to-r from-emerald-500 to-blue-500 py-2.5 text-sm font-semibold text-white shadow-lg transition-all duration-300 hover:from-emerald-600 hover:to-blue-600"
                 >
-                  Add activity
+                  Update workout details
                 </button>
-              </div>
-            </section>
+              </section>
+            </div>
           </div>
         </div>
       </div>
     </main>
   );
 }
-
