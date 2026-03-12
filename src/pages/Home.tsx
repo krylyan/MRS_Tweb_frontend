@@ -91,25 +91,25 @@ export default function Home() {
                   <Apple className="h-8 w-8 text-emerald-400" />
                 </div>
 
-                <h2 className="mb-4 text-3xl font-bold text-emerald-50 md:text-4xl">Antrenament Afara</h2>
+                <h2 className="mb-4 text-3xl font-bold text-emerald-50 md:text-4xl">Outdoor Training</h2>
 
                 <p className="mb-8 text-lg leading-relaxed text-gray-300">
-                  Antrenamente in aer liber cu exercitii de greutate corporala, alergare si calistenie.
-                  Durabilitate, flexibilitate si conexiune cu natura.
+                  Outdoor workouts with bodyweight exercises, running, and calisthenics. Build
+                  endurance, flexibility, and a stronger connection with nature.
                 </p>
 
                 <div className="mb-8 space-y-3">
                   <div className="flex items-center gap-3 text-emerald-300">
                     <TrendingUp className="h-5 w-5" />
-                    <span>Programe de calistenie si greutate corporala</span>
+                    <span>Calisthenics and bodyweight programs</span>
                   </div>
                   <div className="flex items-center gap-3 text-emerald-300">
                     <Target className="h-5 w-5" />
-                    <span>Antrenamente de alergare si rezistenta</span>
+                    <span>Running and endurance workouts</span>
                   </div>
                   <div className="flex items-center gap-3 text-emerald-300">
                     <Heart className="h-5 w-5" />
-                    <span>Alimentatie pentru activitati outdoor</span>
+                    <span>Nutrition for outdoor activities</span>
                   </div>
                 </div>
 
@@ -117,7 +117,7 @@ export default function Home() {
                   onClick={goToFaq}
                   className="w-full border-0 bg-gradient-to-r from-emerald-500 to-green-600 py-6 text-lg font-semibold text-white shadow-lg shadow-emerald-500/30 hover:from-emerald-600 hover:to-green-700"
                 >
-                  Creaza Plan Outdoor
+                  Create Outdoor Plan
                 </Button>
               </div>
             </Card>
@@ -137,25 +137,25 @@ export default function Home() {
                   <Dumbbell className="h-8 w-8 text-blue-400" />
                 </div>
 
-                <h2 className="mb-4 text-3xl font-bold text-blue-50 md:text-4xl">Antrenament la Sala</h2>
+                <h2 className="mb-4 text-3xl font-bold text-blue-50 md:text-4xl">Gym Training</h2>
 
                 <p className="mb-8 text-lg leading-relaxed text-gray-300">
-                  Antrenamente structurate cu greutati si echipament profesional. Dezvoltare musculara,
-                  forta si rezistenta prin programe progresive.
+                  Structured workouts with weights and professional equipment. Build muscle,
+                  strength, and endurance through progressive plans.
                 </p>
 
                 <div className="mb-8 space-y-3">
                   <div className="flex items-center gap-3 text-blue-300">
                     <TrendingUp className="h-5 w-5" />
-                    <span>Programe de forta si hipertrofie</span>
+                    <span>Strength and hypertrophy programs</span>
                   </div>
                   <div className="flex items-center gap-3 text-blue-300">
                     <Target className="h-5 w-5" />
-                    <span>Antrenamente cu progresie structurata</span>
+                    <span>Structured progressive workouts</span>
                   </div>
                   <div className="flex items-center gap-3 text-blue-300">
                     <Zap className="h-5 w-5" />
-                    <span>Alimentatie pentru dezvoltare musculara</span>
+                    <span>Nutrition for muscle growth</span>
                   </div>
                 </div>
 
@@ -163,7 +163,7 @@ export default function Home() {
                   onClick={goToFaq}
                   className="w-full border-0 bg-gradient-to-r from-blue-500 to-red-600 py-6 text-lg font-semibold text-white shadow-lg shadow-blue-500/30 hover:from-blue-600 hover:to-red-700"
                 >
-                  Creaza Plan Sala
+                  Create Gym Plan
                 </Button>
               </div>
             </Card>
@@ -252,7 +252,7 @@ export default function Home() {
             <Link to="/faq" className="text-gray-400 transition-colors hover:text-white">
               FAQ
             </Link>
-            <div className="text-gray-400">Â© 2026 FitLife. All rights reserved.</div>
+            <div className="text-gray-400">© 2026 FitLife. All rights reserved.</div>
           </div>
         </div>
       </footer>

@@ -22,19 +22,19 @@ interface StatItem {
 }
 
 const NUTRITION_STATS: StatItem[] = [
-  { label: "Calorii zilnice", value: 78, widthClass: "w-[78%]" },
-  { label: "Aport proteine", value: 86, widthClass: "w-[86%]" },
-  { label: "Hidratare", value: 64, widthClass: "w-[64%]" },
-  { label: "Consistenta mese", value: 72, widthClass: "w-[72%]" },
-  { label: "Calitate nutritie", value: 58, widthClass: "w-[58%]" },
+  { label: "Daily calories", value: 78, widthClass: "w-[78%]" },
+  { label: "Protein intake", value: 86, widthClass: "w-[86%]" },
+  { label: "Hydration", value: 64, widthClass: "w-[64%]" },
+  { label: "Meal consistency", value: 72, widthClass: "w-[72%]" },
+  { label: "Nutrition quality", value: 58, widthClass: "w-[58%]" },
 ];
 
 const WORKOUT_STATS: StatItem[] = [
-  { label: "Sesiuni saptamanale", value: 82, widthClass: "w-[82%]" },
+  { label: "Weekly sessions", value: 82, widthClass: "w-[82%]" },
   { label: "Cardio (minute)", value: 67, widthClass: "w-[67%]" },
-  { label: "Progres forta", value: 74, widthClass: "w-[74%]" },
-  { label: "Recuperare", value: 61, widthClass: "w-[61%]" },
-  { label: "Mobilitate", value: 55, widthClass: "w-[55%]" },
+  { label: "Strength progress", value: 74, widthClass: "w-[74%]" },
+  { label: "Recovery", value: 61, widthClass: "w-[61%]" },
+  { label: "Mobility", value: 55, widthClass: "w-[55%]" },
 ];
 
 interface StatsCardProps {
@@ -114,7 +114,7 @@ export default function Profile() {
     const nextEmail = formEmail.trim();
 
     if (!nextName || !nextEmail) {
-      setEditError("Completeaza numele si email-ul.");
+      setEditError("Please fill in your name and email.");
       return;
     }
 
@@ -123,12 +123,12 @@ export default function Profile() {
       const existing = users[currentUser];
 
       if (!existing) {
-        setEditError("Nu am gasit utilizatorul curent.");
+        setEditError("Current user was not found.");
         return;
       }
 
       if (nextEmail !== currentUser && users[nextEmail]) {
-        setEditError("Email-ul este deja folosit.");
+        setEditError("Email is already in use.");
         return;
       }
 
@@ -145,7 +145,7 @@ export default function Profile() {
       setEditError("");
       setIsEditing(false);
     } catch {
-      setEditError("A aparut o eroare la salvare.");
+      setEditError("An error occurred while saving.");
     }
   };
 
@@ -165,7 +165,7 @@ export default function Profile() {
           isLoaded ? "translate-y-0 scale-100 opacity-100" : "translate-y-5 scale-[0.98] opacity-0"
         }`}
       >
-        <h1 className="mb-[18px] text-[28px] font-bold text-slate-50">Profilul meu</h1>
+        <h1 className="mb-[18px] text-[28px] font-bold text-slate-50">My Profile</h1>
 
         <div className="grid items-stretch gap-[18px] lg:grid-cols-[320px_minmax(0,1fr)]">
           <aside className="flex">
@@ -226,7 +226,7 @@ export default function Profile() {
               <div className="grid items-center gap-[10px] px-4 py-[14px] md:grid-cols-[165px_minmax(0,1fr)]">
                 <p className="inline-flex items-center gap-2 font-semibold text-slate-50">
                   <ShieldCheck size={16} />
-                  Tip cont
+                  Account Type
                 </p>
                 <p className="break-words text-slate-300">{role}</p>
               </div>
@@ -271,8 +271,8 @@ export default function Profile() {
             </section>
 
             <div className="grid gap-[18px] lg:grid-cols-2">
-              <StatsCard title="Alimentatie" icon={UtensilsCrossed} items={NUTRITION_STATS} />
-              <StatsCard title="Antrenamente" icon={Dumbbell} items={WORKOUT_STATS} />
+              <StatsCard title="Nutrition" icon={UtensilsCrossed} items={NUTRITION_STATS} />
+              <StatsCard title="Workouts" icon={Dumbbell} items={WORKOUT_STATS} />
             </div>
           </div>
         </div>
