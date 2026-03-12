@@ -1,6 +1,6 @@
 import { Search } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { Exercise, ExerciseType } from "../data/exercises";
 
 interface ExerciseSearchProps {
@@ -16,26 +16,51 @@ export default function ExerciseSearch({
   getIconForType,
   onSelectExercise,
 }: ExerciseSearchProps) {
-  const [query, setQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const searchRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const handleDocumentMouseDown = (event: MouseEvent): void => {
+      const target = event.target;
+      if (!(target instanceof Node)) {
+        return;
+      }
+
+      if (searchRef.current && !searchRef.current.contains(target)) {
+        setIsDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleDocumentMouseDown);
+    return () => {
+      document.removeEventListener("mousedown", handleDocumentMouseDown);
+    };
+  }, []);
 
   const results = useMemo(() => {
-    const normalized = query.trim().toLowerCase();
+    const normalized = searchQuery.trim().toLowerCase();
     if (!normalized) {
       return [];
     }
 
     return exercises.filter((exercise) => exercise.name.toLowerCase().includes(normalized)).slice(0, 10);
-  }, [exercises, query]);
+  }, [exercises, searchQuery]);
 
-  const showDropdown = query.trim().length > 0;
+  const showDropdown = isDropdownOpen && searchQuery.trim().length > 0;
 
   return (
-    <div className="relative mb-3">
+    <div ref={searchRef} className="relative mb-3">
       <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
       <input
         type="text"
-        value={query}
-        onChange={(event) => setQuery(event.target.value)}
+        value={searchQuery}
+        onFocus={() => setIsDropdownOpen(searchQuery.trim().length > 0)}
+        onChange={(event) => {
+          const nextValue = event.target.value;
+          setSearchQuery(nextValue);
+          setIsDropdownOpen(nextValue.trim().length > 0);
+        }}
         placeholder="Search exercises..."
         className="h-10 w-full rounded-[10px] border border-white/20 bg-white/[0.03] pl-10 pr-3 text-sm text-slate-100 outline-none transition-all placeholder:text-slate-400 focus:border-emerald-500/60 focus:shadow-[0_0_16px_rgba(16,185,129,0.2)]"
       />
@@ -75,4 +100,3 @@ export default function ExerciseSearch({
     </div>
   );
 }
-
