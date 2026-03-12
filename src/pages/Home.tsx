@@ -12,6 +12,10 @@ export default function Home() {
     navigate("/faq");
   };
 
+  const goToGymPlan = (): void => {
+    navigate("/gym-plan");
+  };
+
   const handleLogout = (): void => {
     AuthUtils.logout();
     navigate("/signin", { replace: true });
@@ -160,7 +164,7 @@ export default function Home() {
                 </div>
 
                 <Button
-                  onClick={goToFaq}
+                  onClick={goToGymPlan}
                   className="w-full border-0 bg-gradient-to-r from-blue-500 to-red-600 py-6 text-lg font-semibold text-white shadow-lg shadow-blue-500/30 hover:from-blue-600 hover:to-red-700"
                 >
                   Create Gym Plan
