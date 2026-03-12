@@ -6,6 +6,7 @@ import {
   Heart,
   Plus,
   Search,
+  Trash2,
   Trophy,
   UserRoundPlus,
   Users,
@@ -35,6 +36,14 @@ interface WorkoutItem {
   note: string;
 }
 
+interface ActivitiesPanelProps {
+  activities: ActivityItem[];
+  selectedActivities: Record<string, boolean>;
+  onAddActivity: () => void;
+  onToggleActivity: (activity: ActivityItem) => void;
+  onDeleteActivity: (activityId: string) => void;
+}
+
 const SIDEBAR_ITEMS: SidebarItem[] = [
   { id: "search", label: "Search", icon: Search },
   { id: "dashboard", label: "Dashboard", icon: Grid3X3 },
@@ -54,6 +63,112 @@ const ACTIVITY_POOL: ActivityItem[] = [
   { id: "plank", name: "Plank", detail: "60 sec", icon: ClipboardCheck },
   { id: "deadlift", name: "Deadlift", detail: "4 sets", icon: Search },
 ];
+
+function ActivitiesPanel({
+  activities,
+  selectedActivities,
+  onAddActivity,
+  onToggleActivity,
+  onDeleteActivity,
+}: ActivitiesPanelProps) {
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const filteredActivities = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) {
+      return activities;
+    }
+    return activities.filter((activity) => activity.name.toLowerCase().includes(query));
+  }, [activities, searchQuery]);
+
+  return (
+    <section className="rounded-[14px] border border-white/12 bg-white/4 p-4 shadow-[0_14px_28px_rgba(0,0,0,0.25)] backdrop-blur-[6px]">
+      <div className="mb-3 flex items-center justify-between">
+        <h2 className="text-lg font-semibold text-slate-50">Activities</h2>
+        <button
+          type="button"
+          onClick={onAddActivity}
+          className="inline-flex h-9 w-9 items-center justify-center rounded-[10px] border-0 bg-gradient-to-r from-emerald-500 to-blue-500 text-white transition-all duration-300 hover:from-emerald-600 hover:to-blue-600"
+        >
+          <Plus className="h-4 w-4" />
+        </button>
+      </div>
+
+      <div className="relative mb-3">
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={(event) => setSearchQuery(event.target.value)}
+          placeholder="Search exercises..."
+          className="h-10 w-full rounded-[10px] border border-white/20 bg-white/[0.03] pl-10 pr-3 text-sm text-slate-100 outline-none transition-all placeholder:text-slate-400 focus:border-emerald-500/60 focus:shadow-[0_0_16px_rgba(16,185,129,0.2)]"
+        />
+      </div>
+
+      <div className="max-h-[620px] space-y-2.5 overflow-auto pr-1">
+        {filteredActivities.length ? (
+          filteredActivities.map((activity) => {
+            const Icon = activity.icon;
+            const isSelected = !!selectedActivities[activity.id];
+
+            return (
+              <div
+                key={activity.id}
+                className={`flex items-center justify-between rounded-[10px] border px-3 py-2.5 transition-all ${
+                  isSelected
+                    ? "border-emerald-400/40 bg-emerald-500/12"
+                    : "border-white/10 bg-white/[0.02] hover:bg-white/[0.08]"
+                }`}
+              >
+                <button
+                  type="button"
+                  onClick={() => onToggleActivity(activity)}
+                  className="flex min-w-0 flex-1 items-center gap-3 text-left"
+                >
+                  <div className="rounded-[8px] border border-white/10 bg-white/10 p-2 text-slate-200">
+                    <Icon className="h-4.5 w-4.5" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold text-slate-100">{activity.name}</p>
+                    <p className="text-xs text-slate-300">{activity.detail}</p>
+                  </div>
+                </button>
+
+                <div className="ml-2 flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => onToggleActivity(activity)}
+                    className={`inline-flex h-5 w-5 items-center justify-center rounded border text-white transition-colors ${
+                      isSelected
+                        ? "border-emerald-400/60 bg-emerald-500 text-white"
+                        : "border-white/30 bg-transparent text-transparent hover:border-white/50"
+                    }`}
+                    aria-label={`Toggle ${activity.name}`}
+                  >
+                    <Check className="h-3.5 w-3.5" />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => onDeleteActivity(activity.id)}
+                    className="inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-[8px] text-slate-300 transition-all hover:bg-rose-500/15 hover:text-rose-300"
+                    aria-label={`Delete ${activity.name}`}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+            );
+          })
+        ) : (
+          <p className="rounded-[10px] border border-white/10 bg-white/[0.02] px-3 py-2 text-sm text-slate-300">
+            No exercises match your search.
+          </p>
+        )}
+      </div>
+    </section>
+  );
+}
 
 export default function GymPlanMenu() {
   const [activeSidebarItem, setActiveSidebarItem] = useState<string>("search");
@@ -146,6 +261,21 @@ export default function GymPlanMenu() {
         ? `${activity.name} selected for ${activeDay}.`
         : `${activity.name} removed from ${activeDay}.`,
     );
+  };
+
+  const handleDeleteActivity = (activityId: string): void => {
+    const deletedActivity = activities.find((activity) => activity.id === activityId);
+    if (!deletedActivity) {
+      return;
+    }
+
+    setActivities((prev) => prev.filter((activity) => activity.id !== activityId));
+    setSelectedActivities((prev) => {
+      const next = { ...prev };
+      delete next[activityId];
+      return next;
+    });
+    setStatusMessage(`${deletedActivity.name} removed from activities.`);
   };
 
   const handleApplySelectedActivities = (): void => {
@@ -323,56 +453,13 @@ export default function GymPlanMenu() {
                 </article>
               </section>
 
-              <section className="rounded-[14px] border border-white/12 bg-white/4 p-4 shadow-[0_14px_28px_rgba(0,0,0,0.25)] backdrop-blur-[6px]">
-                <div className="mb-3 flex items-center justify-between">
-                  <h2 className="text-lg font-semibold text-slate-50">Activities</h2>
-                  <button
-                    type="button"
-                    onClick={handleAddActivity}
-                    className="inline-flex h-9 w-9 items-center justify-center rounded-[10px] border-0 bg-gradient-to-r from-emerald-500 to-blue-500 text-white transition-all duration-300 hover:from-emerald-600 hover:to-blue-600"
-                  >
-                    <Plus className="h-4 w-4" />
-                  </button>
-                </div>
-
-                <div className="max-h-[620px] space-y-2.5 overflow-auto pr-1">
-                  {activities.map((activity) => {
-                    const Icon = activity.icon;
-                    const isSelected = !!selectedActivities[activity.id];
-                    return (
-                      <button
-                        key={activity.id}
-                        type="button"
-                        onClick={() => handleToggleActivity(activity)}
-                        className={`flex w-full items-center justify-between rounded-[10px] border px-3 py-2.5 text-left transition-all ${
-                          isSelected
-                            ? "border-emerald-400/40 bg-emerald-500/12"
-                            : "border-white/10 bg-white/[0.02] hover:bg-white/[0.08]"
-                        }`}
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="rounded-[8px] border border-white/10 bg-white/10 p-2 text-slate-200">
-                            <Icon className="h-4.5 w-4.5" />
-                          </div>
-                          <div>
-                            <p className="text-sm font-semibold text-slate-100">{activity.name}</p>
-                            <p className="text-xs text-slate-300">{activity.detail}</p>
-                          </div>
-                        </div>
-                        <span
-                          className={`inline-flex h-5 w-5 items-center justify-center rounded border text-white transition-colors ${
-                            isSelected
-                              ? "border-emerald-400/60 bg-emerald-500 text-white"
-                              : "border-white/30 bg-transparent text-transparent"
-                          }`}
-                        >
-                          <Check className="h-3.5 w-3.5" />
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </section>
+              <ActivitiesPanel
+                activities={activities}
+                selectedActivities={selectedActivities}
+                onAddActivity={handleAddActivity}
+                onToggleActivity={handleToggleActivity}
+                onDeleteActivity={handleDeleteActivity}
+              />
 
               <section className="rounded-[14px] border border-white/12 bg-white/4 p-4 shadow-[0_14px_28px_rgba(0,0,0,0.25)] backdrop-blur-[6px]">
                 <h2 className="mb-3 text-lg font-semibold text-slate-50">Activity details</h2>
