@@ -23,7 +23,7 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white">
-      <nav className="flex items-center justify-between border-b border-white/10 p-6 md:px-12 md:py-8">
+      <nav className="reveal-up flex items-center justify-between border-b border-white/10 p-6 md:px-12 md:py-8">
         <Link to="/home" className="flex items-center space-x-3 transition-opacity duration-200 hover:opacity-80">
           <div className="rounded-lg bg-gradient-to-br from-emerald-400 to-blue-500 p-2">
             <Heart className="h-6 w-6 text-white" />
@@ -57,7 +57,7 @@ export default function Home() {
         </div>
       </nav>
 
-      <section className="px-6 py-16 text-center md:px-12 md:py-24">
+      <section className="reveal-up reveal-delay-1 px-6 py-16 text-center md:px-12 md:py-24">
         <div className="mx-auto max-w-4xl">
           <div className="mb-8 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 backdrop-blur-sm">
             <Zap className="h-4 w-4 text-yellow-400" />
@@ -77,10 +77,10 @@ export default function Home() {
         </div>
       </section>
 
-      <section id="programs" className="px-6 pb-24 md:px-12">
+      <section id="programs" className="reveal-up reveal-delay-2 px-6 pb-24 md:px-12">
         <div className="mx-auto max-w-7xl">
           <div className="grid gap-8 md:grid-cols-2 lg:gap-12">
-            <Card className="group relative overflow-hidden border border-emerald-500/30 bg-gradient-to-br from-emerald-900/40 to-green-900/40 transition-all duration-300 hover:-translate-y-2 hover:border-emerald-400/60 hover:shadow-2xl hover:shadow-emerald-500/20">
+            <Card className="reveal-up reveal-delay-3 group relative overflow-hidden border border-emerald-500/30 bg-gradient-to-br from-emerald-900/40 to-green-900/40 transition-all duration-300 hover:-translate-y-2 hover:border-emerald-400/60 hover:shadow-2xl hover:shadow-emerald-500/20">
               <div className="relative h-64 overflow-hidden rounded-t-lg">
                 <ImageWithFallback
                   src="https://images.unsplash.com/photo-1571902943202-507ec2618e8f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080"
@@ -126,7 +126,7 @@ export default function Home() {
               </div>
             </Card>
 
-            <Card className="group relative overflow-hidden border border-blue-500/30 bg-gradient-to-br from-blue-900/40 to-red-900/40 transition-all duration-300 hover:-translate-y-2 hover:border-blue-400/60 hover:shadow-2xl hover:shadow-blue-500/20">
+            <Card className="reveal-up reveal-delay-4 group relative overflow-hidden border border-blue-500/30 bg-gradient-to-br from-blue-900/40 to-red-900/40 transition-all duration-300 hover:-translate-y-2 hover:border-blue-400/60 hover:shadow-2xl hover:shadow-blue-500/20">
               <div className="relative h-64 overflow-hidden rounded-t-lg">
                 <ImageWithFallback
                   src="https://images.unsplash.com/photo-1534438327276-14e5300c3a48?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080"
@@ -175,7 +175,7 @@ export default function Home() {
         </div>
       </section>
 
-      <section id="features" className="bg-white/5 px-6 py-24 backdrop-blur-sm md:px-12">
+      <section id="features" className="reveal-up reveal-delay-3 bg-white/5 px-6 py-24 backdrop-blur-sm md:px-12">
         <div className="mx-auto max-w-6xl">
           <div className="mb-16 text-center">
             <h2 className="mb-4 text-4xl font-bold md:text-5xl">Everything You Need to Succeed</h2>
@@ -218,7 +218,7 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="px-6 py-24 md:px-12">
+      <section className="reveal-up reveal-delay-4 px-6 py-24 md:px-12">
         <div className="mx-auto max-w-4xl text-center">
           <h2 className="mb-6 text-4xl font-bold md:text-5xl">Ready to Start Your Journey?</h2>
           <p className="mx-auto mb-10 max-w-2xl text-xl text-gray-300">
@@ -234,7 +234,7 @@ export default function Home() {
         </div>
       </section>
 
-      <footer className="border-t border-white/10 p-6 md:p-8">
+      <footer className="reveal-up reveal-delay-5 border-t border-white/10 p-6 md:p-8">
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between md:flex-row">
           <Link
             to="/home"

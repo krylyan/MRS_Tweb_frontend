@@ -84,7 +84,7 @@ const getExercisesByIds = (allExercises: Exercise[], ids: string[]): Exercise[] 
 
 function DaysSelector({ days, activeDayId, onSelectDay, onAddDay }: DaysSelectorProps) {
   return (
-    <section className="mb-4 rounded-[14px] border border-white/12 bg-white/4 p-4 shadow-[0_14px_28px_rgba(0,0,0,0.25)] backdrop-blur-[6px]">
+    <section className="reveal-up reveal-delay-2 mb-4 rounded-[14px] border border-white/12 bg-white/4 p-4 shadow-[0_14px_28px_rgba(0,0,0,0.25)] backdrop-blur-[6px]">
       <div className="mb-3 flex items-center justify-between">
         <h2 className="text-lg font-semibold text-slate-50">Days</h2>
         <button
@@ -129,7 +129,7 @@ function ActivityDetails({
   onApplyToWorkout,
 }: ActivityDetailsProps) {
   return (
-    <section className="rounded-[14px] border border-white/12 bg-white/4 p-4 shadow-[0_14px_28px_rgba(0,0,0,0.25)] backdrop-blur-[6px]">
+    <section className="reveal-up reveal-delay-5 rounded-[14px] border border-white/12 bg-white/4 p-4 shadow-[0_14px_28px_rgba(0,0,0,0.25)] backdrop-blur-[6px]">
       <h2 className="mb-3 text-lg font-semibold text-slate-50">Activity details</h2>
 
       <div className="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-1">
@@ -375,7 +375,7 @@ export default function GymPlanMenu() {
     <main className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-slate-900 text-slate-200">
       <div className="mx-auto w-full max-w-[1400px] px-3 py-4 sm:px-6 sm:py-8">
         <div className="flex gap-4 lg:gap-5">
-          <aside className="hidden w-[78px] shrink-0 rounded-[14px] border border-white/12 bg-white/4 p-2.5 shadow-[0_14px_28px_rgba(0,0,0,0.25)] backdrop-blur-[6px] lg:flex lg:flex-col lg:justify-between">
+          <aside className="reveal-up hidden w-[78px] shrink-0 rounded-[14px] border border-white/12 bg-white/4 p-2.5 shadow-[0_14px_28px_rgba(0,0,0,0.25)] backdrop-blur-[6px] lg:flex lg:flex-col lg:justify-between">
             <div className="space-y-1.5">
               <div className="mb-3 flex justify-center">
                 <Link
@@ -414,7 +414,7 @@ export default function GymPlanMenu() {
           </aside>
 
           <div className="w-full">
-            <header className="mb-4 rounded-[14px] border border-white/12 bg-white/4 p-4 shadow-[0_14px_28px_rgba(0,0,0,0.25)] backdrop-blur-[6px] md:p-5">
+            <header className="reveal-up reveal-delay-1 mb-4 rounded-[14px] border border-white/12 bg-white/4 p-4 shadow-[0_14px_28px_rgba(0,0,0,0.25)] backdrop-blur-[6px] md:p-5">
               <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                 <div>
                   <h1 className="text-3xl font-bold leading-tight text-slate-50 md:text-4xl">Workout editor</h1>
@@ -470,17 +470,21 @@ export default function GymPlanMenu() {
             />
 
             <div className="grid w-full gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)]">
-              <WorkoutPreview selectedExercise={selectedExercise} />
+              <div className="reveal-up reveal-delay-3">
+                <WorkoutPreview selectedExercise={selectedExercise} />
+              </div>
 
-              <ActivitiesList
-                dayExercises={activeDayExercises}
-                selectedExerciseId={selectedExerciseId}
-                getIconForMuscleGroup={getIconForMuscleGroup}
-                searchExercises={exerciseService.searchExercises}
-                onAddExercise={handleAddExerciseToActiveDay}
-                onSelectExercise={handleSelectExercise}
-                onDeleteExercise={handleDeleteExerciseFromActiveDay}
-              />
+              <div className="reveal-up reveal-delay-4">
+                <ActivitiesList
+                  dayExercises={activeDayExercises}
+                  selectedExerciseId={selectedExerciseId}
+                  getIconForMuscleGroup={getIconForMuscleGroup}
+                  searchExercises={exerciseService.searchExercises}
+                  onAddExercise={handleAddExerciseToActiveDay}
+                  onSelectExercise={handleSelectExercise}
+                  onDeleteExercise={handleDeleteExerciseFromActiveDay}
+                />
+              </div>
 
               <ActivityDetails
                 activeDayLabel={activeDay?.label ?? "Day"}
