@@ -191,6 +191,8 @@ function ActivityDetails({
   const [pauseInput, setPauseInput] = useState<string>(formatPauseTime(pauseTime));
   const inputClassName =
     "h-10 w-full rounded-[10px] border border-white/20 bg-white/[0.03] px-3 text-sm text-slate-100 outline-none transition-all placeholder:text-slate-400 focus:border-emerald-500/60 focus:shadow-[0_0_16px_rgba(16,185,129,0.2)]";
+  const spinnerInputClassName =
+    "[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none";
   const headerCellClassName = "text-[11px] font-semibold uppercase tracking-wide text-slate-400";
 
   useEffect(() => {
@@ -225,6 +227,11 @@ function ActivityDetails({
     const nextPauseTime = normalizePauseTime(pauseTime.minutes + deltaMinutes, pauseTime.seconds);
     onPauseTimeChange(nextPauseTime);
     setPauseInput(formatPauseTime(nextPauseTime));
+  };
+
+  const handleSetStep = (index: number, field: keyof WorkoutSet, delta: number): void => {
+    const currentValue = sets[index]?.[field] ?? 0;
+    onSetChange(index, field, Math.max(0, currentValue + delta));
   };
 
   return (
@@ -302,21 +309,59 @@ function ActivityDetails({
                   step={0.5}
                   value={set.weight}
                   onChange={(event) => onSetChange(index, "weight", Number(event.target.value || 0))}
-                  className={`${inputClassName} pr-9`}
+                  className={`${inputClassName} ${spinnerInputClassName} pr-16`}
                 />
-                <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">
+                <span className="pointer-events-none absolute right-11 top-1/2 -translate-y-1/2 text-xs text-slate-400">
                   kg
                 </span>
+                <div className="absolute inset-y-0 right-0 flex w-9 flex-col overflow-hidden rounded-r-[10px] border-l border-white/12">
+                  <button
+                    type="button"
+                    onClick={() => handleSetStep(index, "weight", 0.5)}
+                    className="flex flex-1 items-center justify-center bg-white/[0.03] text-slate-300 transition-colors hover:bg-white/[0.08] hover:text-slate-100"
+                    aria-label={`Increase weight for set ${index + 1}`}
+                  >
+                    <ChevronUp className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleSetStep(index, "weight", -0.5)}
+                    className="flex flex-1 items-center justify-center border-t border-white/12 bg-white/[0.03] text-slate-300 transition-colors hover:bg-white/[0.08] hover:text-slate-100"
+                    aria-label={`Decrease weight for set ${index + 1}`}
+                  >
+                    <ChevronDown className="h-3.5 w-3.5" />
+                  </button>
+                </div>
               </div>
 
-              <input
-                type="number"
-                min={0}
-                step={1}
-                value={set.reps}
-                onChange={(event) => onSetChange(index, "reps", Number(event.target.value || 0))}
-                className={`${inputClassName} text-center`}
-              />
+              <div className="relative">
+                <input
+                  type="number"
+                  min={0}
+                  step={1}
+                  value={set.reps}
+                  onChange={(event) => onSetChange(index, "reps", Number(event.target.value || 0))}
+                  className={`${inputClassName} ${spinnerInputClassName} pr-10 text-center`}
+                />
+                <div className="absolute inset-y-0 right-0 flex w-9 flex-col overflow-hidden rounded-r-[10px] border-l border-white/12">
+                  <button
+                    type="button"
+                    onClick={() => handleSetStep(index, "reps", 1)}
+                    className="flex flex-1 items-center justify-center bg-white/[0.03] text-slate-300 transition-colors hover:bg-white/[0.08] hover:text-slate-100"
+                    aria-label={`Increase reps for set ${index + 1}`}
+                  >
+                    <ChevronUp className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleSetStep(index, "reps", -1)}
+                    className="flex flex-1 items-center justify-center border-t border-white/12 bg-white/[0.03] text-slate-300 transition-colors hover:bg-white/[0.08] hover:text-slate-100"
+                    aria-label={`Decrease reps for set ${index + 1}`}
+                  >
+                    <ChevronDown className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              </div>
 
               <button
                 type="button"
