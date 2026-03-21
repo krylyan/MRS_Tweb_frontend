@@ -1,8 +1,11 @@
 import {
   CalendarCheck2,
+  ChevronDown,
+  ChevronUp,
   ClipboardCheck,
   Grid3X3,
   Heart,
+  Minus,
   Plus,
   Search,
   Trophy,
@@ -10,7 +13,7 @@ import {
   Users,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import ActivitiesList from "../components/ActivitiesList";
 import WorkoutPreview from "../components/WorkoutPreview";
@@ -23,11 +26,19 @@ interface SidebarItem {
   icon: LucideIcon;
 }
 
-interface WorkoutItem {
-  id: string;
-  name: string;
-  volume: string;
-  note: string;
+interface WorkoutSet {
+  weight: number;
+  reps: number;
+}
+
+interface PauseTime {
+  minutes: number;
+  seconds: number;
+}
+
+interface WorkoutTrackingState {
+  pauseTime: PauseTime;
+  sets: WorkoutSet[];
 }
 
 interface DayPlan {
@@ -44,13 +55,13 @@ interface DaysSelectorProps {
 }
 
 interface ActivityDetailsProps {
-  activeDayLabel: string;
-  selectedExercisesCount: number;
   selectedExerciseName: string | null;
-  activeWorkout: WorkoutItem;
-  onWorkoutVolumeChange: (value: string) => void;
-  onWorkoutNoteChange: (value: string) => void;
-  onApplyToWorkout: () => void;
+  pauseTime: PauseTime;
+  sets: WorkoutSet[];
+  onPauseTimeChange: (value: PauseTime) => void;
+  onSetChange: (index: number, field: keyof WorkoutSet, value: number) => void;
+  onAddSet: () => void;
+  onRemoveSet: (index: number) => void;
 }
 
 const SIDEBAR_ITEMS: SidebarItem[] = [
@@ -77,10 +88,74 @@ const INITIAL_DAY_EXERCISE_IDS = [
   "90_90_Hamstring",
 ];
 
+const DEFAULT_PAUSE_TIME: PauseTime = {
+  minutes: 2,
+  seconds: 0,
+};
+
+const DEFAULT_SET: WorkoutSet = {
+  weight: 0,
+  reps: 0,
+};
+
 const getExercisesByIds = (allExercises: Exercise[], ids: string[]): Exercise[] =>
   ids
     .map((id) => allExercises.find((exercise) => exercise.id === id))
     .filter((exercise): exercise is Exercise => !!exercise);
+
+const createInitialWorkoutTrackingState = (): WorkoutTrackingState => ({
+  pauseTime: { ...DEFAULT_PAUSE_TIME },
+  sets: [{ ...DEFAULT_SET }],
+});
+
+const clampToNonNegativeInteger = (value: number): number =>
+  Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 0;
+
+const normalizePauseTime = (minutes: number, seconds: number): PauseTime => {
+  const totalSeconds = Math.max(0, clampToNonNegativeInteger(minutes) * 60 + clampToNonNegativeInteger(seconds));
+
+  return {
+    minutes: Math.floor(totalSeconds / 60),
+    seconds: totalSeconds % 60,
+  };
+};
+
+const formatPauseTime = ({ minutes, seconds }: PauseTime): string =>
+  `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+
+const formatSetValue = (value: number): string => {
+  if (Number.isInteger(value)) {
+    return String(value);
+  }
+
+  return value.toFixed(1).replace(/\.0$/, "");
+};
+
+const formatPreviousSet = (set?: WorkoutSet): string => {
+  if (!set || (set.weight <= 0 && set.reps <= 0)) {
+    return "--";
+  }
+
+  return `${formatSetValue(set.weight)}kg x ${formatSetValue(set.reps)}`;
+};
+
+const parsePauseTimeInput = (value: string): PauseTime => {
+  const sanitized = value.replace(/[^\d:]/g, "").trim();
+
+  if (!sanitized) {
+    return { ...DEFAULT_PAUSE_TIME };
+  }
+
+  const [rawMinutes = "", rawSeconds = ""] = sanitized.split(":", 2);
+  const minutes = Number.parseInt(rawMinutes || "0", 10);
+  const seconds = Number.parseInt(rawSeconds || "0", 10);
+
+  if (!sanitized.includes(":")) {
+    return normalizePauseTime(minutes, 0);
+  }
+
+  return normalizePauseTime(minutes, seconds);
+};
 
 function DaysSelector({ days, activeDayId, onSelectDay, onAddDay }: DaysSelectorProps) {
   return (
@@ -120,72 +195,174 @@ function DaysSelector({ days, activeDayId, onSelectDay, onAddDay }: DaysSelector
 }
 
 function ActivityDetails({
-  activeDayLabel,
-  selectedExercisesCount,
   selectedExerciseName,
-  activeWorkout,
-  onWorkoutVolumeChange,
-  onWorkoutNoteChange,
-  onApplyToWorkout,
+  pauseTime,
+  sets,
+  onPauseTimeChange,
+  onSetChange,
+  onAddSet,
+  onRemoveSet,
 }: ActivityDetailsProps) {
+  const title = selectedExerciseName ?? "No exercise selected";
+  const [pauseInput, setPauseInput] = useState<string>(formatPauseTime(pauseTime));
+  const inputClassName =
+    "h-10 w-full rounded-[10px] border border-white/20 bg-white/[0.03] px-3 text-sm text-slate-100 outline-none transition-all placeholder:text-slate-400 focus:border-emerald-500/60 focus:shadow-[0_0_16px_rgba(16,185,129,0.2)]";
+  const headerCellClassName = "text-[11px] font-semibold uppercase tracking-wide text-slate-400";
+
+  useEffect(() => {
+    setPauseInput(formatPauseTime(pauseTime));
+  }, [pauseTime]);
+
+  const commitPauseInput = (value: string): void => {
+    const normalized = parsePauseTimeInput(value);
+    onPauseTimeChange(normalized);
+    setPauseInput(formatPauseTime(normalized));
+  };
+
+  const handlePauseInputChange = (value: string): void => {
+    const sanitized = value.replace(/[^\d:]/g, "");
+    const colonIndex = sanitized.indexOf(":");
+
+    if (colonIndex === -1) {
+      setPauseInput(sanitized.slice(0, 5));
+      return;
+    }
+
+    const beforeColon = sanitized.slice(0, colonIndex).replace(/:/g, "");
+    const afterColon = sanitized
+      .slice(colonIndex + 1)
+      .replace(/:/g, "")
+      .slice(0, 2);
+
+    setPauseInput(`${beforeColon}:${afterColon}`);
+  };
+
+  const handlePauseTimeStep = (deltaMinutes: number): void => {
+    const nextPauseTime = normalizePauseTime(pauseTime.minutes + deltaMinutes, pauseTime.seconds);
+    onPauseTimeChange(nextPauseTime);
+    setPauseInput(formatPauseTime(nextPauseTime));
+  };
+
   return (
     <section className="reveal-up reveal-delay-5 rounded-[14px] border border-white/12 bg-white/4 p-4 shadow-[0_14px_28px_rgba(0,0,0,0.25)] backdrop-blur-[6px]">
-      <h2 className="mb-3 text-lg font-semibold text-slate-50">Activity details</h2>
+      <h2 className="mb-3 text-lg font-semibold text-slate-50">{title}</h2>
 
-      <div className="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-1">
-        <div className="rounded-[10px] border border-white/10 bg-white/[0.03] px-3 py-2">
-          <p className="text-[11px] uppercase tracking-wide text-slate-400">Active day</p>
-          <p className="text-sm font-semibold text-slate-100">{activeDayLabel}</p>
-        </div>
-        <div className="rounded-[10px] border border-white/10 bg-white/[0.03] px-3 py-2">
-          <p className="text-[11px] uppercase tracking-wide text-slate-400">Selected activities</p>
-          <p className="text-sm font-semibold text-slate-100">{selectedExercisesCount}</p>
-        </div>
-      </div>
+      <div className="mb-4">
+        <h3 className="mb-2 text-sm font-semibold text-slate-200">Pause between sets</h3>
 
-      <div className="mt-4 space-y-3">
-        <div>
-          <label className="mb-1 block text-xs font-semibold text-slate-300">Workout title</label>
-          <p className="rounded-[10px] border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-slate-100">
-            {activeWorkout.name}
-          </p>
-        </div>
-
-        <div>
-          <label className="mb-1 block text-xs font-semibold text-slate-300">Volume</label>
+        <div className="relative">
           <input
             type="text"
-            value={activeWorkout.volume}
-            onChange={(event) => onWorkoutVolumeChange(event.target.value)}
-            className="h-10 w-full rounded-[10px] border border-white/20 bg-white/[0.03] px-3 text-sm text-slate-100 outline-none transition-all focus:border-emerald-500/60 focus:shadow-[0_0_16px_rgba(16,185,129,0.2)]"
+            inputMode="numeric"
+            value={pauseInput}
+            onChange={(event) => handlePauseInputChange(event.target.value)}
+            onBlur={(event) => commitPauseInput(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.currentTarget.blur();
+              }
+            }}
+            placeholder="02:00"
+            aria-label="Pause between sets"
+            className={`${inputClassName} pr-10 text-center font-semibold tracking-wide`}
           />
-        </div>
 
-        <div>
-          <label className="mb-1 block text-xs font-semibold text-slate-300">Selected exercise</label>
-          <p className="rounded-[10px] border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-slate-100">
-            {selectedExerciseName ?? "No exercise selected"}
-          </p>
-        </div>
-
-        <div>
-          <label className="mb-1 block text-xs font-semibold text-slate-300">Notes</label>
-          <textarea
-            value={activeWorkout.note}
-            onChange={(event) => onWorkoutNoteChange(event.target.value)}
-            className="h-28 w-full resize-none rounded-[10px] border border-white/20 bg-white/[0.03] px-3 py-2 text-sm text-slate-100 outline-none transition-all focus:border-emerald-500/60 focus:shadow-[0_0_16px_rgba(16,185,129,0.2)]"
-            placeholder="Add workout notes..."
-          />
+          <div className="absolute inset-y-0 right-0 flex w-9 flex-col overflow-hidden rounded-r-[10px] border-l border-white/12">
+            <button
+              type="button"
+              onClick={() => handlePauseTimeStep(1)}
+              className="flex flex-1 items-center justify-center bg-white/[0.03] text-slate-300 transition-colors hover:bg-white/[0.08] hover:text-slate-100"
+              aria-label="Increase pause time by one minute"
+            >
+              <ChevronUp className="h-3.5 w-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={() => handlePauseTimeStep(-1)}
+              className="flex flex-1 items-center justify-center border-t border-white/12 bg-white/[0.03] text-slate-300 transition-colors hover:bg-white/[0.08] hover:text-slate-100"
+              aria-label="Decrease pause time by one minute"
+            >
+              <ChevronDown className="h-3.5 w-3.5" />
+            </button>
+          </div>
         </div>
       </div>
 
-      <button
-        type="button"
-        onClick={onApplyToWorkout}
-        className="mt-4 w-full rounded-[10px] border-0 bg-gradient-to-r from-emerald-500 to-blue-500 py-2.5 text-sm font-semibold text-white shadow-lg transition-all duration-300 hover:from-emerald-600 hover:to-blue-600"
-      >
-        Update workout details
-      </button>
+      <div>
+        <div className="mb-2 flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-slate-200">Sets</h3>
+          <span className="text-xs font-medium text-slate-400">{sets.length} tracked</span>
+        </div>
+
+        <div className="overflow-x-auto">
+          <div className="min-w-[540px]">
+            <div className="grid grid-cols-[56px_minmax(120px,1fr)_120px_88px_40px] items-center gap-2.5 px-1 pb-2">
+              <p className={headerCellClassName}>Set</p>
+              <p className={headerCellClassName}>Previous</p>
+              <p className={headerCellClassName}>Weight</p>
+              <p className={headerCellClassName}>Reps</p>
+              <p className={`${headerCellClassName} text-right`}>Remove</p>
+            </div>
+
+            <div className="space-y-2.5">
+              {sets.map((set, index) => (
+                <div
+                  key={`set-${index}`}
+                  className="grid grid-cols-[56px_minmax(120px,1fr)_120px_88px_40px] items-center gap-2.5 rounded-[10px] border border-white/10 bg-white/[0.03] p-2.5"
+                >
+                  <div className="flex h-10 items-center justify-center rounded-[10px] border border-white/10 bg-white/[0.02] text-sm font-semibold text-slate-100">
+                    {index + 1}
+                  </div>
+
+                  <p className="truncate px-2 text-sm text-slate-300">{formatPreviousSet(sets[index - 1])}</p>
+
+                  <div className="relative">
+                    <input
+                      type="number"
+                      min={0}
+                      step={0.5}
+                      value={set.weight}
+                      onChange={(event) => onSetChange(index, "weight", Number(event.target.value || 0))}
+                      className={`${inputClassName} pr-9`}
+                    />
+                    <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">
+                      kg
+                    </span>
+                  </div>
+
+                  <input
+                    type="number"
+                    min={0}
+                    step={1}
+                    value={set.reps}
+                    onChange={(event) => onSetChange(index, "reps", Number(event.target.value || 0))}
+                    className={`${inputClassName} text-center`}
+                  />
+
+                  <button
+                    type="button"
+                    onClick={() => onRemoveSet(index)}
+                    disabled={sets.length === 1}
+                    className="inline-flex h-10 w-10 items-center justify-center justify-self-end rounded-[10px] border border-white/20 bg-white/[0.03] text-slate-200 transition-all hover:bg-white/[0.08] hover:text-rose-200 disabled:cursor-not-allowed disabled:opacity-45"
+                    aria-label={`Remove set ${index + 1}`}
+                  >
+                    <Minus className="h-4 w-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={onAddSet}
+          className="mt-4 flex w-fit items-center justify-center gap-2 rounded-[10px] border border-white/20 bg-white/[0.03] px-4 py-2 text-sm font-semibold text-slate-100 transition-all hover:bg-white/[0.08] mx-auto"
+        >
+          <Plus className="h-4 w-4" />
+          Add set
+        </button>
+      </div>
     </section>
   );
 }
@@ -211,26 +388,9 @@ export default function GymPlanMenu() {
     "day-2": null,
     "day-3": null,
   });
-  const [workouts, setWorkouts] = useState<WorkoutItem[]>([
-    {
-      id: "workout-1",
-      name: "Workout",
-      volume: "4 sets",
-      note: "Keep good form and controlled tempo.",
-    },
-  ]);
-  const [activeWorkoutId, setActiveWorkoutId] = useState<string>("workout-1");
-
-  const activeWorkout = useMemo<WorkoutItem>(() => {
-    return (
-      workouts.find((workout) => workout.id === activeWorkoutId) ?? {
-        id: "workout-fallback",
-        name: "Workout",
-        volume: "3 sets",
-        note: "",
-      }
-    );
-  }, [activeWorkoutId, workouts]);
+  const [workoutTracking, setWorkoutTracking] = useState<WorkoutTrackingState>(() =>
+    createInitialWorkoutTrackingState(),
+  );
 
   const activeDay = useMemo<DayPlan | undefined>(
     () => days.find((day) => day.id === activeDayId),
@@ -241,6 +401,10 @@ export default function GymPlanMenu() {
   const selectedExercise =
     activeDayExercises.find((exercise) => exercise.id === selectedExerciseId) ?? null;
 
+  useEffect(() => {
+    setWorkoutTracking(createInitialWorkoutTrackingState());
+  }, [activeDayId, selectedExercise?.id]);
+
   const getIconForMuscleGroup = (muscleGroup: MuscleGroup): LucideIcon =>
     EXERCISE_ICON_BY_GROUP[muscleGroup];
 
@@ -250,18 +414,12 @@ export default function GymPlanMenu() {
   };
 
   const handleCreateWorkout = (): void => {
-    const nextWorkoutNumber = workouts.length + 1;
-    const newWorkoutId = `workout-${Date.now()}`;
-    const newWorkout: WorkoutItem = {
-      id: newWorkoutId,
-      name: `Workout ${nextWorkoutNumber}`,
-      volume: "4 sets",
-      note: "Add your progression notes for this workout.",
-    };
-
-    setWorkouts((prev) => [...prev, newWorkout]);
-    setActiveWorkoutId(newWorkoutId);
-    setStatusMessage(`${newWorkout.name} created.`);
+    setWorkoutTracking(createInitialWorkoutTrackingState());
+    setStatusMessage(
+      selectedExercise
+        ? `${selectedExercise.name} is ready for a fresh set log.`
+        : "New workout draft ready. Select an exercise to begin tracking sets.",
+    );
   };
 
   const handleSelectDay = (day: DayPlan): void => {
@@ -334,41 +492,54 @@ export default function GymPlanMenu() {
     setStatusMessage(`${deletedExercise.name} removed from ${activeDay?.label ?? "current day"}.`);
   };
 
-  const handleApplySelectedActivities = (): void => {
-    const exerciseForWorkout = selectedExercise ?? activeDayExercises[0];
-    if (!exerciseForWorkout) {
-      setStatusMessage("Select an exercise for the active day first.");
-      return;
-    }
-
-    setWorkouts((prev) =>
-      prev.map((workout) =>
-        workout.id === activeWorkoutId
-          ? {
-              ...workout,
-              name: exerciseForWorkout.name,
-              volume: `${activeDayExercises.length || 1} exercises`,
-            }
-          : workout,
-      ),
-    );
-    setStatusMessage(`${exerciseForWorkout.name} linked to ${activeDay?.label ?? "current day"}.`);
+  const handlePauseTimeChange = (value: PauseTime): void => {
+    setWorkoutTracking((prev) => ({
+      ...prev,
+      pauseTime: normalizePauseTime(value.minutes, value.seconds),
+    }));
   };
 
-  const handleWorkoutVolumeChange = (value: string): void => {
-    setWorkouts((prev) =>
-      prev.map((workout) =>
-        workout.id === activeWorkoutId ? { ...workout, volume: value } : workout,
-      ),
-    );
+  const handleSetChange = (index: number, field: keyof WorkoutSet, value: number): void => {
+    setWorkoutTracking((prev) => ({
+      ...prev,
+      sets: prev.sets.map((set, setIndex) => {
+        if (setIndex !== index) {
+          return set;
+        }
+
+        return {
+          ...set,
+          [field]:
+            field === "weight"
+              ? Math.max(0, Number.isFinite(value) ? value : 0)
+              : clampToNonNegativeInteger(value),
+        };
+      }),
+    }));
   };
 
-  const handleWorkoutNoteChange = (value: string): void => {
-    setWorkouts((prev) =>
-      prev.map((workout) =>
-        workout.id === activeWorkoutId ? { ...workout, note: value } : workout,
-      ),
-    );
+  const handleAddSet = (): void => {
+    setWorkoutTracking((prev) => {
+      const lastSet = prev.sets[prev.sets.length - 1] ?? DEFAULT_SET;
+
+      return {
+        ...prev,
+        sets: [...prev.sets, { weight: lastSet.weight, reps: lastSet.reps }],
+      };
+    });
+  };
+
+  const handleRemoveSet = (index: number): void => {
+    setWorkoutTracking((prev) => {
+      if (prev.sets.length === 1) {
+        return prev;
+      }
+
+      return {
+        ...prev,
+        sets: prev.sets.filter((_, setIndex) => setIndex !== index),
+      };
+    });
   };
 
   return (
@@ -487,13 +658,13 @@ export default function GymPlanMenu() {
               </div>
 
               <ActivityDetails
-                activeDayLabel={activeDay?.label ?? "Day"}
-                selectedExercisesCount={activeDayExercises.length}
                 selectedExerciseName={selectedExercise?.name ?? null}
-                activeWorkout={activeWorkout}
-                onWorkoutVolumeChange={handleWorkoutVolumeChange}
-                onWorkoutNoteChange={handleWorkoutNoteChange}
-                onApplyToWorkout={handleApplySelectedActivities}
+                pauseTime={workoutTracking.pauseTime}
+                sets={workoutTracking.sets}
+                onPauseTimeChange={handlePauseTimeChange}
+                onSetChange={handleSetChange}
+                onAddSet={handleAddSet}
+                onRemoveSet={handleRemoveSet}
               />
             </div>
           </div>
