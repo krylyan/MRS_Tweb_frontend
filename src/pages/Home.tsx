@@ -1,12 +1,56 @@
 ﻿import { Apple, Dumbbell, Heart, Target, TrendingUp, Zap } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
+import { useEffect, useRef, useState } from "react";
+import { UserCircle2 } from "lucide-react";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import { Button } from "../components/ui/button";
 import { Card } from "../components/ui/card";
 import AuthUtils from "../utils/authUtils";
 
+const USERS_KEY = "fitlife_users";
+
+interface UserRecord {
+  fullName: string;
+  password: string;
+}
+
+type UsersMap = Record<string, UserRecord>;
+
 export default function Home() {
   const navigate = useNavigate();
+  const menuRef = useRef<HTMLDivElement | null>(null);
+  const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
+  const [avatarFailed, setAvatarFailed] = useState(false);
+  const currentUser = AuthUtils.getCurrentUserEmail() ?? "";
+
+  let fullName = "";
+  try {
+    const users = JSON.parse(localStorage.getItem(USERS_KEY) ?? "{}") as UsersMap;
+    fullName = users[currentUser]?.fullName ?? "";
+  } catch {
+    fullName = "";
+  }
+
+  const displayName = fullName || "John Doe";
+  const avatarUrl = `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(displayName)}`;
+
+  useEffect(() => {
+    const handleOutsideClick = (event: MouseEvent): void => {
+      const target = event.target;
+      if (!(target instanceof Node)) {
+        return;
+      }
+
+      if (menuRef.current && !menuRef.current.contains(target)) {
+        setIsAccountMenuOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => {
+      document.removeEventListener("mousedown", handleOutsideClick);
+    };
+  }, []);
 
   const goToFaq = (): void => {
     navigate("/faq");
@@ -16,7 +60,13 @@ export default function Home() {
     navigate("/gym-plan");
   };
 
+  const goToProfile = (): void => {
+    setIsAccountMenuOpen(false);
+    navigate("/profile");
+  };
+
   const handleLogout = (): void => {
+    setIsAccountMenuOpen(false);
     AuthUtils.logout();
     navigate("/signin", { replace: true });
   };
@@ -32,28 +82,53 @@ export default function Home() {
         </Link>
 
         <div className="hidden items-center space-x-8 md:flex">
-          <a href="#programs" className="text-gray-300 transition-colors hover:text-white">
-            Programs
-          </a>
-          <a href="#features" className="text-gray-300 transition-colors hover:text-white">
-            Features
-          </a>
-          <a href="#about" className="text-gray-300 transition-colors hover:text-white">
-            About
-          </a>
           <Link to="/faq" className="text-gray-300 transition-colors hover:text-white">
             FAQ
           </Link>
-          <Link to="/profile" className="text-gray-300 transition-colors hover:text-white">
-            Profile
-          </Link>
-          <button
-            type="button"
-            onClick={handleLogout}
-            className="rounded-md border border-[rgba(248,113,113,0.35)] bg-[rgba(220,38,38,0.45)] px-6 py-2 font-medium text-white transition-all duration-300"
-          >
-            Log out
-          </button>
+
+          <div ref={menuRef} className="relative">
+            <button
+              type="button"
+              onClick={() => setIsAccountMenuOpen((prev) => !prev)}
+              className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-full border border-white/15 bg-white/8 transition-all duration-200 hover:border-white/25 hover:bg-white/12"
+              aria-label="Open account menu"
+              aria-expanded={isAccountMenuOpen}
+              aria-haspopup="menu"
+            >
+              {avatarFailed ? (
+                <UserCircle2 className="h-7 w-7 text-slate-200" />
+              ) : (
+                <img
+                  src={avatarUrl}
+                  alt={`${displayName} avatar`}
+                  onError={() => setAvatarFailed(true)}
+                  className="h-full w-full object-cover"
+                />
+              )}
+            </button>
+
+            {isAccountMenuOpen ? (
+              <div className="absolute right-0 top-[calc(100%+12px)] z-30 w-52 rounded-[14px] border border-white/12 bg-slate-900/95 p-2 shadow-[0_14px_28px_rgba(0,0,0,0.35)] backdrop-blur-[8px]">
+                <div className="absolute -top-2 right-4 h-4 w-4 rotate-45 border-l border-t border-white/12 bg-slate-900/95" />
+                <button
+                  type="button"
+                  onClick={goToProfile}
+                  className="relative flex w-full items-center rounded-[10px] px-4 py-3 text-left text-sm font-medium text-slate-100 transition-colors hover:bg-white/10"
+                  role="menuitem"
+                >
+                  Profile
+                </button>
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="relative flex w-full items-center rounded-[10px] px-4 py-3 text-left text-sm font-medium text-slate-100 transition-colors hover:bg-rose-500/15 hover:text-rose-200"
+                  role="menuitem"
+                >
+                  Log out
+                </button>
+              </div>
+            ) : null}
+          </div>
         </div>
       </nav>
 
