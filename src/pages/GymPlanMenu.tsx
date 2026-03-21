@@ -5,9 +5,9 @@ import {
   ClipboardCheck,
   Grid3X3,
   Heart,
-  Minus,
   Plus,
   Search,
+  Trash2,
   Trophy,
   UserRoundPlus,
   Users,
@@ -122,22 +122,6 @@ const normalizePauseTime = (minutes: number, seconds: number): PauseTime => {
 
 const formatPauseTime = ({ minutes, seconds }: PauseTime): string =>
   `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
-
-const formatSetValue = (value: number): string => {
-  if (Number.isInteger(value)) {
-    return String(value);
-  }
-
-  return value.toFixed(1).replace(/\.0$/, "");
-};
-
-const formatPreviousSet = (set?: WorkoutSet): string => {
-  if (!set || (set.weight <= 0 && set.reps <= 0)) {
-    return "--";
-  }
-
-  return `${formatSetValue(set.weight)}kg x ${formatSetValue(set.reps)}`;
-};
 
 const parsePauseTimeInput = (value: string): PauseTime => {
   const sanitized = value.replace(/[^\d:]/g, "").trim();
@@ -294,64 +278,57 @@ function ActivityDetails({
           <span className="text-xs font-medium text-slate-400">{sets.length} tracked</span>
         </div>
 
-        <div className="overflow-x-auto">
-          <div className="min-w-[540px]">
-            <div className="grid grid-cols-[56px_minmax(120px,1fr)_120px_88px_40px] items-center gap-2.5 px-1 pb-2">
-              <p className={headerCellClassName}>Set</p>
-              <p className={headerCellClassName}>Previous</p>
-              <p className={headerCellClassName}>Weight</p>
-              <p className={headerCellClassName}>Reps</p>
-              <p className={`${headerCellClassName} text-right`}>Remove</p>
+        <div className="grid grid-cols-[56px_minmax(0,1fr)_88px_32px] items-center gap-2.5 px-1 pb-2">
+          <p className={headerCellClassName}>Set</p>
+          <p className={headerCellClassName}>Weight</p>
+          <p className={headerCellClassName}>Reps</p>
+          <span />
+        </div>
+
+        <div className="space-y-2.5">
+          {sets.map((set, index) => (
+            <div
+              key={`set-${index}`}
+              className="grid grid-cols-[56px_minmax(0,1fr)_88px_32px] items-center gap-2.5 rounded-[10px] border border-white/10 bg-white/[0.03] p-2.5"
+            >
+              <div className="flex h-10 items-center justify-center rounded-[10px] border border-white/10 bg-white/[0.02] text-sm font-semibold text-slate-100">
+                {index + 1}
+              </div>
+
+              <div className="relative">
+                <input
+                  type="number"
+                  min={0}
+                  step={0.5}
+                  value={set.weight}
+                  onChange={(event) => onSetChange(index, "weight", Number(event.target.value || 0))}
+                  className={`${inputClassName} pr-9`}
+                />
+                <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">
+                  kg
+                </span>
+              </div>
+
+              <input
+                type="number"
+                min={0}
+                step={1}
+                value={set.reps}
+                onChange={(event) => onSetChange(index, "reps", Number(event.target.value || 0))}
+                className={`${inputClassName} text-center`}
+              />
+
+              <button
+                type="button"
+                onClick={() => onRemoveSet(index)}
+                disabled={sets.length === 1}
+                className="inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-[8px] text-slate-300 transition-all hover:bg-rose-500/15 hover:text-rose-300 disabled:cursor-not-allowed disabled:opacity-45"
+                aria-label={`Remove set ${index + 1}`}
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
             </div>
-
-            <div className="space-y-2.5">
-              {sets.map((set, index) => (
-                <div
-                  key={`set-${index}`}
-                  className="grid grid-cols-[56px_minmax(120px,1fr)_120px_88px_40px] items-center gap-2.5 rounded-[10px] border border-white/10 bg-white/[0.03] p-2.5"
-                >
-                  <div className="flex h-10 items-center justify-center rounded-[10px] border border-white/10 bg-white/[0.02] text-sm font-semibold text-slate-100">
-                    {index + 1}
-                  </div>
-
-                  <p className="truncate px-2 text-sm text-slate-300">{formatPreviousSet(sets[index - 1])}</p>
-
-                  <div className="relative">
-                    <input
-                      type="number"
-                      min={0}
-                      step={0.5}
-                      value={set.weight}
-                      onChange={(event) => onSetChange(index, "weight", Number(event.target.value || 0))}
-                      className={`${inputClassName} pr-9`}
-                    />
-                    <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">
-                      kg
-                    </span>
-                  </div>
-
-                  <input
-                    type="number"
-                    min={0}
-                    step={1}
-                    value={set.reps}
-                    onChange={(event) => onSetChange(index, "reps", Number(event.target.value || 0))}
-                    className={`${inputClassName} text-center`}
-                  />
-
-                  <button
-                    type="button"
-                    onClick={() => onRemoveSet(index)}
-                    disabled={sets.length === 1}
-                    className="inline-flex h-10 w-10 items-center justify-center justify-self-end rounded-[10px] border border-white/20 bg-white/[0.03] text-slate-200 transition-all hover:bg-white/[0.08] hover:text-rose-200 disabled:cursor-not-allowed disabled:opacity-45"
-                    aria-label={`Remove set ${index + 1}`}
-                  >
-                    <Minus className="h-4 w-4" />
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
+          ))}
         </div>
 
         <button
