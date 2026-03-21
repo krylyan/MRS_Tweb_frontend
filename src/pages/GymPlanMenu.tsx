@@ -14,31 +14,28 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import ActivitiesList from "../components/ActivitiesList";
 import WorkoutPreview from "../components/WorkoutPreview";
 import { exerciseService } from "../services/exerciseService";
 import type { Exercise, MuscleGroup } from "../types/exercise";
+import {
+  createEmptyWorkoutPlan,
+  getWorkoutPlanById,
+  getWorkoutPlans,
+  saveWorkoutPlan,
+} from "../utils/planStorage";
+import type {
+  PauseTime,
+  StoredWorkoutPlan,
+  WorkoutSet,
+  WorkoutTrackingState,
+} from "../utils/planStorage";
 
 interface SidebarItem {
   id: string;
   label: string;
   icon: LucideIcon;
-}
-
-interface WorkoutSet {
-  weight: number;
-  reps: number;
-}
-
-interface PauseTime {
-  minutes: number;
-  seconds: number;
-}
-
-interface WorkoutTrackingState {
-  pauseTime: PauseTime;
-  sets: WorkoutSet[];
 }
 
 interface DayPlan {
@@ -103,6 +100,18 @@ const getExercisesByIds = (allExercises: Exercise[], ids: string[]): Exercise[] 
     .map((id) => allExercises.find((exercise) => exercise.id === id))
     .filter((exercise): exercise is Exercise => !!exercise);
 
+const createEmptyDays = (): DayPlan[] => [
+  {
+    id: "day-1",
+    label: "Day 1",
+    exercises: [],
+  },
+];
+
+const createEmptySelectedExerciseMap = (): Record<string, string | null> => ({
+  "day-1": null,
+});
+
 const createInitialWorkoutTrackingState = (): WorkoutTrackingState => ({
   pauseTime: { ...DEFAULT_PAUSE_TIME },
   sets: [{ ...DEFAULT_SET }],
@@ -139,6 +148,44 @@ const parsePauseTimeInput = (value: string): PauseTime => {
   }
 
   return normalizePauseTime(minutes, seconds);
+};
+
+const hydrateDaysFromPlan = (plan: StoredWorkoutPlan, allExercises: Exercise[]): DayPlan[] => {
+  const hydrated = plan.days.map((day) => ({
+    id: day.id,
+    label: day.label,
+    exercises: getExercisesByIds(allExercises, day.exerciseIds),
+  }));
+
+  return hydrated.length ? hydrated : createEmptyDays();
+};
+
+const createStoredPlanPayload = (
+  planId: string,
+  planName: string,
+  days: DayPlan[],
+  selectedExerciseByDay: Record<string, string | null>,
+  workoutTracking: WorkoutTrackingState,
+  existingPlan?: StoredWorkoutPlan | null,
+): StoredWorkoutPlan => {
+  const timestamp = new Date().toISOString();
+
+  return {
+    id: planId,
+    name: planName,
+    createdAt: existingPlan?.createdAt ?? timestamp,
+    updatedAt: timestamp,
+    days: days.map((day) => ({
+      id: day.id,
+      label: day.label,
+      exerciseIds: day.exercises.map((exercise) => exercise.id),
+    })),
+    selectedExerciseByDay: { ...selectedExerciseByDay },
+    workoutTracking: {
+      pauseTime: { ...workoutTracking.pauseTime },
+      sets: workoutTracking.sets.map((set) => ({ ...set })),
+    },
+  };
 };
 
 function DaysSelector({ days, activeDayId, onSelectDay, onAddDay }: DaysSelectorProps) {
@@ -390,29 +437,73 @@ function ActivityDetails({
 }
 
 export default function GymPlanMenu() {
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const allExercises = useMemo(() => exerciseService.getAllExercises(), []);
+  const planId = searchParams.get("planId");
+  const isNewDraft = searchParams.get("new") === "1";
   const [activeSidebarItem, setActiveSidebarItem] = useState<string>("search");
-  const [statusMessage, setStatusMessage] = useState<string>(
-    "Search the professional database and configure exercises per day.",
-  );
-  const [days, setDays] = useState<DayPlan[]>(() => [
-    {
-      id: "day-1",
-      label: "Day 1",
-      exercises: getExercisesByIds(allExercises, INITIAL_DAY_EXERCISE_IDS),
-    },
-    { id: "day-2", label: "Day 2", exercises: [] },
-    { id: "day-3", label: "Day 3", exercises: [] },
-  ]);
+  const [statusMessage, setStatusMessage] = useState<string>("Open a plan and start configuring it.");
+  const [planName, setPlanName] = useState<string>("");
+  const [days, setDays] = useState<DayPlan[]>(() => createEmptyDays());
   const [activeDayId, setActiveDayId] = useState<string>("day-1");
-  const [selectedExerciseByDay, setSelectedExerciseByDay] = useState<Record<string, string | null>>({
-    "day-1": INITIAL_DAY_EXERCISE_IDS[0] ?? null,
-    "day-2": null,
-    "day-3": null,
-  });
+  const [selectedExerciseByDay, setSelectedExerciseByDay] = useState<Record<string, string | null>>(
+    createEmptySelectedExerciseMap,
+  );
   const [workoutTracking, setWorkoutTracking] = useState<WorkoutTrackingState>(() =>
     createInitialWorkoutTrackingState(),
   );
+  const [isEditorReady, setIsEditorReady] = useState<boolean>(false);
+  const [hasLoadedPlan, setHasLoadedPlan] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (!planId && !isNewDraft) {
+      const availablePlans = getWorkoutPlans();
+      const fallbackPlan = availablePlans[0];
+
+      navigate(fallbackPlan ? `/gym-plan?planId=${fallbackPlan.id}` : "/gym-plan?new=1", {
+        replace: true,
+      });
+      return;
+    }
+
+    if (planId) {
+      const storedPlan = getWorkoutPlanById(planId);
+
+      if (!storedPlan) {
+        navigate("/plans", { replace: true });
+        return;
+      }
+
+      const hydratedDays = hydrateDaysFromPlan(storedPlan, allExercises);
+      setPlanName(storedPlan.name);
+      setDays(hydratedDays);
+      setActiveDayId(hydratedDays[0]?.id ?? "day-1");
+      setSelectedExerciseByDay({
+        ...createEmptySelectedExerciseMap(),
+        ...storedPlan.selectedExerciseByDay,
+      });
+      setWorkoutTracking({
+        pauseTime: { ...storedPlan.workoutTracking.pauseTime },
+        sets: storedPlan.workoutTracking.sets.map((set) => ({ ...set })),
+      });
+      setIsEditorReady(true);
+      setStatusMessage(`${storedPlan.name} loaded. Fine-tune exercises, sets, and rest times.`);
+      setHasLoadedPlan(true);
+      return;
+    }
+
+    if (isNewDraft) {
+      setPlanName("");
+      setDays(createEmptyDays());
+      setActiveDayId("day-1");
+      setSelectedExerciseByDay(createEmptySelectedExerciseMap());
+      setWorkoutTracking(createInitialWorkoutTrackingState());
+      setIsEditorReady(false);
+      setStatusMessage("Add a workout name first, then you can configure the rest of the plan.");
+      setHasLoadedPlan(true);
+    }
+  }, [allExercises, isNewDraft, navigate, planId]);
 
   const activeDay = useMemo<DayPlan | undefined>(
     () => days.find((day) => day.id === activeDayId),
@@ -424,8 +515,19 @@ export default function GymPlanMenu() {
     activeDayExercises.find((exercise) => exercise.id === selectedExerciseId) ?? null;
 
   useEffect(() => {
-    setWorkoutTracking(createInitialWorkoutTrackingState());
-  }, [activeDayId, selectedExercise?.id]);
+    if (!hasLoadedPlan || !planId || !isEditorReady) {
+      return;
+    }
+
+    const existingPlan = getWorkoutPlanById(planId);
+    if (!existingPlan) {
+      return;
+    }
+
+    saveWorkoutPlan(
+      createStoredPlanPayload(planId, planName, days, selectedExerciseByDay, workoutTracking, existingPlan),
+    );
+  }, [days, hasLoadedPlan, isEditorReady, planId, planName, selectedExerciseByDay, workoutTracking]);
 
   const getIconForMuscleGroup = (muscleGroup: MuscleGroup): LucideIcon =>
     EXERCISE_ICON_BY_GROUP[muscleGroup];
@@ -436,12 +538,38 @@ export default function GymPlanMenu() {
   };
 
   const handleCreateWorkout = (): void => {
-    setWorkoutTracking(createInitialWorkoutTrackingState());
-    setStatusMessage(
-      selectedExercise
-        ? `${selectedExercise.name} is ready for a fresh set log.`
-        : "New workout draft ready. Select an exercise to begin tracking sets.",
+    navigate("/gym-plan?new=1");
+  };
+
+  const handlePlanNameChange = (value: string): void => {
+    setPlanName(value);
+
+    if (!isEditorReady) {
+      setStatusMessage("Save the workout name to unlock the editor.");
+    }
+  };
+
+  const handleActivatePlan = (): void => {
+    const trimmedName = planName.trim();
+
+    if (!trimmedName) {
+      setStatusMessage("Add the workout name before continuing.");
+      return;
+    }
+
+    const createdPlan = saveWorkoutPlan(
+      createStoredPlanPayload(
+        createEmptyWorkoutPlan(trimmedName).id,
+        trimmedName,
+        days,
+        selectedExerciseByDay,
+        workoutTracking,
+      ),
     );
+
+    setIsEditorReady(true);
+    setStatusMessage(`${trimmedName} created. You can now build the full workout plan.`);
+    navigate(`/gym-plan?planId=${createdPlan.id}`, { replace: true });
   };
 
   const handleSelectDay = (day: DayPlan): void => {
@@ -610,16 +738,18 @@ export default function GymPlanMenu() {
             <header className="reveal-up reveal-delay-1 mb-4 rounded-[14px] border border-white/12 bg-white/4 p-4 shadow-[0_14px_28px_rgba(0,0,0,0.25)] backdrop-blur-[6px] md:p-5">
               <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                 <div>
-                  <h1 className="text-3xl font-bold leading-tight text-slate-50 md:text-4xl">Workout editor</h1>
+                  <h1 className="text-3xl font-bold leading-tight text-slate-50 md:text-4xl">
+                    {planName.trim() || "Workout editor"}
+                  </h1>
                   <p className="mt-1 text-sm text-slate-300">{statusMessage}</p>
                 </div>
 
                 <div className="flex flex-wrap gap-2">
                   <Link
-                    to="/home"
+                    to="/plans"
                     className="rounded-[10px] border border-white/25 bg-white/8 px-4 py-2 text-sm font-semibold text-slate-100 transition-colors hover:bg-white/14"
                   >
-                    Back to Home
+                    Back to Plans
                   </Link>
                   <button
                     type="button"
@@ -627,10 +757,43 @@ export default function GymPlanMenu() {
                     className="inline-flex items-center gap-2 rounded-[10px] border-0 bg-gradient-to-r from-emerald-500 to-blue-500 px-4 py-2 text-sm font-semibold text-white shadow-lg transition-all duration-300 hover:from-emerald-600 hover:to-blue-600"
                   >
                     <Plus className="h-4 w-4" />
-                    Create workout
+                    New draft
                   </button>
                 </div>
               </div>
+
+              <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+                <div>
+                  <label className="mb-1 block text-xs font-semibold text-slate-300">Workout name</label>
+                  <input
+                    type="text"
+                    value={planName}
+                    onChange={(event) => handlePlanNameChange(event.target.value)}
+                    placeholder="Enter workout name..."
+                    className="h-10 w-full rounded-[10px] border border-white/20 bg-white/[0.03] px-3 text-sm text-slate-100 outline-none transition-all placeholder:text-slate-400 focus:border-emerald-500/60 focus:shadow-[0_0_16px_rgba(16,185,129,0.2)]"
+                  />
+                </div>
+
+                {!isEditorReady ? (
+                  <button
+                    type="button"
+                    onClick={handleActivatePlan}
+                    className="inline-flex items-center justify-center gap-2 rounded-[10px] border border-emerald-400/30 bg-emerald-500/15 px-4 py-2 text-sm font-semibold text-emerald-100 transition-all hover:bg-emerald-500/25"
+                  >
+                    Unlock editor
+                  </button>
+                ) : (
+                  <div className="rounded-[10px] border border-white/10 bg-white/[0.03] px-4 py-2 text-sm text-slate-300">
+                    Plan saved automatically
+                  </div>
+                )}
+              </div>
+
+              {!isEditorReady ? (
+                <p className="mt-3 rounded-[10px] border border-amber-400/20 bg-amber-500/10 px-3 py-2 text-sm text-amber-100">
+                  Start by adding the workout name. After that, the full Gym Workout Plan editor unlocks.
+                </p>
+              ) : null}
 
               <div className="mt-4 flex flex-wrap gap-2 lg:hidden">
                 {SIDEBAR_ITEMS.map((item) => {
@@ -655,39 +818,41 @@ export default function GymPlanMenu() {
               </div>
             </header>
 
-            <DaysSelector
-              days={days}
-              activeDayId={activeDayId}
-              onSelectDay={handleSelectDay}
-              onAddDay={handleAddDay}
-            />
+            <div className={isEditorReady ? "" : "pointer-events-none opacity-40 select-none"}>
+              <DaysSelector
+                days={days}
+                activeDayId={activeDayId}
+                onSelectDay={handleSelectDay}
+                onAddDay={handleAddDay}
+              />
 
-            <div className="grid w-full gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)]">
-              <div className="reveal-up reveal-delay-3">
-                <WorkoutPreview selectedExercise={selectedExercise} />
-              </div>
+              <div className="grid w-full gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)]">
+                <div className="reveal-up reveal-delay-3">
+                  <WorkoutPreview selectedExercise={selectedExercise} />
+                </div>
 
-              <div className="reveal-up reveal-delay-4">
-                <ActivitiesList
-                  dayExercises={activeDayExercises}
-                  selectedExerciseId={selectedExerciseId}
-                  getIconForMuscleGroup={getIconForMuscleGroup}
-                  searchExercises={exerciseService.searchExercises}
-                  onAddExercise={handleAddExerciseToActiveDay}
-                  onSelectExercise={handleSelectExercise}
-                  onDeleteExercise={handleDeleteExerciseFromActiveDay}
+                <div className="reveal-up reveal-delay-4">
+                  <ActivitiesList
+                    dayExercises={activeDayExercises}
+                    selectedExerciseId={selectedExerciseId}
+                    getIconForMuscleGroup={getIconForMuscleGroup}
+                    searchExercises={exerciseService.searchExercises}
+                    onAddExercise={handleAddExerciseToActiveDay}
+                    onSelectExercise={handleSelectExercise}
+                    onDeleteExercise={handleDeleteExerciseFromActiveDay}
+                  />
+                </div>
+
+                <ActivityDetails
+                  selectedExerciseName={selectedExercise?.name ?? null}
+                  pauseTime={workoutTracking.pauseTime}
+                  sets={workoutTracking.sets}
+                  onPauseTimeChange={handlePauseTimeChange}
+                  onSetChange={handleSetChange}
+                  onAddSet={handleAddSet}
+                  onRemoveSet={handleRemoveSet}
                 />
               </div>
-
-              <ActivityDetails
-                selectedExerciseName={selectedExercise?.name ?? null}
-                pauseTime={workoutTracking.pauseTime}
-                sets={workoutTracking.sets}
-                onPauseTimeChange={handlePauseTimeChange}
-                onSetChange={handleSetChange}
-                onAddSet={handleAddSet}
-                onRemoveSet={handleRemoveSet}
-              />
             </div>
           </div>
         </div>

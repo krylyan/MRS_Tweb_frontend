@@ -58,7 +58,7 @@ export default function Home() {
   };
 
   const goToGymPlan = (): void => {
-    navigate("/gym-plan");
+    navigate("/plans");
   };
 
   const goToProfile = (): void => {
@@ -83,6 +83,9 @@ export default function Home() {
         </Link>
 
         <div className="hidden items-center space-x-8 md:flex">
+          <Link to="/plans" className="text-gray-300 transition-colors hover:text-white">
+            Plans
+          </Link>
           <Link to="/faq" className="text-gray-300 transition-colors hover:text-white">
             FAQ
           </Link>

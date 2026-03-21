@@ -3,6 +3,7 @@ import ProtectedRoute from "./components/auth/ProtectedRoute";
 import FAQ from "./pages/FAQ";
 import GymPlanMenu from "./pages/GymPlanMenu";
 import Home from "./pages/Home";
+import MyPlans from "./pages/MyPlans";
 import Profile from "./pages/Profile";
 import Questionnaire from "./pages/Questionnaire";
 import SignIn from "./pages/auth/SignIn";
@@ -36,6 +37,14 @@ export default function App() {
           element={
             <ProtectedRoute>
               <Questionnaire />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/plans"
+          element={
+            <ProtectedRoute>
+              <MyPlans />
             </ProtectedRoute>
           }
         />
