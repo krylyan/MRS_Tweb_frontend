@@ -182,3 +182,8 @@ export const saveWorkoutPlan = (plan: StoredWorkoutPlan): StoredWorkoutPlan => {
   writePlans(plans);
   return nextPlan;
 };
+
+export const deleteWorkoutPlan = (planId: string): void => {
+  const plans = readPlans().filter((plan) => plan.id !== planId);
+  writePlans(plans);
+};
