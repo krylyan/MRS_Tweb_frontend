@@ -1,6 +1,7 @@
 ﻿import { Apple, Dumbbell, Heart, Target, TrendingUp, Zap } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
+import { LogOut, User } from "lucide-react";
 import { UserCircle2 } from "lucide-react";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import { Button } from "../components/ui/button";
@@ -73,7 +74,7 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white">
-      <nav className="reveal-up flex items-center justify-between border-b border-white/10 p-6 md:px-12 md:py-8">
+      <nav className="reveal-up relative z-40 flex items-center justify-between overflow-visible border-b border-white/10 p-6 md:px-12 md:py-8">
         <Link to="/home" className="flex items-center space-x-3 transition-opacity duration-200 hover:opacity-80">
           <div className="rounded-lg bg-gradient-to-br from-emerald-400 to-blue-500 p-2">
             <Heart className="h-6 w-6 text-white" />
@@ -108,23 +109,32 @@ export default function Home() {
             </button>
 
             {isAccountMenuOpen ? (
-              <div className="absolute right-0 top-[calc(100%+12px)] z-30 w-52 rounded-[14px] border border-white/12 bg-slate-900/95 p-2 shadow-[0_14px_28px_rgba(0,0,0,0.35)] backdrop-blur-[8px]">
-                <div className="absolute -top-2 right-4 h-4 w-4 rotate-45 border-l border-t border-white/12 bg-slate-900/95" />
+              <div
+                className="absolute right-0 top-[calc(100%+12px)] z-50 w-56 overflow-visible rounded-[14px] border border-white/12 bg-slate-950/95 p-2 shadow-[0_14px_28px_rgba(0,0,0,0.35)] backdrop-blur-[8px] pointer-events-auto"
+                role="menu"
+              >
+                <div className="pointer-events-none absolute -top-2 right-4 h-4 w-4 rotate-45 border-l border-t border-white/12 bg-slate-950/95" />
                 <button
                   type="button"
                   onClick={goToProfile}
-                  className="relative flex w-full items-center rounded-[10px] px-4 py-3 text-left text-sm font-medium text-slate-100 transition-colors hover:bg-white/10"
+                  className="relative flex w-full items-center gap-3 rounded-[10px] border border-transparent px-4 py-3 text-left text-sm font-medium text-slate-100 transition-all hover:border-emerald-400/20 hover:bg-emerald-500/10 hover:text-emerald-100"
                   role="menuitem"
                 >
-                  Profile
+                  <span className="inline-flex h-8 w-8 items-center justify-center rounded-[8px] border border-white/10 bg-white/[0.04] text-slate-200">
+                    <User className="h-4 w-4" />
+                  </span>
+                  <span>Profile</span>
                 </button>
                 <button
                   type="button"
                   onClick={handleLogout}
-                  className="relative flex w-full items-center rounded-[10px] px-4 py-3 text-left text-sm font-medium text-slate-100 transition-colors hover:bg-rose-500/15 hover:text-rose-200"
+                  className="relative mt-1 flex w-full items-center gap-3 rounded-[10px] border border-transparent px-4 py-3 text-left text-sm font-medium text-slate-100 transition-all hover:border-rose-400/20 hover:bg-rose-500/15 hover:text-rose-200"
                   role="menuitem"
                 >
-                  Log out
+                  <span className="inline-flex h-8 w-8 items-center justify-center rounded-[8px] border border-white/10 bg-white/[0.04] text-slate-200">
+                    <LogOut className="h-4 w-4" />
+                  </span>
+                  <span>Log out</span>
                 </button>
               </div>
             ) : null}
