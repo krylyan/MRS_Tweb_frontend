@@ -79,12 +79,6 @@ const EXERCISE_ICON_BY_GROUP: Record<MuscleGroup, LucideIcon> = {
   cardio: Heart,
 };
 
-const INITIAL_DAY_EXERCISE_IDS = [
-  "Barbell_Bench_Press_-_Medium_Grip",
-  "Bent_Over_Barbell_Row",
-  "90_90_Hamstring",
-];
-
 const DEFAULT_PAUSE_TIME: PauseTime = {
   minutes: 2,
   seconds: 0,
