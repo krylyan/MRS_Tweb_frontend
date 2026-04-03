@@ -1,6 +1,6 @@
 import { ChevronRight, MoreHorizontal, Plus, Star, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { deleteWorkoutPlan, getWorkoutPlans } from "../utils/planStorage";
 import type { StoredWorkoutPlan } from "../utils/planStorage";
 
@@ -73,8 +73,9 @@ const readFavoriteIds = (): string[] => {
 
 export default function MyPlans() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const activeCategory: PlanCategory = (searchParams.get("tab") as PlanCategory) ?? "workout";
   const menuAreaRef = useRef<HTMLDivElement | null>(null);
-  const [activeCategory, setActiveCategory] = useState<PlanCategory>("workout");
   const [workoutPlans, setWorkoutPlans] = useState<StoredWorkoutPlan[]>(() => getWorkoutPlans());
   const [favoriteIds, setFavoriteIds] = useState<string[]>(() => readFavoriteIds());
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
@@ -304,56 +305,10 @@ export default function MyPlans() {
       <div className="mx-auto w-full max-w-[1400px] px-3 py-4 sm:px-6 sm:py-8">
         <h1 className="reveal-up mb-4 text-3xl font-bold leading-tight text-slate-50 md:text-4xl">My Plans</h1>
 
-        <section className="reveal-up mb-4 rounded-[14px] border border-white/12 bg-white/4 p-4 shadow-[0_14px_28px_rgba(0,0,0,0.25)] backdrop-blur-[6px] md:p-5">
-          <div className="grid gap-3 md:grid-cols-2">
-            <button
-              type="button"
-              onClick={() => setActiveCategory("workout")}
-              className={`rounded-[14px] p-[1px] transition-all ${
-                activeCategory === "workout"
-                  ? "border border-emerald-400/50 bg-gradient-to-r from-emerald-500/40 via-emerald-400/22 to-cyan-400/24 shadow-[0_0_0_1px_rgba(52,211,153,0.2),0_16px_34px_rgba(16,185,129,0.25)]"
-                  : "border border-blue-400/22 bg-gradient-to-r from-blue-500/12 via-sky-400/8 to-emerald-400/10 hover:border-blue-300/30 hover:from-blue-500/16 hover:to-emerald-400/14"
-              }`}
-              aria-pressed={activeCategory === "workout"}
-            >
-              <div className="rounded-[13px] bg-slate-900/82 px-6 py-5 text-center">
-                <p
-                  className={`text-2xl font-semibold ${
-                    activeCategory === "workout" ? "text-emerald-50" : "text-slate-100"
-                  }`}
-                >
-                  Workout
-                </p>
-              </div>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setActiveCategory("alimentation")}
-              className={`rounded-[14px] p-[1px] transition-all ${
-                activeCategory === "alimentation"
-                  ? "border border-blue-400/50 bg-gradient-to-r from-blue-500/38 via-sky-400/22 to-emerald-400/22 shadow-[0_0_0_1px_rgba(96,165,250,0.2),0_16px_34px_rgba(59,130,246,0.25)]"
-                  : "border border-blue-400/22 bg-gradient-to-r from-blue-500/12 via-sky-400/8 to-emerald-400/10 hover:border-blue-300/30 hover:from-blue-500/16 hover:to-emerald-400/14"
-              }`}
-              aria-pressed={activeCategory === "alimentation"}
-            >
-              <div className="rounded-[13px] bg-slate-900/82 px-6 py-5 text-center">
-                <p
-                  className={`text-2xl font-semibold ${
-                    activeCategory === "alimentation" ? "text-blue-50" : "text-slate-100"
-                  }`}
-                >
-                  Alimentation
-                </p>
-              </div>
-            </button>
-          </div>
-        </section>
-
         <div ref={menuAreaRef} className="space-y-4">
           {activeCategory === "workout" ? (
             <>
-              {renderSection("Favorites", favoritePlans, "favorites")}
+              {favoritePlans.length > 0 && renderSection("Favorites", favoritePlans, "favorites")}
               {renderSection("Saved workouts", savedWorkoutPlans, "saved-workouts", true)}
             </>
           ) : (

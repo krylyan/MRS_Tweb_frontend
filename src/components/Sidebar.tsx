@@ -1,32 +1,41 @@
+import { useEffect, useState } from "react";
 import {
   CalendarCheck2,
+  ChevronDown,
   Dumbbell,
   HelpCircle,
   Home,
   LogOut,
+  UtensilsCrossed,
   User,
 } from "lucide-react";
-import type { LucideIcon } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import AuthUtils from "../utils/authUtils";
-
-interface NavItem {
-  label: string;
-  icon: LucideIcon;
-  path: string;
-}
-
-const NAV_ITEMS: NavItem[] = [
-  { label: "Dashboard", icon: Home, path: "/home" },
-  { label: "My Plans", icon: CalendarCheck2, path: "/plans" },
-  { label: "Exercises", icon: Dumbbell, path: "/gym-plan" },
-  { label: "Profile", icon: User, path: "/profile" },
-  { label: "FAQ", icon: HelpCircle, path: "/faq" },
-];
 
 export default function Sidebar() {
   const location = useLocation();
   const navigate = useNavigate();
+  const isOnPlans = location.pathname === "/plans";
+
+  const [isPlansOpen, setIsPlansOpen] = useState(isOnPlans);
+
+  const searchParams = new URLSearchParams(location.search);
+  const currentTab = searchParams.get("tab") ?? "workout";
+
+  useEffect(() => {
+    if (!isOnPlans) {
+      setIsPlansOpen(false);
+    }
+  }, [isOnPlans]);
+
+  const handlePlansClick = () => {
+    if (isOnPlans) {
+      setIsPlansOpen((prev) => !prev);
+    } else {
+      setIsPlansOpen(true);
+      navigate("/plans?tab=workout");
+    }
+  };
 
   const handleLogout = () => {
     AuthUtils.logout();
@@ -48,23 +57,110 @@ export default function Sidebar() {
 
       {/* Navigation */}
       <nav className="mt-2 flex flex-1 flex-col gap-1 px-3">
-        {NAV_ITEMS.map((item) => {
-          const isActive = location.pathname === item.path;
-          return (
-            <Link
-              key={item.path}
-              to={item.path}
-              className={`flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all duration-200 ${
-                isActive
-                  ? "bg-emerald-500/20 text-emerald-400 shadow-lg shadow-emerald-500/10"
-                  : "text-gray-400 hover:bg-white/5 hover:text-white"
-              }`}
-            >
-              <item.icon className="h-5 w-5" />
-              <span>{item.label}</span>
-            </Link>
-          );
-        })}
+        {/* Dashboard */}
+        <Link
+          to="/home"
+          className={`flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all duration-200 ${
+            location.pathname === "/home"
+              ? "bg-emerald-500/20 text-emerald-400 shadow-lg shadow-emerald-500/10"
+              : "text-gray-400 hover:bg-white/5 hover:text-white"
+          }`}
+        >
+          <Home className="h-5 w-5" />
+          <span>Dashboard</span>
+        </Link>
+
+        {/* My Plans with expandable sub-menu */}
+        <div>
+          <button
+            type="button"
+            onClick={handlePlansClick}
+            className={`flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all duration-200 ${
+              isOnPlans
+                ? "bg-emerald-500/20 text-emerald-400 shadow-lg shadow-emerald-500/10"
+                : "text-gray-400 hover:bg-white/5 hover:text-white"
+            }`}
+          >
+            <CalendarCheck2 className="h-5 w-5" />
+            <span className="flex-1 text-left">My Plans</span>
+            <ChevronDown
+              className={`h-4 w-4 transition-transform duration-300 ${isPlansOpen ? "rotate-180" : ""}`}
+            />
+          </button>
+
+          {/* Smooth expand/collapse using CSS grid trick */}
+          <div
+            className={`grid transition-all duration-300 ease-in-out ${
+              isPlansOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
+            }`}
+          >
+            <div className="overflow-hidden">
+              <div className="py-1 pl-3">
+                <Link
+                  to="/plans?tab=workout"
+                  className={`flex items-center gap-3 rounded-xl px-4 py-2.5 text-sm font-medium transition-all duration-200 ${
+                    isOnPlans && currentTab === "workout"
+                      ? "bg-emerald-500/15 text-emerald-300"
+                      : "text-gray-400 hover:bg-white/5 hover:text-white"
+                  }`}
+                >
+                  <Dumbbell className="h-4 w-4" />
+                  <span>Workout</span>
+                </Link>
+                <Link
+                  to="/plans?tab=alimentation"
+                  className={`flex items-center gap-3 rounded-xl px-4 py-2.5 text-sm font-medium transition-all duration-200 ${
+                    isOnPlans && currentTab === "alimentation"
+                      ? "bg-emerald-500/15 text-emerald-300"
+                      : "text-gray-400 hover:bg-white/5 hover:text-white"
+                  }`}
+                >
+                  <UtensilsCrossed className="h-4 w-4" />
+                  <span>Alimentation</span>
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Exercises */}
+        <Link
+          to="/gym-plan"
+          className={`flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all duration-200 ${
+            location.pathname === "/gym-plan"
+              ? "bg-emerald-500/20 text-emerald-400 shadow-lg shadow-emerald-500/10"
+              : "text-gray-400 hover:bg-white/5 hover:text-white"
+          }`}
+        >
+          <Dumbbell className="h-5 w-5" />
+          <span>Exercises</span>
+        </Link>
+
+        {/* Profile */}
+        <Link
+          to="/profile"
+          className={`flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all duration-200 ${
+            location.pathname === "/profile"
+              ? "bg-emerald-500/20 text-emerald-400 shadow-lg shadow-emerald-500/10"
+              : "text-gray-400 hover:bg-white/5 hover:text-white"
+          }`}
+        >
+          <User className="h-5 w-5" />
+          <span>Profile</span>
+        </Link>
+
+        {/* FAQ */}
+        <Link
+          to="/faq"
+          className={`flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all duration-200 ${
+            location.pathname === "/faq"
+              ? "bg-emerald-500/20 text-emerald-400 shadow-lg shadow-emerald-500/10"
+              : "text-gray-400 hover:bg-white/5 hover:text-white"
+          }`}
+        >
+          <HelpCircle className="h-5 w-5" />
+          <span>FAQ</span>
+        </Link>
       </nav>
 
       {/* Logout */}
