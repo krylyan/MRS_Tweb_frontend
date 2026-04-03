@@ -9,7 +9,7 @@ const getExercisesByMuscleGroup = (muscleGroup: MuscleGroup): Exercise[] =>
 const searchExercises = (query: string): Exercise[] => {
   const normalized = query.trim().toLowerCase();
   if (!normalized) {
-    return [];
+    return exercises;
   }
 
   return exercises.filter((exercise) => exercise.name.toLowerCase().includes(normalized));

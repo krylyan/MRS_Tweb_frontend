@@ -65,7 +65,7 @@ export default function ActivitiesList({
           <button
             type="button"
             onClick={() => setIsModalOpen(true)}
-            className="inline-flex items-center gap-1.5 rounded-[10px] border border-emerald-400/30 bg-emerald-500/15 px-3 py-1.5 text-sm font-semibold text-emerald-100 transition-all hover:bg-emerald-500/25"
+            className="inline-flex items-center gap-2 rounded-[10px] border border-white/20 bg-white/[0.03] px-4 py-2 text-sm font-semibold text-slate-100 transition-all hover:bg-white/[0.08]"
           >
             <Plus className="h-4 w-4" />
             Add Exercise
@@ -99,10 +99,10 @@ export default function ActivitiesList({
           onClick={(e) => { if (e.target === e.currentTarget) setIsModalOpen(false); }}
         >
           {/* Backdrop */}
-          <div className="absolute inset-0 bg-black/75" onClick={() => setIsModalOpen(false)} />
+          <div className="modal-backdrop absolute inset-0 bg-black/75" onClick={() => setIsModalOpen(false)} />
 
           {/* Modal panel */}
-          <div className="relative z-10 flex w-full max-w-2xl flex-col rounded-2xl border border-white/12 bg-slate-900 shadow-[0_32px_80px_rgba(0,0,0,0.7)]">
+          <div className="modal-panel relative z-10 flex w-full max-w-2xl flex-col rounded-2xl border border-white/12 bg-slate-900 shadow-[0_32px_80px_rgba(0,0,0,0.7)]">
             {/* Header */}
             <div className="flex items-center justify-between border-b border-white/10 px-6 py-5">
               <h3 className="text-xl font-bold text-slate-50">Exercise Library</h3>
