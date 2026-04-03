@@ -687,7 +687,7 @@ export default function GymPlanMenu() {
   };
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-slate-900 text-slate-200">
+    <main className="min-h-screen text-slate-200">
       <div className="mx-auto w-full max-w-[1400px] px-3 py-4 sm:px-6 sm:py-8">
         <div className="flex gap-4 lg:gap-5">
           <aside className="reveal-up hidden w-[78px] shrink-0 rounded-[14px] border border-white/12 bg-white/4 p-2.5 shadow-[0_14px_28px_rgba(0,0,0,0.25)] backdrop-blur-[6px] lg:flex lg:flex-col lg:justify-between">

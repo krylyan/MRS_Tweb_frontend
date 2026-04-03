@@ -1,4 +1,5 @@
 ﻿import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import AppLayout from "./components/AppLayout";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 import FAQ from "./pages/FAQ";
 import GymPlanMenu from "./pages/GymPlanMenu";
@@ -17,22 +18,6 @@ export default function App() {
         <Route path="/signin" element={<SignIn />} />
         <Route path="/signup" element={<SignUp />} />
         <Route
-          path="/home"
-          element={
-            <ProtectedRoute>
-              <Home />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/faq"
-          element={
-            <ProtectedRoute>
-              <FAQ />
-            </ProtectedRoute>
-          }
-        />
-        <Route
           path="/questionnaire"
           element={
             <ProtectedRoute>
@@ -41,29 +26,18 @@ export default function App() {
           }
         />
         <Route
-          path="/plans"
           element={
             <ProtectedRoute>
-              <MyPlans />
+              <AppLayout />
             </ProtectedRoute>
           }
-        />
-        <Route
-          path="/gym-plan"
-          element={
-            <ProtectedRoute>
-              <GymPlanMenu />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/profile"
-          element={
-            <ProtectedRoute>
-              <Profile />
-            </ProtectedRoute>
-          }
-        />
+        >
+          <Route path="/home" element={<Home />} />
+          <Route path="/faq" element={<FAQ />} />
+          <Route path="/plans" element={<MyPlans />} />
+          <Route path="/gym-plan" element={<GymPlanMenu />} />
+          <Route path="/profile" element={<Profile />} />
+        </Route>
         <Route path="*" element={<Navigate to="/signin" replace />} />
       </Routes>
     </BrowserRouter>

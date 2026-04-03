@@ -1,353 +1,187 @@
-﻿import { Apple, Dumbbell, Heart, Target, TrendingUp, Zap } from "lucide-react";
+﻿import {
+  CalendarCheck2,
+  Clock,
+  Dumbbell,
+  Flame,
+  Plus,
+  Target,
+  TrendingUp,
+} from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
-import { useEffect, useRef, useState } from "react";
-import { LogOut, User } from "lucide-react";
-import { UserCircle2 } from "lucide-react";
-import { ImageWithFallback } from "../components/figma/ImageWithFallback";
-import { Button } from "../components/ui/button";
-import { Card } from "../components/ui/card";
-import AuthUtils from "../utils/authUtils";
-
-const USERS_KEY = "fitlife_users";
-
-interface UserRecord {
-  fullName: string;
-  password: string;
-}
-
-type UsersMap = Record<string, UserRecord>;
+import { getWorkoutPlans } from "../utils/planStorage";
 
 export default function Home() {
   const navigate = useNavigate();
-  const menuRef = useRef<HTMLDivElement | null>(null);
-  const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
-  const [avatarFailed, setAvatarFailed] = useState(false);
-  const currentUser = AuthUtils.getCurrentUserEmail() ?? "";
-
-  let fullName = "";
-  try {
-    const users = JSON.parse(localStorage.getItem(USERS_KEY) ?? "{}") as UsersMap;
-    fullName = users[currentUser]?.fullName ?? "";
-  } catch {
-    fullName = "";
-  }
-
-  const displayName = fullName || "John Doe";
-  const avatarUrl = `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(displayName)}`;
-
-  useEffect(() => {
-    const handleOutsideClick = (event: MouseEvent): void => {
-      const target = event.target;
-      if (!(target instanceof Node)) {
-        return;
-      }
-
-      if (menuRef.current && !menuRef.current.contains(target)) {
-        setIsAccountMenuOpen(false);
-      }
-    };
-
-    document.addEventListener("mousedown", handleOutsideClick);
-    return () => {
-      document.removeEventListener("mousedown", handleOutsideClick);
-    };
-  }, []);
-
-  const goToFaq = (): void => {
-    navigate("/faq");
-  };
-
-  const goToGymPlan = (): void => {
-    navigate("/plans");
-  };
-
-  const goToProfile = (): void => {
-    setIsAccountMenuOpen(false);
-    navigate("/profile");
-  };
-
-  const handleLogout = (): void => {
-    setIsAccountMenuOpen(false);
-    AuthUtils.logout();
-    navigate("/signin", { replace: true });
-  };
+  const plans = getWorkoutPlans();
+  const totalPlans = plans.length;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white">
-      <nav className="reveal-up relative z-40 flex items-center justify-between overflow-visible border-b border-white/10 p-6 md:px-12 md:py-8">
-        <Link to="/home" className="flex items-center space-x-3 transition-opacity duration-200 hover:opacity-80">
-          <div className="rounded-lg bg-gradient-to-br from-emerald-400 to-blue-500 p-2">
-            <Heart className="h-6 w-6 text-white" />
+    <div className="min-h-screen px-8 py-8 lg:px-12">
+      {/* Header */}
+      <div className="reveal-up mb-10">
+        <h1 className="text-4xl font-bold text-white">Welcome Back!</h1>
+        <p className="mt-2 text-lg text-gray-400">Ready to crush your goals today?</p>
+      </div>
+
+      {/* Stats Row */}
+      <div className="reveal-up reveal-delay-1 mb-10 grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="rounded-2xl border border-white/10 bg-white/5 p-6 transition-colors hover:bg-white/8">
+          <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-500/20">
+            <CalendarCheck2 className="h-6 w-6 text-emerald-400" />
           </div>
-          <span className="text-2xl font-bold">FitLife</span>
-        </Link>
+          <p className="text-3xl font-bold text-white">{totalPlans}</p>
+          <p className="mt-1 text-sm text-gray-400">Workout Plans</p>
+        </div>
 
-        <div className="hidden items-center space-x-8 md:flex">
-          <Link to="/plans" className="text-gray-300 transition-colors hover:text-white">
-            Plans
-          </Link>
-          <Link to="/faq" className="text-gray-300 transition-colors hover:text-white">
-            FAQ
-          </Link>
+        <div className="rounded-2xl border border-white/10 bg-white/5 p-6 transition-colors hover:bg-white/8">
+          <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-blue-500/20">
+            <TrendingUp className="h-6 w-6 text-blue-400" />
+          </div>
+          <p className="text-3xl font-bold text-white">
+            12.5k <span className="text-base font-normal text-gray-400">lbs</span>
+          </p>
+          <p className="mt-1 text-sm text-gray-400">Total Volume</p>
+        </div>
 
-          <div ref={menuRef} className="relative">
+        <div className="rounded-2xl border border-white/10 bg-white/5 p-6 transition-colors hover:bg-white/8">
+          <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-orange-500/20">
+            <Flame className="h-6 w-6 text-orange-400" />
+          </div>
+          <p className="text-3xl font-bold text-white">2,450</p>
+          <p className="mt-1 text-sm text-gray-400">Calories Burned</p>
+        </div>
+
+        <div className="rounded-2xl border border-white/10 bg-white/5 p-6 transition-colors hover:bg-white/8">
+          <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-purple-500/20">
+            <Target className="h-6 w-6 text-purple-400" />
+          </div>
+          <p className="text-3xl font-bold text-white">18</p>
+          <p className="mt-1 text-sm text-gray-400">Active Days</p>
+        </div>
+      </div>
+
+      {/* Quick Actions + Recent Workouts */}
+      <div className="reveal-up reveal-delay-2 grid grid-cols-1 gap-8 xl:grid-cols-3">
+        {/* Quick Actions */}
+        <div className="xl:col-span-2">
+          <h2 className="mb-5 text-xl font-bold text-white">Quick Actions</h2>
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
             <button
               type="button"
-              onClick={() => setIsAccountMenuOpen((prev) => !prev)}
-              className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-full border border-white/15 bg-white/8 transition-all duration-200 hover:border-white/25 hover:bg-white/12"
-              aria-label="Open account menu"
-              aria-expanded={isAccountMenuOpen}
-              aria-haspopup="menu"
+              onClick={() => navigate("/gym-plan")}
+              className="group rounded-2xl border border-emerald-500/40 bg-gradient-to-br from-emerald-600/30 to-emerald-900/40 p-7 text-left transition-all duration-300 hover:-translate-y-1 hover:border-emerald-400/60 hover:shadow-xl hover:shadow-emerald-500/20"
             >
-              {avatarFailed ? (
-                <UserCircle2 className="h-7 w-7 text-slate-200" />
-              ) : (
-                <img
-                  src={avatarUrl}
-                  alt={`${displayName} avatar`}
-                  onError={() => setAvatarFailed(true)}
-                  className="h-full w-full object-cover"
-                />
-              )}
+              <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-500 shadow-lg shadow-emerald-500/40 transition-transform group-hover:scale-110">
+                <Plus className="h-6 w-6 text-white" />
+              </div>
+              <h3 className="text-lg font-bold text-white">Create New Workout</h3>
+              <p className="mt-1 text-sm text-gray-400">Start planning your next training session</p>
             </button>
 
-            {isAccountMenuOpen ? (
-              <div
-                className="absolute right-0 top-[calc(100%+12px)] z-50 w-56 overflow-visible rounded-[14px] border border-white/12 bg-slate-950/95 p-2 shadow-[0_14px_28px_rgba(0,0,0,0.35)] backdrop-blur-[8px] pointer-events-auto"
-                role="menu"
-              >
-                <div className="pointer-events-none absolute -top-2 right-4 h-4 w-4 rotate-45 border-l border-t border-white/12 bg-slate-950/95" />
-                <button
-                  type="button"
-                  onClick={goToProfile}
-                  className="relative flex w-full items-center gap-3 rounded-[10px] border border-transparent px-4 py-3 text-left text-sm font-medium text-slate-100 transition-all hover:border-emerald-400/20 hover:bg-emerald-500/10 hover:text-emerald-100"
-                  role="menuitem"
-                >
-                  <span className="inline-flex h-8 w-8 items-center justify-center rounded-[8px] border border-white/10 bg-white/[0.04] text-slate-200">
-                    <User className="h-4 w-4" />
-                  </span>
-                  <span>Profile</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={handleLogout}
-                  className="relative mt-1 flex w-full items-center gap-3 rounded-[10px] border border-transparent px-4 py-3 text-left text-sm font-medium text-slate-100 transition-all hover:border-rose-400/20 hover:bg-rose-500/15 hover:text-rose-200"
-                  role="menuitem"
-                >
-                  <span className="inline-flex h-8 w-8 items-center justify-center rounded-[8px] border border-white/10 bg-white/[0.04] text-slate-200">
-                    <LogOut className="h-4 w-4" />
-                  </span>
-                  <span>Log out</span>
-                </button>
+            <button
+              type="button"
+              onClick={() => navigate("/plans")}
+              className="group rounded-2xl border border-blue-500/40 bg-gradient-to-br from-blue-600/30 to-blue-900/40 p-7 text-left transition-all duration-300 hover:-translate-y-1 hover:border-blue-400/60 hover:shadow-xl hover:shadow-blue-500/20"
+            >
+              <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-xl bg-blue-500 shadow-lg shadow-blue-500/40 transition-transform group-hover:scale-110">
+                <CalendarCheck2 className="h-6 w-6 text-white" />
               </div>
-            ) : null}
+              <h3 className="text-lg font-bold text-white">View My Plans</h3>
+              <p className="mt-1 text-sm text-gray-400">Access your saved workout programs</p>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => navigate("/gym-plan")}
+              className="group rounded-2xl border border-purple-500/40 bg-gradient-to-br from-purple-600/30 to-purple-900/40 p-7 text-left transition-all duration-300 hover:-translate-y-1 hover:border-purple-400/60 hover:shadow-xl hover:shadow-purple-500/20"
+            >
+              <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-xl bg-purple-500 shadow-lg shadow-purple-500/40 transition-transform group-hover:scale-110">
+                <Dumbbell className="h-6 w-6 text-white" />
+              </div>
+              <h3 className="text-lg font-bold text-white">Exercise Library</h3>
+              <p className="mt-1 text-sm text-gray-400">Discover new movements and techniques</p>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => navigate("/profile")}
+              className="group rounded-2xl border border-orange-500/40 bg-gradient-to-br from-orange-600/20 to-amber-900/40 p-7 text-left transition-all duration-300 hover:-translate-y-1 hover:border-orange-400/60 hover:shadow-xl hover:shadow-orange-500/20"
+            >
+              <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-xl bg-orange-500 shadow-lg shadow-orange-500/40 transition-transform group-hover:scale-110">
+                <Target className="h-6 w-6 text-white" />
+              </div>
+              <h3 className="text-lg font-bold text-white">Track Progress</h3>
+              <p className="mt-1 text-sm text-gray-400">Review your achievements and stats</p>
+            </button>
           </div>
         </div>
-      </nav>
 
-      <section className="reveal-up reveal-delay-1 px-6 py-16 text-center md:px-12 md:py-24">
-        <div className="mx-auto max-w-4xl">
-          <div className="mb-8 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 backdrop-blur-sm">
-            <Zap className="h-4 w-4 text-yellow-400" />
-            <span className="text-sm text-gray-300">Transform Your Life Today</span>
-          </div>
-
-          <h1 className="mb-6 bg-gradient-to-r from-emerald-400 via-blue-400 to-purple-400 bg-clip-text text-5xl font-bold text-transparent md:text-7xl">
-            Your Personal Health
-            <br />
-            & Fitness Platform
-          </h1>
-
-          <p className="mx-auto max-w-3xl text-xl leading-relaxed text-gray-300 md:text-2xl">
-            Create customized nutrition and workout programs tailored to your goals. Track progress,
-            stay motivated, and achieve results.
-          </p>
-        </div>
-      </section>
-
-      <section id="programs" className="reveal-up reveal-delay-2 px-6 pb-24 md:px-12">
-        <div className="mx-auto max-w-7xl">
-          <div className="grid gap-8 md:grid-cols-2 lg:gap-12">
-            <Card className="reveal-up reveal-delay-3 group relative overflow-hidden border border-emerald-500/30 bg-gradient-to-br from-emerald-900/40 to-green-900/40 transition-all duration-300 hover:-translate-y-2 hover:border-emerald-400/60 hover:shadow-2xl hover:shadow-emerald-500/20">
-              <div className="relative h-64 overflow-hidden rounded-t-lg">
-                <ImageWithFallback
-                  src="https://images.unsplash.com/photo-1571902943202-507ec2618e8f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080"
-                  alt="Outdoor training"
-                  className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-gray-900 via-gray-900/50 to-transparent" />
-              </div>
-
-              <div className="p-8 md:p-10">
-                <div className="mb-6 inline-flex h-16 w-16 items-center justify-center rounded-xl bg-emerald-500/20 transition-colors group-hover:bg-emerald-500/30">
-                  <Apple className="h-8 w-8 text-emerald-400" />
-                </div>
-
-                <h2 className="mb-4 text-3xl font-bold text-emerald-50 md:text-4xl">Outdoor Training</h2>
-
-                <p className="mb-8 text-lg leading-relaxed text-gray-300">
-                  Outdoor workouts with bodyweight exercises, running, and calisthenics. Build
-                  endurance, flexibility, and a stronger connection with nature.
-                </p>
-
-                <div className="mb-8 space-y-3">
-                  <div className="flex items-center gap-3 text-emerald-300">
-                    <TrendingUp className="h-5 w-5" />
-                    <span>Calisthenics and bodyweight programs</span>
-                  </div>
-                  <div className="flex items-center gap-3 text-emerald-300">
-                    <Target className="h-5 w-5" />
-                    <span>Running and endurance workouts</span>
-                  </div>
-                  <div className="flex items-center gap-3 text-emerald-300">
-                    <Heart className="h-5 w-5" />
-                    <span>Nutrition for outdoor activities</span>
-                  </div>
-                </div>
-
-                <Button
-                  onClick={goToFaq}
-                  className="w-full border-0 bg-gradient-to-r from-emerald-500 to-green-600 py-6 text-lg font-semibold text-white shadow-lg shadow-emerald-500/30 hover:from-emerald-600 hover:to-green-700"
+        {/* Recent Workouts */}
+        <div>
+          <h2 className="mb-5 text-xl font-bold text-white">Recent Workouts</h2>
+          <div className="space-y-4">
+            {plans.length > 0 ? (
+              plans.slice(0, 3).map((plan) => (
+                <div
+                  key={plan.id}
+                  className="rounded-xl border border-white/10 bg-white/5 p-5 transition-colors hover:bg-white/8"
                 >
-                  Create Outdoor Plan
-                </Button>
-              </div>
-            </Card>
-
-            <Card className="reveal-up reveal-delay-4 group relative overflow-hidden border border-blue-500/30 bg-gradient-to-br from-blue-900/40 to-red-900/40 transition-all duration-300 hover:-translate-y-2 hover:border-blue-400/60 hover:shadow-2xl hover:shadow-blue-500/20">
-              <div className="relative h-64 overflow-hidden rounded-t-lg">
-                <ImageWithFallback
-                  src="https://images.unsplash.com/photo-1534438327276-14e5300c3a48?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080"
-                  alt="Gym training"
-                  className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-gray-900 via-gray-900/50 to-transparent" />
-              </div>
-
-              <div className="p-8 md:p-10">
-                <div className="mb-6 inline-flex h-16 w-16 items-center justify-center rounded-xl bg-blue-500/20 transition-colors group-hover:bg-blue-500/30">
-                  <Dumbbell className="h-8 w-8 text-blue-400" />
-                </div>
-
-                <h2 className="mb-4 text-3xl font-bold text-blue-50 md:text-4xl">Gym Training</h2>
-
-                <p className="mb-8 text-lg leading-relaxed text-gray-300">
-                  Structured workouts with weights and professional equipment. Build muscle,
-                  strength, and endurance through progressive plans.
-                </p>
-
-                <div className="mb-8 space-y-3">
-                  <div className="flex items-center gap-3 text-blue-300">
-                    <TrendingUp className="h-5 w-5" />
-                    <span>Strength and hypertrophy programs</span>
+                  <div className="flex items-start justify-between">
+                    <h4 className="font-semibold text-white">{plan.name}</h4>
+                    <span className="text-xs text-gray-500">
+                      {new Date(plan.updatedAt).toLocaleDateString("en-GB", {
+                        day: "2-digit",
+                        month: "short",
+                      })}
+                    </span>
                   </div>
-                  <div className="flex items-center gap-3 text-blue-300">
-                    <Target className="h-5 w-5" />
-                    <span>Structured progressive workouts</span>
-                  </div>
-                  <div className="flex items-center gap-3 text-blue-300">
-                    <Zap className="h-5 w-5" />
-                    <span>Nutrition for muscle growth</span>
+                  <div className="mt-2 flex items-center gap-4 text-xs text-gray-400">
+                    <span className="flex items-center gap-1">
+                      <Dumbbell className="h-3.5 w-3.5" />
+                      {plan.days.length} days
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <Clock className="h-3.5 w-3.5" />
+                      {plan.days.length * 15} min
+                    </span>
                   </div>
                 </div>
-
-                <Button
-                  onClick={goToGymPlan}
-                  className="w-full border-0 bg-gradient-to-r from-blue-500 to-red-600 py-6 text-lg font-semibold text-white shadow-lg shadow-blue-500/30 hover:from-blue-600 hover:to-red-700"
-                >
-                  Create Gym Plan
-                </Button>
+              ))
+            ) : (
+              <div className="rounded-xl border border-white/10 bg-white/5 p-5 text-center text-sm text-gray-500">
+                No workouts yet. Create your first plan!
               </div>
-            </Card>
+            )}
+
+            <Link
+              to="/plans"
+              className="block rounded-xl border border-white/10 bg-white/5 py-3 text-center text-sm font-medium text-gray-400 transition-colors hover:bg-white/8 hover:text-white"
+            >
+              View All Plans
+            </Link>
           </div>
         </div>
-      </section>
+      </div>
 
-      <section id="features" className="reveal-up reveal-delay-3 bg-white/5 px-6 py-24 backdrop-blur-sm md:px-12">
-        <div className="mx-auto max-w-6xl">
-          <div className="mb-16 text-center">
-            <h2 className="mb-4 text-4xl font-bold md:text-5xl">Everything You Need to Succeed</h2>
-            <p className="mx-auto max-w-2xl text-xl text-gray-300">
-              Comprehensive tools and features to support your health and fitness journey
+      {/* Motivation Banner */}
+      <div className="reveal-up reveal-delay-3 mt-10 rounded-2xl border border-emerald-500/30 bg-gradient-to-r from-emerald-600/20 to-emerald-900/30 px-8 py-6">
+        <div className="flex flex-col items-center justify-between gap-4 sm:flex-row">
+          <div>
+            <h3 className="text-lg font-bold text-white">
+              You&apos;re on a roll! 🔥
+            </h3>
+            <p className="mt-1 text-sm text-gray-300">
+              {totalPlans} workout plan{totalPlans !== 1 ? "s" : ""} created. Keep up the amazing work!
             </p>
           </div>
-
-          <div className="grid gap-8 md:grid-cols-3">
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-8 transition-colors hover:bg-white/10">
-              <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-xl bg-purple-500/20">
-                <TrendingUp className="h-7 w-7 text-purple-400" />
-              </div>
-              <h3 className="mb-3 text-2xl font-bold">Smart Analytics</h3>
-              <p className="leading-relaxed text-gray-400">
-                Track your progress with detailed analytics and insights that help you stay on course.
-              </p>
-            </div>
-
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-8 transition-colors hover:bg-white/10">
-              <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-xl bg-orange-500/20">
-                <Target className="h-7 w-7 text-orange-400" />
-              </div>
-              <h3 className="mb-3 text-2xl font-bold">Goal Setting</h3>
-              <p className="leading-relaxed text-gray-400">
-                Set achievable goals and track milestones with our intelligent goal management system.
-              </p>
-            </div>
-
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-8 transition-colors hover:bg-white/10">
-              <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-xl bg-pink-500/20">
-                <Heart className="h-7 w-7 text-pink-400" />
-              </div>
-              <h3 className="mb-3 text-2xl font-bold">Health Monitoring</h3>
-              <p className="leading-relaxed text-gray-400">
-                Monitor your overall health metrics and get personalized recommendations.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="reveal-up reveal-delay-4 px-6 py-24 md:px-12">
-        <div className="mx-auto max-w-4xl text-center">
-          <h2 className="mb-6 text-4xl font-bold md:text-5xl">Ready to Start Your Journey?</h2>
-          <p className="mx-auto mb-10 max-w-2xl text-xl text-gray-300">
-            Join thousands who have transformed their lives with personalized nutrition and fitness
-            programs.
-          </p>
           <Link
-            to="/signup"
-            className="inline-block rounded-md border-0 bg-gradient-to-r from-emerald-500 via-blue-500 to-purple-600 px-12 py-6 text-lg font-semibold text-white shadow-xl shadow-blue-500/30 transition-all duration-300 hover:from-emerald-600 hover:via-blue-600 hover:to-purple-700"
+            to="/profile"
+            className="rounded-xl bg-emerald-500 px-6 py-2.5 text-sm font-semibold text-white shadow-lg shadow-emerald-500/30 transition-all hover:bg-emerald-600"
           >
-            Get Started Today
+            View Progress
           </Link>
         </div>
-      </section>
-
-      <footer className="reveal-up reveal-delay-5 border-t border-white/10 p-6 md:p-8">
-        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between md:flex-row">
-          <Link
-            to="/home"
-            className="mb-4 flex items-center space-x-3 transition-opacity duration-200 hover:opacity-80 md:mb-0"
-          >
-            <div className="rounded-lg bg-gradient-to-br from-emerald-400 to-blue-500 p-2">
-              <Heart className="h-5 w-5 text-white" />
-            </div>
-            <span className="text-xl font-bold">FitLife</span>
-          </Link>
-
-          <div className="flex items-center space-x-6 text-sm">
-            <a href="#privacy" className="text-gray-400 transition-colors hover:text-white">
-              Privacy Policy
-            </a>
-            <a href="#terms" className="text-gray-400 transition-colors hover:text-white">
-              Terms of Service
-            </a>
-            <Link to="/faq" className="text-gray-400 transition-colors hover:text-white">
-              FAQ
-            </Link>
-            <div className="text-gray-400">© 2026 FitLife. All rights reserved.</div>
-          </div>
-        </div>
-      </footer>
+      </div>
     </div>
   );
 }

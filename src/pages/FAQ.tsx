@@ -1,7 +1,6 @@
 ﻿import { useEffect, useState } from "react";
 import * as Accordion from "@radix-ui/react-accordion";
-import { ChevronDown, Heart } from "lucide-react";
-import { Link } from "react-router-dom";
+import { ChevronDown } from "lucide-react";
 
 interface FAQItem {
   id: string;
@@ -60,17 +59,7 @@ export default function FAQ() {
   }, []);
 
   return (
-    <main className="relative min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 px-4 py-16 text-white md:px-12 md:py-24">
-      <Link
-        to="/home"
-        aria-label="Go to home page"
-        className="absolute left-5 top-5 z-30 inline-flex items-center space-x-3"
-      >
-        <div className="rounded-lg bg-gradient-to-br from-emerald-400 to-blue-500 p-2">
-          <Heart className="h-6 w-6 text-white" />
-        </div>
-        <span className="text-4xl font-bold text-white md:text-2xl">FitLife</span>
-      </Link>
+    <main className="min-h-screen px-4 py-8 text-white md:px-12 md:py-12">
 
       <section aria-labelledby="faq-title" className="mx-auto w-full max-w-4xl">
         <div

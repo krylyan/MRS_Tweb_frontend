@@ -178,10 +178,10 @@ export default function MyPlans() {
         key={`${sectionKey}-${plan.id}`}
         className={`reveal-up rounded-[16px] border p-4 shadow-[0_18px_36px_rgba(0,0,0,0.2)] backdrop-blur-[6px] ${
           index % 3 === 0
-            ? "border-emerald-300/30 bg-gradient-to-br from-emerald-400/22 via-teal-400/12 to-slate-900/55"
+            ? "border-emerald-400/50 bg-gradient-to-br from-emerald-500/30 via-teal-500/18 to-slate-900/55"
             : index % 3 === 1
-              ? "border-blue-300/30 bg-gradient-to-br from-blue-400/22 via-sky-400/12 to-slate-900/55"
-              : "border-cyan-300/24 bg-gradient-to-br from-cyan-400/20 via-white/10 to-slate-900/55"
+              ? "border-blue-400/50 bg-gradient-to-br from-blue-500/30 via-sky-500/18 to-slate-900/55"
+              : "border-purple-400/40 bg-gradient-to-br from-purple-500/28 via-fuchsia-400/14 to-slate-900/55"
         }`}
       >
         <div className="flex h-full flex-col">
@@ -298,7 +298,7 @@ export default function MyPlans() {
   );
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-slate-900 text-slate-200">
+    <main className="min-h-screen text-slate-200">
       <div className="mx-auto w-full max-w-[1400px] px-3 py-4 sm:px-6 sm:py-8">
         <h1 className="reveal-up mb-4 text-3xl font-bold leading-tight text-slate-50 md:text-4xl">My Plans</h1>
 
@@ -309,7 +309,7 @@ export default function MyPlans() {
               onClick={() => setActiveCategory("workout")}
               className={`rounded-[14px] p-[1px] transition-all ${
                 activeCategory === "workout"
-                  ? "border border-emerald-300/40 bg-gradient-to-r from-emerald-500/30 via-emerald-400/14 to-cyan-400/18 shadow-[0_0_0_1px_rgba(52,211,153,0.14),0_16px_34px_rgba(16,185,129,0.2)]"
+                  ? "border border-emerald-400/50 bg-gradient-to-r from-emerald-500/40 via-emerald-400/22 to-cyan-400/24 shadow-[0_0_0_1px_rgba(52,211,153,0.2),0_16px_34px_rgba(16,185,129,0.25)]"
                   : "border border-blue-400/22 bg-gradient-to-r from-blue-500/12 via-sky-400/8 to-emerald-400/10 hover:border-blue-300/30 hover:from-blue-500/16 hover:to-emerald-400/14"
               }`}
               aria-pressed={activeCategory === "workout"}
@@ -330,7 +330,7 @@ export default function MyPlans() {
               onClick={() => setActiveCategory("alimentation")}
               className={`rounded-[14px] p-[1px] transition-all ${
                 activeCategory === "alimentation"
-                  ? "border border-blue-300/38 bg-gradient-to-r from-blue-500/28 via-sky-400/14 to-emerald-400/16 shadow-[0_0_0_1px_rgba(96,165,250,0.14),0_16px_34px_rgba(59,130,246,0.18)]"
+                  ? "border border-blue-400/50 bg-gradient-to-r from-blue-500/38 via-sky-400/22 to-emerald-400/22 shadow-[0_0_0_1px_rgba(96,165,250,0.2),0_16px_34px_rgba(59,130,246,0.25)]"
                   : "border border-blue-400/22 bg-gradient-to-r from-blue-500/12 via-sky-400/8 to-emerald-400/10 hover:border-blue-300/30 hover:from-blue-500/16 hover:to-emerald-400/14"
               }`}
               aria-pressed={activeCategory === "alimentation"}

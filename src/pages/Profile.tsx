@@ -2,14 +2,12 @@
 import type { LucideIcon } from "lucide-react";
 import {
   Dumbbell,
-  Heart,
   Mail,
   ShieldCheck,
   User,
   UserCircle2,
   UtensilsCrossed,
 } from "lucide-react";
-import { Link } from "react-router-dom";
 import AuthUtils from "../utils/authUtils";
 
 const USERS_KEY = "fitlife_users";
@@ -150,15 +148,7 @@ export default function Profile() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-slate-900 text-slate-200">
-      <nav className="flex items-center justify-between border-b border-white/10 px-[18px] py-6">
-        <Link to="/home" className="flex items-center gap-3 transition-opacity duration-200 hover:opacity-85">
-          <div className="rounded-[10px] bg-gradient-to-br from-emerald-400 to-blue-500 p-2">
-            <Heart className="h-6 w-6 text-white" />
-          </div>
-          <span className="text-[32px] font-bold leading-none text-white">FitLife</span>
-        </Link>
-      </nav>
+    <div className="min-h-screen text-slate-200">
 
       <div
         className={`mx-auto max-w-[1200px] px-[18px] pb-8 pt-6 transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] ${
