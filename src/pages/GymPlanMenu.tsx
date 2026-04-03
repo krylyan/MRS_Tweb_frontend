@@ -674,7 +674,7 @@ export default function GymPlanMenu() {
                     value={planName}
                     onChange={(event) => handlePlanNameChange(event.target.value)}
                     placeholder="Untitled Workout"
-                    className="rounded-xl border border-transparent bg-transparent px-4 py-2 text-2xl font-bold text-slate-50 outline-none transition-all placeholder:text-slate-500 focus:border-emerald-400/80 focus:shadow-[0_0_16px_rgba(16,185,129,0.15)] md:text-3xl"
+                    className="rounded-xl border border-transparent bg-transparent px-4 py-2 text-4xl font-bold text-slate-50 outline-none transition-all placeholder:text-slate-500 focus:border-emerald-400/80 focus:shadow-[0_0_16px_rgba(16,185,129,0.15)]"
                   />
                 </div>
 

@@ -25,16 +25,13 @@ export default function Sidebar() {
   useEffect(() => {
     if (!isOnPlans) {
       setIsPlansOpen(false);
+    } else {
+      setIsPlansOpen(true);
     }
   }, [isOnPlans]);
 
   const handlePlansClick = () => {
-    if (isOnPlans) {
-      setIsPlansOpen((prev) => !prev);
-    } else {
-      setIsPlansOpen(true);
-      navigate("/plans?tab=workout");
-    }
+    setIsPlansOpen((prev) => !prev);
   };
 
   const handleLogout = () => {
