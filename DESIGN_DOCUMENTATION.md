@@ -212,6 +212,35 @@ There is no single shared shell component. Each page defines its own layout stru
 - Page-specific card patterns:
   - Feature cards, program cards, stats cards, glass panels.
 
+### Accent Box / Action Card Color System
+Important action boxes, plan cards, and highlighted interactive cards must follow the **Accent Box** palette below. Each color variant uses a single hue family applied consistently across border, background gradient, icon container, and hover shadow. This creates strong visual contrast on the dark background while keeping a cohesive look.
+
+**Structure of an accent box:**
+```
+Container:  rounded-2xl border border-{color}-500/40 bg-gradient-to-br from-{color}-600/30 to-{color}-900/40
+Icon badge: rounded-xl bg-{color}-500 shadow-lg shadow-{color}-500/40
+Hover:      hover:border-{color}-400/60 hover:shadow-xl hover:shadow-{color}-500/20 hover:-translate-y-1
+Text:       title in text-white (font-bold), subtitle in text-gray-400
+```
+
+**Available color variants (in rotation order):**
+
+| Variant   | Border                   | Background gradient                                       | Icon badge          | Hover shadow              |
+|-----------|--------------------------|-----------------------------------------------------------|---------------------|---------------------------|
+| Emerald   | `border-emerald-500/40`  | `from-emerald-600/30 to-emerald-900/40`                   | `bg-emerald-500`    | `shadow-emerald-500/20`   |
+| Blue      | `border-blue-500/40`     | `from-blue-600/30 to-blue-900/40`                         | `bg-blue-500`       | `shadow-blue-500/20`      |
+| Purple    | `border-purple-500/40`   | `from-purple-600/30 to-purple-900/40`                     | `bg-purple-500`     | `shadow-purple-500/20`    |
+| Orange    | `border-orange-500/40`   | `from-orange-600/20 to-amber-900/40`                      | `bg-orange-500`     | `shadow-orange-500/20`    |
+
+**Rules for applying accent box colors:**
+1. When rendering a list of cards, cycle through the variants in order: emerald -> blue -> purple -> orange -> emerald -> ...
+2. The icon badge must be **fully opaque** (`bg-{color}-500`) with a colored `shadow-lg` — never translucent.
+3. Borders use `/40` opacity at rest, `/60` on hover.
+4. Background gradients go from a lighter `/30` top-left to a darker `/40` bottom-right.
+5. Use `transition-all duration-300` and `hover:-translate-y-1` for lift effect.
+6. For card variants that include an inner header area (e.g., plan cards), the inner header keeps `bg-slate-950/28 border-white/12` to maintain contrast with the colored outer card.
+7. These colors apply to: Dashboard quick-action boxes, My Plans workout/alimentation cards, and any other highlighted interactive card throughout the app.
+
 ### Forms
 - `AuthInput`:
   - Label support, error state support, optional password visibility toggle.

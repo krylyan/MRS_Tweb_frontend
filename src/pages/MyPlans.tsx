@@ -176,12 +176,14 @@ export default function MyPlans() {
     return (
       <article
         key={`${sectionKey}-${plan.id}`}
-        className={`reveal-up rounded-[16px] border p-4 shadow-[0_18px_36px_rgba(0,0,0,0.2)] backdrop-blur-[6px] ${
-          index % 3 === 0
-            ? "border-emerald-400/50 bg-gradient-to-br from-emerald-500/30 via-teal-500/18 to-slate-900/55"
-            : index % 3 === 1
-              ? "border-blue-400/50 bg-gradient-to-br from-blue-500/30 via-sky-500/18 to-slate-900/55"
-              : "border-purple-400/40 bg-gradient-to-br from-purple-500/28 via-fuchsia-400/14 to-slate-900/55"
+        className={`reveal-up rounded-2xl border p-4 shadow-[0_18px_36px_rgba(0,0,0,0.2)] backdrop-blur-[6px] transition-all duration-300 hover:-translate-y-1 ${
+          index % 4 === 0
+            ? "border-emerald-500/40 bg-gradient-to-br from-emerald-600/30 to-emerald-900/40 hover:border-emerald-400/60 hover:shadow-xl hover:shadow-emerald-500/20"
+            : index % 4 === 1
+              ? "border-blue-500/40 bg-gradient-to-br from-blue-600/30 to-blue-900/40 hover:border-blue-400/60 hover:shadow-xl hover:shadow-blue-500/20"
+              : index % 4 === 2
+                ? "border-purple-500/40 bg-gradient-to-br from-purple-600/30 to-purple-900/40 hover:border-purple-400/60 hover:shadow-xl hover:shadow-purple-500/20"
+                : "border-orange-500/40 bg-gradient-to-br from-orange-600/20 to-amber-900/40 hover:border-orange-400/60 hover:shadow-xl hover:shadow-orange-500/20"
         }`}
       >
         <div className="flex h-full flex-col">
