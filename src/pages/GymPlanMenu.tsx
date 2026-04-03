@@ -2,11 +2,9 @@ import {
   CalendarCheck2,
   ChevronDown,
   ChevronUp,
-  ClipboardCheck,
   Grid3X3,
   Heart,
   Plus,
-  Search,
   Trash2,
   Trophy,
   UserRoundPlus,
@@ -14,7 +12,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import ActivitiesList from "../components/ActivitiesList";
 import WorkoutPreview from "../components/WorkoutPreview";
 import { exerciseService } from "../services/exerciseService";
@@ -31,12 +29,6 @@ import type {
   WorkoutSet,
   WorkoutTrackingState,
 } from "../utils/planStorage";
-
-interface SidebarItem {
-  id: string;
-  label: string;
-  icon: LucideIcon;
-}
 
 interface DayPlan {
   id: string;
@@ -60,15 +52,6 @@ interface ActivityDetailsProps {
   onAddSet: () => void;
   onRemoveSet: (index: number) => void;
 }
-
-const SIDEBAR_ITEMS: SidebarItem[] = [
-  { id: "search", label: "Search", icon: Search },
-  { id: "dashboard", label: "Dashboard", icon: Grid3X3 },
-  { id: "community", label: "Community", icon: Users },
-  { id: "coach", label: "Coach", icon: UserRoundPlus },
-  { id: "calendar", label: "Calendar", icon: CalendarCheck2 },
-  { id: "tasks", label: "Tasks", icon: ClipboardCheck },
-];
 
 const EXERCISE_ICON_BY_GROUP: Record<MuscleGroup, LucideIcon> = {
   chest: Trophy,
@@ -436,9 +419,8 @@ export default function GymPlanMenu() {
   const allExercises = useMemo(() => exerciseService.getAllExercises(), []);
   const planId = searchParams.get("planId");
   const isNewDraft = searchParams.get("new") === "1";
-  const [activeSidebarItem, setActiveSidebarItem] = useState<string>("search");
-  const [statusMessage, setStatusMessage] = useState<string>("Open a plan and start configuring it.");
   const [planName, setPlanName] = useState<string>("");
+  const [, setStatusMessage] = useState<string>("");
   const [days, setDays] = useState<DayPlan[]>(() => createEmptyDays());
   const [activeDayId, setActiveDayId] = useState<string>("day-1");
   const [selectedExerciseByDay, setSelectedExerciseByDay] = useState<Record<string, string | null>>(
@@ -482,7 +464,6 @@ export default function GymPlanMenu() {
         sets: storedPlan.workoutTracking.sets.map((set) => ({ ...set })),
       });
       setIsEditorReady(true);
-      setStatusMessage(`${storedPlan.name} loaded. Fine-tune exercises, sets, and rest times.`);
       setHasLoadedPlan(true);
       return;
     }
@@ -494,7 +475,6 @@ export default function GymPlanMenu() {
       setSelectedExerciseByDay(createEmptySelectedExerciseMap());
       setWorkoutTracking(createInitialWorkoutTrackingState());
       setIsEditorReady(false);
-      setStatusMessage("Add a workout name first, then you can configure the rest of the plan.");
       setHasLoadedPlan(true);
     }
   }, [allExercises, isNewDraft, navigate, planId]);
@@ -526,21 +506,8 @@ export default function GymPlanMenu() {
   const getIconForMuscleGroup = (muscleGroup: MuscleGroup): LucideIcon =>
     EXERCISE_ICON_BY_GROUP[muscleGroup];
 
-  const handleSidebarAction = (item: SidebarItem): void => {
-    setActiveSidebarItem(item.id);
-    setStatusMessage(`${item.label} section activated.`);
-  };
-
-  const handleCreateWorkout = (): void => {
-    navigate("/gym-plan?new=1");
-  };
-
   const handlePlanNameChange = (value: string): void => {
     setPlanName(value);
-
-    if (!isEditorReady) {
-      setStatusMessage("Save the workout name to unlock the editor.");
-    }
   };
 
   const handleActivatePlan = (): void => {
@@ -689,127 +656,42 @@ export default function GymPlanMenu() {
   return (
     <main className="min-h-screen text-slate-200">
       <div className="mx-auto w-full max-w-[1400px] px-3 py-4 sm:px-6 sm:py-8">
-        <div className="flex gap-4 lg:gap-5">
-          <aside className="reveal-up hidden w-[78px] shrink-0 rounded-[14px] border border-white/12 bg-white/4 p-2.5 shadow-[0_14px_28px_rgba(0,0,0,0.25)] backdrop-blur-[6px] lg:flex lg:flex-col lg:justify-between">
-            <div className="space-y-1.5">
-              <div className="mb-3 flex justify-center">
-                <Link
-                  to="/home"
-                  className="rounded-[10px] border border-white/20 bg-white/5 px-3 py-2 text-xs font-bold tracking-[0.2em] text-white transition-colors hover:bg-white/10"
-                >
-                  FL
-                </Link>
-              </div>
-              {SIDEBAR_ITEMS.map((item) => {
-                const Icon = item.icon;
-                const isActive = activeSidebarItem === item.id;
-                return (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => handleSidebarAction(item)}
-                    title={item.label}
-                    className={`mx-auto flex h-10 w-10 items-center justify-center rounded-[10px] border transition-all duration-200 ${
-                      isActive
-                        ? "border-emerald-400/40 bg-emerald-500/20 text-emerald-200"
-                        : "border-transparent bg-transparent text-slate-300 hover:border-white/20 hover:bg-white/10 hover:text-white"
-                    }`}
-                  >
-                    <Icon className="h-4.5 w-4.5" />
-                  </button>
-                );
-              })}
-            </div>
-            <Link
-              to="/home"
-              className="mx-auto inline-flex rounded-[10px] border border-white/20 bg-white/8 px-3 py-2 text-xs font-semibold text-slate-100 transition-colors hover:bg-white/14"
-            >
-              Home
-            </Link>
-          </aside>
-
+        <div>
           <div className="w-full">
-            <header className="reveal-up reveal-delay-1 mb-4 rounded-[14px] border border-white/12 bg-white/4 p-4 shadow-[0_14px_28px_rgba(0,0,0,0.25)] backdrop-blur-[6px] md:p-5">
+            <header className="reveal-up reveal-delay-1 mb-4">
               <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                <div>
-                  <h1 className="text-3xl font-bold leading-tight text-slate-50 md:text-4xl">
-                    {planName.trim() || "Workout editor"}
-                  </h1>
-                  <p className="mt-1 text-sm text-slate-300">{statusMessage}</p>
-                </div>
-
-                <div className="flex flex-wrap gap-2">
-                  <Link
-                    to="/plans"
-                    className="rounded-[10px] border border-white/25 bg-white/8 px-4 py-2 text-sm font-semibold text-slate-100 transition-colors hover:bg-white/14"
-                  >
-                    Back to Plans
-                  </Link>
-                  <button
-                    type="button"
-                    onClick={handleCreateWorkout}
-                    className="inline-flex items-center gap-2 rounded-[10px] border-0 bg-gradient-to-r from-emerald-500 to-blue-500 px-4 py-2 text-sm font-semibold text-white shadow-lg transition-all duration-300 hover:from-emerald-600 hover:to-blue-600"
-                  >
-                    <Plus className="h-4 w-4" />
-                    New draft
-                  </button>
-                </div>
-              </div>
-
-              <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
-                <div>
-                  <label className="mb-1 block text-xs font-semibold text-slate-300">Workout name</label>
+                <div className="flex items-center gap-3">
                   <input
                     type="text"
                     value={planName}
                     onChange={(event) => handlePlanNameChange(event.target.value)}
-                    placeholder="Enter workout name..."
-                    className="h-10 w-full rounded-[10px] border border-white/20 bg-white/[0.03] px-3 text-sm text-slate-100 outline-none transition-all placeholder:text-slate-400 focus:border-emerald-500/60 focus:shadow-[0_0_16px_rgba(16,185,129,0.2)]"
+                    placeholder="Untitled Workout"
+                    className="rounded-xl border border-emerald-500/40 bg-transparent px-4 py-2 text-2xl font-bold text-slate-50 outline-none transition-all placeholder:text-slate-500 hover:border-emerald-400/60 focus:border-emerald-400/80 focus:shadow-[0_0_16px_rgba(16,185,129,0.15)] md:text-3xl"
                   />
                 </div>
 
-                {!isEditorReady ? (
-                  <button
-                    type="button"
-                    onClick={handleActivatePlan}
-                    className="inline-flex items-center justify-center gap-2 rounded-[10px] border border-emerald-400/30 bg-emerald-500/15 px-4 py-2 text-sm font-semibold text-emerald-100 transition-all hover:bg-emerald-500/25"
-                  >
-                    Unlock editor
-                  </button>
-                ) : (
-                  <div className="rounded-[10px] border border-white/10 bg-white/[0.03] px-4 py-2 text-sm text-slate-300">
-                    Plan saved automatically
-                  </div>
-                )}
+                <div className="flex items-center gap-3">
+                  {!isEditorReady ? (
+                    <button
+                      type="button"
+                      onClick={handleActivatePlan}
+                      className="inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-400/30 bg-emerald-500/15 px-4 py-2 text-sm font-semibold text-emerald-100 transition-all hover:bg-emerald-500/25"
+                    >
+                      Unlock editor
+                    </button>
+                  ) : (
+                    <div className="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2 text-sm text-slate-400">
+                      Plan saved automatically
+                    </div>
+                  )}
+                </div>
               </div>
 
               {!isEditorReady ? (
-                <p className="mt-3 rounded-[10px] border border-amber-400/20 bg-amber-500/10 px-3 py-2 text-sm text-amber-100">
+                <p className="mt-3 rounded-xl border border-amber-400/20 bg-amber-500/10 px-3 py-2 text-sm text-amber-100">
                   Start by adding the workout name. After that, the full Gym Workout Plan editor unlocks.
                 </p>
               ) : null}
-
-              <div className="mt-4 flex flex-wrap gap-2 lg:hidden">
-                {SIDEBAR_ITEMS.map((item) => {
-                  const Icon = item.icon;
-                  const isActive = activeSidebarItem === item.id;
-                  return (
-                    <button
-                      key={item.id}
-                      type="button"
-                      onClick={() => handleSidebarAction(item)}
-                      className={`inline-flex items-center gap-1.5 rounded-[10px] border px-3 py-1.5 text-xs font-semibold transition-colors ${
-                        isActive
-                          ? "border-emerald-400/40 bg-emerald-500/20 text-emerald-200"
-                          : "border-white/20 bg-white/6 text-slate-200 hover:bg-white/12"
-                      }`}
-                    >
-                      <Icon className="h-3.5 w-3.5" />
-                      {item.label}
-                    </button>
-                  );
-                })}
-              </div>
             </header>
 
             <div className={isEditorReady ? "" : "pointer-events-none opacity-40 select-none"}>

@@ -1,72 +1,16 @@
 ﻿import { useEffect, useState } from "react";
-import type { LucideIcon } from "lucide-react";
 import {
+  Award,
+  Clock,
   Dumbbell,
-  Mail,
-  ShieldCheck,
-  User,
+  Flame,
+  Pencil,
   UserCircle2,
-  UtensilsCrossed,
 } from "lucide-react";
 import AuthUtils from "../utils/authUtils";
 
 const USERS_KEY = "fitlife_users";
 const SESSION_USER_KEY = "fitlife_session_user";
-
-interface StatItem {
-  label: string;
-  value: number;
-  widthClass: string;
-}
-
-const NUTRITION_STATS: StatItem[] = [
-  { label: "Daily calories", value: 78, widthClass: "w-[78%]" },
-  { label: "Protein intake", value: 86, widthClass: "w-[86%]" },
-  { label: "Hydration", value: 64, widthClass: "w-[64%]" },
-  { label: "Meal consistency", value: 72, widthClass: "w-[72%]" },
-  { label: "Nutrition quality", value: 58, widthClass: "w-[58%]" },
-];
-
-const WORKOUT_STATS: StatItem[] = [
-  { label: "Weekly sessions", value: 82, widthClass: "w-[82%]" },
-  { label: "Cardio (minute)", value: 67, widthClass: "w-[67%]" },
-  { label: "Strength progress", value: 74, widthClass: "w-[74%]" },
-  { label: "Recovery", value: 61, widthClass: "w-[61%]" },
-  { label: "Mobility", value: 55, widthClass: "w-[55%]" },
-];
-
-interface StatsCardProps {
-  title: string;
-  icon: LucideIcon;
-  items: StatItem[];
-}
-
-function StatsCard({ title, icon: Icon, items }: StatsCardProps) {
-  return (
-    <section className="rounded-[14px] border border-white/12 bg-white/4 p-4 shadow-[0_14px_28px_rgba(0,0,0,0.25)] backdrop-blur-[6px]">
-      <div className="mb-[10px] inline-flex items-center gap-2 text-emerald-300">
-        <Icon size={18} />
-        <p className="text-lg text-slate-50">{title}</p>
-      </div>
-
-      <div className="grid gap-[10px]">
-        {items.map((item) => (
-          <div key={item.label}>
-            <div className="mb-1 flex items-center justify-between">
-              <p className="text-xs text-slate-200">{item.label}</p>
-              <p className="text-xs font-semibold text-blue-300">{item.value}%</p>
-            </div>
-            <div className="h-1 w-full overflow-hidden rounded-full bg-white/16">
-              <div
-                className={`h-full rounded-full bg-gradient-to-r from-emerald-400 to-blue-500 ${item.widthClass}`}
-              />
-            </div>
-          </div>
-        ))}
-      </div>
-    </section>
-  );
-}
 
 interface UserRecord {
   fullName: string;
@@ -74,6 +18,41 @@ interface UserRecord {
 }
 
 type UsersMap = Record<string, UserRecord>;
+
+interface Achievement {
+  emoji: string;
+  title: string;
+  date: string | null;
+  locked: boolean;
+}
+
+const ACHIEVEMENTS: Achievement[] = [
+  { emoji: "🎯", title: "First Workout", date: "Jan 15, 2024", locked: false },
+  { emoji: "🔥", title: "7 Day Streak", date: "Feb 3, 2024", locked: false },
+  { emoji: "💪", title: "10 Workouts", date: "Feb 10, 2024", locked: false },
+  { emoji: "⚡", title: "30 Day Streak", date: null, locked: true },
+  { emoji: "🏆", title: "50 Workouts", date: null, locked: true },
+  { emoji: "👑", title: "100 Workouts", date: null, locked: true },
+];
+
+const WEEKLY_DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
+const WEEKLY_COMPLETED = [true, true, false, true, true, false, false] as const;
+const WEEKLY_HEIGHTS = ["h-28", "h-24", "h-0", "h-32", "h-28", "h-0", "h-0"] as const;
+
+interface InsightRow {
+  label: string;
+  value: string;
+  highlight?: boolean;
+}
+
+const INSIGHTS: InsightRow[] = [
+  { label: "Favorite Exercise", value: "Bench Press" },
+  { label: "Best Streak", value: "14 days" },
+  { label: "Avg. Workout Duration", value: "52 mins" },
+  { label: "Workout Plans", value: "3 active" },
+  { label: "Total Weight Lifted", value: "12,450 lbs" },
+  { label: "Consistency Score", value: "87%", highlight: true },
+];
 
 export default function Profile() {
   const [avatarFailed, setAvatarFailed] = useState(false);
@@ -92,9 +71,8 @@ export default function Profile() {
     fullName = "";
   }
 
-  const displayName = fullName || "John Doe";
-  const displayEmail = currentUser || "fip@jukmuh.al";
-  const role = currentUser === "admin" ? "Administrator" : "Full Stack Developer";
+  const displayName = fullName || "User";
+  const displayEmail = currentUser || "user@example.com";
   const avatarUrl = `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(displayName)}`;
 
   useEffect(() => {
@@ -147,125 +125,200 @@ export default function Profile() {
     }
   };
 
+  const completedCount = WEEKLY_COMPLETED.filter(Boolean).length;
+  const weeklyGoal = 5;
+  const percentage = Math.round((completedCount / weeklyGoal) * 100);
+
   return (
     <div className="min-h-screen text-slate-200">
-
       <div
-        className={`mx-auto max-w-[1200px] px-[18px] pb-8 pt-6 transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] ${
-          isLoaded ? "translate-y-0 scale-100 opacity-100" : "translate-y-5 scale-[0.98] opacity-0"
+        className={`mx-auto max-w-[1200px] px-4 pb-10 pt-6 transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] sm:px-6 ${
+          isLoaded ? "translate-y-0 opacity-100" : "translate-y-5 opacity-0"
         }`}
       >
-        <h1 className="mb-[18px] text-[28px] font-bold text-slate-50">My Profile</h1>
-
-        <div className="grid items-stretch gap-[18px] lg:grid-cols-[320px_minmax(0,1fr)]">
-          <aside className="flex">
-            <section className="w-full rounded-[14px] border border-white/12 bg-white/4 p-6 text-center shadow-[0_14px_28px_rgba(0,0,0,0.25)] backdrop-blur-[6px]">
-              <div className="mx-auto mb-[14px] flex h-[130px] w-[130px] items-center justify-center overflow-hidden rounded-full border border-white/15 bg-white/10">
-                {avatarFailed ? (
-                  <UserCircle2 className="h-[72px] w-[72px] text-slate-300" />
-                ) : (
-                  <img
-                    src={avatarUrl}
-                    alt={`${displayName} avatar`}
-                    onError={() => setAvatarFailed(true)}
-                    className="h-full w-full object-cover"
-                  />
-                )}
-              </div>
-              <p className="mb-1.5 text-[30px] leading-none text-slate-50">{displayName}</p>
-              <p className="text-[15px] text-blue-300">{role}</p>
-            </section>
-          </aside>
-
-          <div className="grid gap-[18px]">
-            <section className="rounded-[14px] border border-white/12 bg-white/4 pb-3 pt-2 shadow-[0_14px_28px_rgba(0,0,0,0.25)] backdrop-blur-[6px]">
-              <div className="grid items-center gap-[10px] border-b border-white/10 px-4 py-[14px] md:grid-cols-[165px_minmax(0,1fr)]">
-                <p className="inline-flex items-center gap-2 font-semibold text-slate-50">
-                  <User size={16} />
-                  Full Name
-                </p>
-                {isEditing ? (
+        {/* Profile Header */}
+        <section className="reveal-up mb-6 flex flex-col gap-5 rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-sm sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-5">
+            <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-full border border-white/15 bg-white/10">
+              {avatarFailed ? (
+                <UserCircle2 className="h-12 w-12 text-slate-300" />
+              ) : (
+                <img
+                  src={avatarUrl}
+                  alt={`${displayName} avatar`}
+                  onError={() => setAvatarFailed(true)}
+                  className="h-full w-full object-cover"
+                />
+              )}
+            </div>
+            <div>
+              {isEditing ? (
+                <div className="space-y-2">
                   <input
                     type="text"
                     value={formName}
-                    onChange={(event) => setFormName(event.target.value)}
-                    className="w-full rounded-[10px] border border-white/20 bg-white/8 px-[10px] py-2 text-slate-50 outline-none"
+                    onChange={(e) => setFormName(e.target.value)}
+                    className="block w-full rounded-lg border border-white/20 bg-white/8 px-3 py-1.5 text-lg font-bold text-white outline-none focus:border-emerald-500/60"
                   />
-                ) : (
-                  <p className="break-words text-slate-300">{displayName}</p>
-                )}
-              </div>
-
-              <div className="grid items-center gap-[10px] border-b border-white/10 px-4 py-[14px] md:grid-cols-[165px_minmax(0,1fr)]">
-                <p className="inline-flex items-center gap-2 font-semibold text-slate-50">
-                  <Mail size={16} />
-                  Email
-                </p>
-                {isEditing ? (
                   <input
                     type="text"
                     value={formEmail}
-                    onChange={(event) => setFormEmail(event.target.value)}
-                    className="w-full rounded-[10px] border border-white/20 bg-white/8 px-[10px] py-2 text-slate-50 outline-none"
+                    onChange={(e) => setFormEmail(e.target.value)}
+                    className="block w-full rounded-lg border border-white/20 bg-white/8 px-3 py-1.5 text-sm text-slate-300 outline-none focus:border-emerald-500/60"
                   />
-                ) : (
-                  <p className="break-words text-slate-300">{displayEmail}</p>
-                )}
-              </div>
-
-              <div className="grid items-center gap-[10px] px-4 py-[14px] md:grid-cols-[165px_minmax(0,1fr)]">
-                <p className="inline-flex items-center gap-2 font-semibold text-slate-50">
-                  <ShieldCheck size={16} />
-                  Account Type
-                </p>
-                <p className="break-words text-slate-300">{role}</p>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2 px-4 pt-3">
-                {isEditing ? (
-                  <>
-                    <button
-                      type="button"
-                      onClick={handleSave}
-                      className="rounded-[10px] border border-teal-600 bg-teal-500 px-3 py-[7px] text-[13px] leading-none text-white transition-colors duration-200 hover:bg-teal-600"
-                    >
-                      Save
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsEditing(false);
-                        setFormName(displayName);
-                        setFormEmail(displayEmail);
-                        setEditError("");
-                      }}
-                      className="rounded-[10px] border border-white/25 bg-white/8 px-3 py-[7px] text-[13px] leading-none text-slate-300"
-                    >
-                      Cancel
-                    </button>
-                  </>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsEditing(true);
-                      setEditError("");
-                    }}
-                    className="rounded-[10px] border border-teal-600 bg-teal-500 px-3 py-[7px] text-[13px] leading-none text-white transition-colors duration-200 hover:bg-teal-600"
-                  >
-                    Edit
-                  </button>
-                )}
-                {editError ? <p className="w-full text-xs text-rose-300">{editError}</p> : null}
-              </div>
-            </section>
-
-            <div className="grid gap-[18px] lg:grid-cols-2">
-              <StatsCard title="Nutrition" icon={UtensilsCrossed} items={NUTRITION_STATS} />
-              <StatsCard title="Workouts" icon={Dumbbell} items={WORKOUT_STATS} />
+                  {editError ? <p className="text-xs text-rose-400">{editError}</p> : null}
+                </div>
+              ) : (
+                <>
+                  <h1 className="text-2xl font-bold text-white">{displayName}</h1>
+                  <p className="text-sm text-gray-400">{displayEmail}</p>
+                </>
+              )}
+              <span className="mt-2 inline-block rounded-full border border-emerald-500/40 bg-emerald-500/15 px-3 py-0.5 text-xs font-medium text-emerald-400">
+                Member since January 2024
+              </span>
             </div>
           </div>
+
+          <div>
+            {isEditing ? (
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={handleSave}
+                  className="rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-emerald-600"
+                >
+                  Save
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsEditing(false);
+                    setFormName(displayName);
+                    setFormEmail(displayEmail);
+                    setEditError("");
+                  }}
+                  className="rounded-xl border border-white/20 bg-white/8 px-4 py-2 text-sm font-semibold text-slate-300 transition-colors hover:bg-white/12"
+                >
+                  Cancel
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  setIsEditing(true);
+                  setEditError("");
+                }}
+                className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/8 px-4 py-2 text-sm font-semibold text-slate-200 transition-colors hover:bg-white/12"
+              >
+                <Pencil className="h-4 w-4" />
+                Edit Profile
+              </button>
+            )}
+          </div>
+        </section>
+
+        {/* Stats Row */}
+        <div className="reveal-up reveal-delay-1 mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
+            <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/20">
+              <Dumbbell className="h-5 w-5 text-emerald-400" />
+            </div>
+            <p className="text-2xl font-bold text-white">24</p>
+            <p className="text-sm text-gray-400">Total Workouts</p>
+          </div>
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
+            <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-orange-500/20">
+              <Flame className="h-5 w-5 text-orange-400" />
+            </div>
+            <p className="text-2xl font-bold text-white">7</p>
+            <p className="text-sm text-gray-400">Day Streak</p>
+          </div>
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
+            <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-blue-500/20">
+              <Clock className="h-5 w-5 text-blue-400" />
+            </div>
+            <p className="text-2xl font-bold text-white">1240</p>
+            <p className="text-sm text-gray-400">Active Minutes</p>
+          </div>
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
+            <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-purple-500/20">
+              <Award className="h-5 w-5 text-purple-400" />
+            </div>
+            <p className="text-2xl font-bold text-white">3</p>
+            <p className="text-sm text-gray-400">Achievements</p>
+          </div>
         </div>
+
+        {/* Weekly Activity */}
+        <section className="reveal-up reveal-delay-2 mb-6 rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-sm">
+          <h2 className="mb-5 text-xl font-bold text-white">Weekly Activity</h2>
+          <div className="mb-4 flex items-end justify-between">
+            <div>
+              <p className="text-sm text-gray-400">Progress to weekly goal</p>
+              <p className="text-2xl font-bold text-white">
+                {completedCount} / {weeklyGoal} workouts
+              </p>
+            </div>
+            <p className="text-3xl font-bold text-emerald-400">{percentage}%</p>
+          </div>
+          <div className="flex items-end gap-3">
+            {WEEKLY_DAYS.map((day, i) => (
+              <div key={day} className="flex flex-1 flex-col items-center gap-2">
+                <div
+                  className={`w-full rounded-lg transition-all ${
+                    WEEKLY_COMPLETED[i]
+                      ? `${WEEKLY_HEIGHTS[i]} bg-emerald-500`
+                      : "h-16 bg-white/8"
+                  }`}
+                />
+                <span className="text-xs text-gray-400">{day}</span>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* Achievements */}
+        <section className="reveal-up reveal-delay-3 mb-6 rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-sm">
+          <h2 className="mb-5 text-xl font-bold text-white">Achievements</h2>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {ACHIEVEMENTS.map((a) => (
+              <div
+                key={a.title}
+                className={`rounded-xl border p-4 transition-colors ${
+                  a.locked
+                    ? "border-white/10 bg-white/3 opacity-60"
+                    : "border-emerald-500/30 bg-emerald-600/15"
+                }`}
+              >
+                <span className="mb-2 block text-2xl">{a.emoji}</span>
+                <p className="font-semibold text-white">{a.title}</p>
+                <p className="text-xs text-gray-400">{a.locked ? "Locked" : a.date}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* Fitness Insights */}
+        <section className="reveal-up reveal-delay-4 rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-sm">
+          <h2 className="mb-5 text-xl font-bold text-white">Fitness Insights</h2>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {INSIGHTS.map((row) => (
+              <div
+                key={row.label}
+                className="flex items-center justify-between rounded-xl border border-white/8 bg-white/3 px-4 py-3"
+              >
+                <span className="text-sm text-gray-400">{row.label}</span>
+                <span
+                  className={`text-sm font-semibold ${row.highlight ? "text-emerald-400" : "text-white"}`}
+                >
+                  {row.value}
+                </span>
+              </div>
+            ))}
+          </div>
+        </section>
       </div>
     </div>
   );
