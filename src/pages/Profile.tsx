@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Award,
   Clock,
@@ -7,17 +7,7 @@ import {
   Pencil,
   UserCircle2,
 } from "lucide-react";
-import AuthUtils from "../utils/authUtils";
 
-const USERS_KEY = "fitlife_users";
-const SESSION_USER_KEY = "fitlife_session_user";
-
-interface UserRecord {
-  fullName: string;
-  password: string;
-}
-
-type UsersMap = Record<string, UserRecord>;
 
 interface Achievement {
   emoji: string;
@@ -55,30 +45,14 @@ const INSIGHTS: InsightRow[] = [
 ];
 
 export default function Profile() {
-  const [avatarFailed, setAvatarFailed] = useState(false);
-  const [currentUser, setCurrentUser] = useState(AuthUtils.getCurrentUserEmail() ?? "");
   const [isEditing, setIsEditing] = useState(false);
-  const [formName, setFormName] = useState("");
-  const [formEmail, setFormEmail] = useState("");
+  const [formName, setFormName] = useState("User");
+  const [formEmail, setFormEmail] = useState("user@example.com");
   const [editError, setEditError] = useState("");
   const [isLoaded, setIsLoaded] = useState(false);
 
-  let fullName = "";
-  try {
-    const users = JSON.parse(localStorage.getItem(USERS_KEY) ?? "{}") as UsersMap;
-    fullName = users[currentUser]?.fullName ?? "";
-  } catch {
-    fullName = "";
-  }
-
-  const displayName = fullName || "User";
-  const displayEmail = currentUser || "user@example.com";
-  const avatarUrl = `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(displayName)}`;
-
-  useEffect(() => {
-    setFormName(displayName);
-    setFormEmail(displayEmail);
-  }, [displayName, displayEmail]);
+  const displayName = formName || "User";
+  const displayEmail = formEmail || "user@example.com";
 
   useEffect(() => {
     const frame = requestAnimationFrame(() => setIsLoaded(true));
@@ -94,35 +68,8 @@ export default function Profile() {
       return;
     }
 
-    try {
-      const users = JSON.parse(localStorage.getItem(USERS_KEY) ?? "{}") as UsersMap;
-      const existing = users[currentUser];
-
-      if (!existing) {
-        setEditError("Current user was not found.");
-        return;
-      }
-
-      if (nextEmail !== currentUser && users[nextEmail]) {
-        setEditError("Email is already in use.");
-        return;
-      }
-
-      if (nextEmail === currentUser) {
-        users[currentUser] = { ...existing, fullName: nextName };
-      } else {
-        users[nextEmail] = { ...existing, fullName: nextName };
-        delete users[currentUser];
-        sessionStorage.setItem(SESSION_USER_KEY, nextEmail);
-        setCurrentUser(nextEmail);
-      }
-
-      localStorage.setItem(USERS_KEY, JSON.stringify(users));
-      setEditError("");
-      setIsEditing(false);
-    } catch {
-      setEditError("An error occurred while saving.");
-    }
+    setEditError("");
+    setIsEditing(false);
   };
 
   const completedCount = WEEKLY_COMPLETED.filter(Boolean).length;
@@ -140,16 +87,7 @@ export default function Profile() {
         <section className="reveal-up mb-6 flex flex-col gap-5 rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-sm sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-5">
             <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-full border border-white/15 bg-white/10">
-              {avatarFailed ? (
-                <UserCircle2 className="h-12 w-12 text-slate-300" />
-              ) : (
-                <img
-                  src={avatarUrl}
-                  alt={`${displayName} avatar`}
-                  onError={() => setAvatarFailed(true)}
-                  className="h-full w-full object-cover"
-                />
-              )}
+              <UserCircle2 className="h-12 w-12 text-slate-400" />
             </div>
             <div>
               {isEditing ? (
