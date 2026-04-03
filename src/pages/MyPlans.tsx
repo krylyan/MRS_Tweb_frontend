@@ -1,4 +1,4 @@
-import { ChevronRight, MoreHorizontal, Plus, Star, Trash2 } from "lucide-react";
+import { CalendarDays, Clock, Dumbbell, Heart, Plus, Star, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { deleteWorkoutPlan, getWorkoutPlans } from "../utils/planStorage";
@@ -21,6 +21,7 @@ interface DisplayPlan {
   updatedAt: string;
   statLabel: "Days" | "Meals";
   statValue: number;
+  exerciseCount: number;
   detailsEnabled: boolean;
   favoriteEnabled: boolean;
   deleteEnabled: boolean;
@@ -49,13 +50,6 @@ const ALIMENTATION_PLANS: MockMealPlan[] = [
   },
 ];
 
-const formatDate = (value: string): string =>
-  new Intl.DateTimeFormat("en-GB", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  }).format(new Date(value));
-
 const readFavoriteIds = (): string[] => {
   const raw = localStorage.getItem(FAVORITES_KEY);
 
@@ -78,25 +72,6 @@ export default function MyPlans() {
   const menuAreaRef = useRef<HTMLDivElement | null>(null);
   const [workoutPlans, setWorkoutPlans] = useState<StoredWorkoutPlan[]>(() => getWorkoutPlans());
   const [favoriteIds, setFavoriteIds] = useState<string[]>(() => readFavoriteIds());
-  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
-
-  useEffect(() => {
-    const handleOutsideClick = (event: MouseEvent): void => {
-      const target = event.target;
-      if (!(target instanceof Node)) {
-        return;
-      }
-
-      if (menuAreaRef.current && !menuAreaRef.current.contains(target)) {
-        setOpenMenuId(null);
-      }
-    };
-
-    document.addEventListener("mousedown", handleOutsideClick);
-    return () => {
-      document.removeEventListener("mousedown", handleOutsideClick);
-    };
-  }, []);
 
   useEffect(() => {
     localStorage.setItem(FAVORITES_KEY, JSON.stringify(favoriteIds));
@@ -112,6 +87,7 @@ export default function MyPlans() {
         updatedAt: plan.updatedAt,
         statLabel: "Days",
         statValue: plan.days.length,
+        exerciseCount: plan.days.reduce((sum, d) => sum + d.exerciseIds.length, 0),
         detailsEnabled: true,
         favoriteEnabled: true,
         deleteEnabled: true,
@@ -139,6 +115,7 @@ export default function MyPlans() {
         updatedAt: plan.updatedAt,
         statLabel: "Meals",
         statValue: plan.meals,
+        exerciseCount: 0,
         detailsEnabled: false,
         favoriteEnabled: false,
         deleteEnabled: false,
@@ -148,124 +125,151 @@ export default function MyPlans() {
 
   const handleDeletePlan = (planId: string, deleteEnabled: boolean): void => {
     if (!deleteEnabled) {
-      setOpenMenuId(null);
       return;
     }
 
     deleteWorkoutPlan(planId);
     setWorkoutPlans(getWorkoutPlans());
     setFavoriteIds((prev) => prev.filter((id) => id !== planId));
-    setOpenMenuId(null);
   };
 
   const handleToggleFavorite = (planId: string, favoriteEnabled: boolean): void => {
     if (!favoriteEnabled) {
-      setOpenMenuId(null);
       return;
     }
 
     setFavoriteIds((prev) =>
       prev.includes(planId) ? prev.filter((id) => id !== planId) : [...prev, planId],
     );
-    setOpenMenuId(null);
+  };
+
+  const getDaysAgo = (dateStr: string): string => {
+    const diff = Math.floor((Date.now() - new Date(dateStr).getTime()) / 86_400_000);
+    if (diff === 0) return "today";
+    if (diff === 1) return "1 day ago";
+    return `${diff} days ago`;
+  };
+
+  const getAccentClasses = (index: number) => {
+    if (index % 4 === 0)
+      return {
+        card: "border-emerald-500/40 bg-gradient-to-br from-emerald-600/25 to-emerald-900/40 hover:border-emerald-400/60 hover:shadow-emerald-500/20",
+        icon: "bg-emerald-500/20 border-emerald-400/30 text-emerald-300",
+        btn: "bg-emerald-500 hover:bg-emerald-400 shadow-emerald-500/30",
+        heart: "hover:text-rose-400",
+      };
+    if (index % 4 === 1)
+      return {
+        card: "border-blue-500/40 bg-gradient-to-br from-blue-600/25 to-blue-900/40 hover:border-blue-400/60 hover:shadow-blue-500/20",
+        icon: "bg-blue-500/20 border-blue-400/30 text-blue-300",
+        btn: "bg-blue-500 hover:bg-blue-400 shadow-blue-500/30",
+        heart: "hover:text-rose-400",
+      };
+    if (index % 4 === 2)
+      return {
+        card: "border-purple-500/40 bg-gradient-to-br from-purple-600/25 to-purple-900/40 hover:border-purple-400/60 hover:shadow-purple-500/20",
+        icon: "bg-purple-500/20 border-purple-400/30 text-purple-300",
+        btn: "bg-purple-500 hover:bg-purple-400 shadow-purple-500/30",
+        heart: "hover:text-rose-400",
+      };
+    return {
+      card: "border-orange-500/40 bg-gradient-to-br from-orange-600/20 to-amber-900/40 hover:border-orange-400/60 hover:shadow-orange-500/20",
+      icon: "bg-orange-500/20 border-orange-400/30 text-orange-300",
+      btn: "bg-orange-500 hover:bg-orange-400 shadow-orange-500/30",
+      heart: "hover:text-rose-400",
+    };
   };
 
   const renderPlanCard = (plan: DisplayPlan, index: number, sectionKey: string) => {
     const isFavorite = favoriteIds.includes(plan.id);
-    const menuId = `${sectionKey}-${plan.id}`;
+    const accent = getAccentClasses(index);
+    const estMinutes = plan.statValue > 0 ? plan.statValue * 45 : 45;
 
     return (
       <article
         key={`${sectionKey}-${plan.id}`}
-        className={`reveal-up rounded-2xl border p-4 shadow-[0_18px_36px_rgba(0,0,0,0.2)] backdrop-blur-[6px] transition-all duration-300 hover:-translate-y-1 ${
-          index % 4 === 0
-            ? "border-emerald-500/40 bg-gradient-to-br from-emerald-600/30 to-emerald-900/40 hover:border-emerald-400/60 hover:shadow-xl hover:shadow-emerald-500/20"
-            : index % 4 === 1
-              ? "border-blue-500/40 bg-gradient-to-br from-blue-600/30 to-blue-900/40 hover:border-blue-400/60 hover:shadow-xl hover:shadow-blue-500/20"
-              : index % 4 === 2
-                ? "border-purple-500/40 bg-gradient-to-br from-purple-600/30 to-purple-900/40 hover:border-purple-400/60 hover:shadow-xl hover:shadow-purple-500/20"
-                : "border-orange-500/40 bg-gradient-to-br from-orange-600/20 to-amber-900/40 hover:border-orange-400/60 hover:shadow-xl hover:shadow-orange-500/20"
+        className={`reveal-up flex flex-col rounded-2xl border p-4 shadow-[0_18px_36px_rgba(0,0,0,0.25)] backdrop-blur-[6px] transition-all duration-300 hover:-translate-y-1 hover:shadow-xl ${
+          accent.card
         }`}
       >
-        <div className="flex h-full flex-col">
-          <div className="relative mb-6 flex h-40 items-start justify-between rounded-[12px] border border-white/12 bg-slate-950/28 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
-            <div className="min-w-0">
-              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-300">{plan.label}</p>
-              <h3 className="mt-2 max-w-full whitespace-normal break-words hyphens-none text-[30px] font-semibold leading-tight text-slate-50">
-                {plan.name}
-              </h3>
-            </div>
+        {/* Top row: icon + actions */}
+        <div className="mb-4 flex items-start justify-between">
+          <div className={`flex h-12 w-12 items-center justify-center rounded-[12px] border ${
+            accent.icon
+          }`}>
+            <Dumbbell className="h-6 w-6" />
+          </div>
 
-            <div className="relative">
+          <div className="flex items-center gap-2">
+            {plan.favoriteEnabled && (
               <button
                 type="button"
-                onClick={() => setOpenMenuId((prev) => (prev === menuId ? null : menuId))}
-                className={`inline-flex h-11 w-11 items-center justify-center rounded-[12px] border border-white/12 bg-white/[0.06] transition-all ${
-                  openMenuId === menuId
-                    ? "text-slate-50 shadow-[0_0_0_1px_rgba(255,255,255,0.08)]"
-                    : "text-slate-100 hover:bg-white/[0.12]"
+                onClick={() => handleToggleFavorite(plan.id, plan.favoriteEnabled)}
+                aria-label={isFavorite ? "Remove from favorites" : "Add to favorites"}
+                className={`inline-flex h-9 w-9 items-center justify-center rounded-[10px] border border-white/12 bg-white/[0.06] transition-all hover:bg-white/[0.12] ${
+                  isFavorite ? "text-rose-400" : "text-slate-400 hover:text-rose-400"
                 }`}
-                aria-label={`Open actions for ${plan.name}`}
               >
-                <MoreHorizontal className="h-4.5 w-4.5" />
+                <Heart className={`h-4 w-4 ${ isFavorite ? "fill-rose-400" : ""}`} />
               </button>
-
-              {openMenuId === menuId ? (
-                <div className="absolute right-0 top-[calc(100%+12px)] z-20 w-56 rounded-[14px] border border-white/12 bg-slate-950/95 p-2 shadow-[0_14px_28px_rgba(0,0,0,0.35)] backdrop-blur-[8px]">
-                  <div className="pointer-events-none absolute -top-2 right-4 h-4 w-4 rotate-45 border-l border-t border-white/12 bg-slate-950/95" />
-                  <button
-                    type="button"
-                    onClick={() => handleDeletePlan(plan.id, plan.deleteEnabled)}
-                    disabled={!plan.deleteEnabled}
-                    className="relative flex w-full items-center gap-3 rounded-[10px] border border-transparent px-4 py-3 text-left text-sm font-medium text-slate-100 transition-all hover:border-rose-400/20 hover:bg-rose-500/15 hover:text-rose-200 disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    <span className="inline-flex h-8 w-8 items-center justify-center rounded-[8px] border border-white/10 bg-white/[0.04] text-slate-200">
-                      <Trash2 className="h-4 w-4" />
-                    </span>
-                    Delete plan
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleToggleFavorite(plan.id, plan.favoriteEnabled)}
-                    disabled={!plan.favoriteEnabled}
-                    className="relative mt-1 flex w-full items-center gap-3 rounded-[10px] border border-transparent px-4 py-3 text-left text-sm font-medium text-slate-100 transition-all hover:border-amber-300/20 hover:bg-amber-400/12 hover:text-amber-100 disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    <span className="inline-flex h-8 w-8 items-center justify-center rounded-[8px] border border-white/10 bg-white/[0.04] text-slate-200">
-                      <Star className="h-4 w-4" />
-                    </span>
-                    {isFavorite ? "Remove from favorites" : "Add to favorites"}
-                  </button>
-                </div>
-              ) : null}
-            </div>
+            )}
+            {plan.deleteEnabled && (
+              <button
+                type="button"
+                onClick={() => handleDeletePlan(plan.id, plan.deleteEnabled)}
+                aria-label={`Delete ${plan.name}`}
+                className="inline-flex h-9 w-9 items-center justify-center rounded-[10px] border border-white/12 bg-white/[0.06] text-slate-400 transition-all hover:bg-rose-500/15 hover:text-rose-400"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            )}
           </div>
-
-          <div className="mb-5 space-y-2 text-sm text-slate-200">
-            <div className="flex items-center justify-between">
-              <span>{plan.statLabel}</span>
-              <span className="font-semibold text-slate-50">{plan.statValue}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span>Updated</span>
-              <span className="font-semibold text-slate-50">{formatDate(plan.updatedAt)}</span>
-            </div>
-          </div>
-
-          <button
-            type="button"
-            onClick={() => {
-              if (!plan.detailsEnabled) {
-                return;
-              }
-              navigate(`/gym-plan?planId=${plan.id}`);
-            }}
-            disabled={!plan.detailsEnabled}
-            className="mt-auto inline-flex items-center justify-center gap-2 rounded-[10px] border border-white/25 bg-white/[0.06] px-4 py-2 text-sm font-semibold text-slate-50 transition-all hover:bg-white/[0.12] disabled:cursor-not-allowed disabled:opacity-55"
-          >
-            Details
-            <ChevronRight className="h-4 w-4" />
-          </button>
         </div>
+
+        {/* Title */}
+        <h3 className="mb-1 break-words text-xl font-bold leading-snug text-slate-50">
+          {plan.name}
+        </h3>
+
+        {/* Subtitle */}
+        <p className="mb-4 text-xs text-slate-400">
+          Updated: {getDaysAgo(plan.updatedAt)}
+        </p>
+
+        {/* Stats */}
+        <div className="mb-5 space-y-2">
+          <div className="flex items-center gap-2 text-sm text-slate-300">
+            <CalendarDays className="h-4 w-4 shrink-0 text-slate-400" />
+            <span>{plan.statValue} {plan.statLabel === "Days" ? "training days" : "meals"}</span>
+          </div>
+          {plan.sourceType === "workout" && (
+            <div className="flex items-center gap-2 text-sm text-slate-300">
+              <Star className="h-4 w-4 shrink-0 text-slate-400" />
+              <span>{plan.exerciseCount} exercises</span>
+            </div>
+          )}
+          {plan.sourceType === "workout" && (
+            <div className="flex items-center gap-2 text-sm text-slate-300">
+              <Clock className="h-4 w-4 shrink-0 text-slate-400" />
+              <span>~{estMinutes} min</span>
+            </div>
+          )}
+        </div>
+
+        {/* Open button */}
+        <button
+          type="button"
+          onClick={() => {
+            if (!plan.detailsEnabled) return;
+            navigate(`/gym-plan?planId=${plan.id}`);
+          }}
+          disabled={!plan.detailsEnabled}
+          className={`mt-auto w-full rounded-[10px] py-2.5 text-sm font-semibold text-white shadow-lg transition-all duration-200 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 ${
+            accent.btn
+          }`}
+        >
+          Open Plan
+        </button>
       </article>
     );
   };
