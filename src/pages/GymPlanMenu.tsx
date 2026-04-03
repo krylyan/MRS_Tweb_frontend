@@ -11,7 +11,7 @@ import {
   Users,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import ActivitiesList from "../components/ActivitiesList";
 import WorkoutPreview from "../components/WorkoutPreview";
@@ -167,19 +167,8 @@ const createStoredPlanPayload = (
 
 function DaysSelector({ days, activeDayId, onSelectDay, onAddDay }: DaysSelectorProps) {
   return (
-    <section className="reveal-up reveal-delay-2 mb-4 rounded-[14px] border border-white/12 bg-white/4 p-4 shadow-[0_14px_28px_rgba(0,0,0,0.25)] backdrop-blur-[6px]">
-      <div className="mb-3 flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-slate-50">Days</h2>
-        <button
-          type="button"
-          onClick={onAddDay}
-          className="inline-flex h-9 w-9 items-center justify-center rounded-[10px] border-0 bg-gradient-to-r from-emerald-500 to-blue-500 text-white transition-all duration-300 hover:from-emerald-600 hover:to-blue-600"
-        >
-          <Plus className="h-4 w-4" />
-        </button>
-      </div>
-
-      <div className="flex flex-wrap gap-2.5">
+    <section className="reveal-up reveal-delay-2 mb-4 rounded-[14px] border border-white/12 bg-white/4 px-4 py-3 shadow-[0_14px_28px_rgba(0,0,0,0.25)] backdrop-blur-[6px]">
+      <div className="flex flex-wrap items-center gap-2.5">
         {days.map((day) => {
           const isActive = day.id === activeDayId;
           return (
@@ -189,7 +178,7 @@ function DaysSelector({ days, activeDayId, onSelectDay, onAddDay }: DaysSelector
               onClick={() => onSelectDay(day)}
               className={`rounded-[10px] border px-4 py-2 text-sm font-semibold transition-colors ${
                 isActive
-                  ? "border-emerald-400/40 bg-emerald-500/15 text-emerald-200"
+                  ? "border-emerald-400/40 bg-emerald-500/20 text-emerald-200"
                   : "border-white/10 bg-white/[0.02] text-slate-200 hover:bg-white/[0.08]"
               }`}
             >
@@ -197,6 +186,15 @@ function DaysSelector({ days, activeDayId, onSelectDay, onAddDay }: DaysSelector
             </button>
           );
         })}
+
+        <button
+          type="button"
+          onClick={onAddDay}
+          className="flex items-center gap-1.5 rounded-[10px] border border-white/15 bg-white/[0.04] px-4 py-2 text-sm font-semibold text-slate-300 transition-all hover:border-emerald-400/30 hover:bg-emerald-500/10 hover:text-emerald-200"
+        >
+          <Plus className="h-4 w-4" />
+          Add Day
+        </button>
       </div>
     </section>
   );
@@ -431,6 +429,8 @@ export default function GymPlanMenu() {
   );
   const [isEditorReady, setIsEditorReady] = useState<boolean>(false);
   const [hasLoadedPlan, setHasLoadedPlan] = useState<boolean>(false);
+  const [isDirty, setIsDirty] = useState<boolean>(false);
+  const loadSettledRef = useRef<boolean>(false);
 
   useEffect(() => {
     if (!planId && !isNewDraft) {
@@ -442,6 +442,9 @@ export default function GymPlanMenu() {
       });
       return;
     }
+
+    loadSettledRef.current = false;
+    setIsDirty(false);
 
     if (planId) {
       const storedPlan = getWorkoutPlanById(planId);
@@ -488,26 +491,31 @@ export default function GymPlanMenu() {
   const selectedExercise =
     activeDayExercises.find((exercise) => exercise.id === selectedExerciseId) ?? null;
 
+  // Track unsaved changes — skip the first run after the plan loads
   useEffect(() => {
-    if (!hasLoadedPlan || !planId || !isEditorReady) {
+    if (!hasLoadedPlan) return;
+    if (!loadSettledRef.current) {
+      loadSettledRef.current = true;
       return;
     }
-
-    const existingPlan = getWorkoutPlanById(planId);
-    if (!existingPlan) {
-      return;
-    }
-
-    saveWorkoutPlan(
-      createStoredPlanPayload(planId, planName, days, selectedExerciseByDay, workoutTracking, existingPlan),
-    );
-  }, [days, hasLoadedPlan, isEditorReady, planId, planName, selectedExerciseByDay, workoutTracking]);
+    setIsDirty(true);
+  }, [planName, days, workoutTracking, hasLoadedPlan]);
 
   const getIconForMuscleGroup = (muscleGroup: MuscleGroup): LucideIcon =>
     EXERCISE_ICON_BY_GROUP[muscleGroup];
 
   const handlePlanNameChange = (value: string): void => {
     setPlanName(value);
+  };
+
+  const handleSavePlan = (): void => {
+    if (!planId || !isEditorReady) return;
+    const existingPlan = getWorkoutPlanById(planId);
+    if (!existingPlan) return;
+    saveWorkoutPlan(
+      createStoredPlanPayload(planId, planName, days, selectedExerciseByDay, workoutTracking, existingPlan),
+    );
+    setIsDirty(false);
   };
 
   const handleActivatePlan = (): void => {
@@ -666,7 +674,7 @@ export default function GymPlanMenu() {
                     value={planName}
                     onChange={(event) => handlePlanNameChange(event.target.value)}
                     placeholder="Untitled Workout"
-                    className="rounded-xl border border-emerald-500/40 bg-transparent px-4 py-2 text-2xl font-bold text-slate-50 outline-none transition-all placeholder:text-slate-500 hover:border-emerald-400/60 focus:border-emerald-400/80 focus:shadow-[0_0_16px_rgba(16,185,129,0.15)] md:text-3xl"
+                    className="rounded-xl border border-transparent bg-transparent px-4 py-2 text-2xl font-bold text-slate-50 outline-none transition-all placeholder:text-slate-500 focus:border-emerald-400/80 focus:shadow-[0_0_16px_rgba(16,185,129,0.15)] md:text-3xl"
                   />
                 </div>
 
@@ -680,9 +688,18 @@ export default function GymPlanMenu() {
                       Unlock editor
                     </button>
                   ) : (
-                    <div className="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2 text-sm text-slate-400">
-                      Plan saved automatically
-                    </div>
+                    <button
+                      type="button"
+                      onClick={handleSavePlan}
+                      disabled={!isDirty}
+                      className={`rounded-xl border px-4 py-2 text-sm font-semibold transition-all duration-300 ${
+                        isDirty
+                          ? "scale-100 border-emerald-400/50 bg-emerald-500/20 text-emerald-100 shadow-[0_0_18px_rgba(16,185,129,0.25)] hover:bg-emerald-500/30 hover:shadow-[0_0_24px_rgba(16,185,129,0.35)]"
+                          : "scale-95 cursor-not-allowed border-white/10 bg-white/[0.03] text-slate-500"
+                      }`}
+                    >
+                      Save Changes
+                    </button>
                   )}
                 </div>
               </div>
