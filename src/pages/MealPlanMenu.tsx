@@ -1,145 +1,91 @@
-import { Check, Flame, Plus, Trash2 } from "lucide-react";
-import { useRef, useState } from "react";
+import { Check, ChevronDown, ChevronUp, Flame, Plus, X } from "lucide-react";
+import { useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-/* ------------------------------------------------------------------ */
-/*  Types                                                              */
-/* ------------------------------------------------------------------ */
+/* ────────────────────────────── Types ──────────────────────────────── */
 interface FoodItem {
   id: string;
   name: string;
   kcal: number;
+  protein: number;
+  carbs: number;
+  fats: number;
+  grams: number;
   imageUrl: string;
 }
 
 type MealSlot = "breakfast" | "lunch" | "snacks" | "dinner";
 
-interface MealColumn {
-  key: MealSlot;
-  label: string;
-  items: FoodItem[];
-}
+const MEAL_LABELS: Record<MealSlot, string> = {
+  breakfast: "Breakfast",
+  lunch: "Lunch",
+  snacks: "Snacks",
+  dinner: "Dinner",
+};
 
-/* ------------------------------------------------------------------ */
-/*  Preset food catalogue (used in the "Add food" picker)             */
-/* ------------------------------------------------------------------ */
+const MEAL_SLOTS: MealSlot[] = ["breakfast", "lunch", "snacks", "dinner"];
+
+const DAYS = Array.from({ length: 7 }, (_, i) => ({
+  id: `day-${i + 1}`,
+  label: `Day ${i + 1}`,
+}));
+
+/* ────────────────────────── Food catalogue ─────────────────────────── */
 const FOOD_CATALOGUE: FoodItem[] = [
-  { id: "bread",        name: "Bread",        kcal: 130, imageUrl: "https://images.unsplash.com/photo-1589367920969-ab8e050bbb04?w=60&h=60&fit=crop&auto=format" },
-  { id: "egg",          name: "Egg",          kcal: 155, imageUrl: "https://images.unsplash.com/photo-1582722872445-44dc5f7e3c8f?w=60&h=60&fit=crop&auto=format" },
-  { id: "cheese",       name: "Cheese",       kcal: 402, imageUrl: "https://images.unsplash.com/photo-1486297678162-eb2a19b0a32d?w=60&h=60&fit=crop&auto=format" },
-  { id: "oatmeal",      name: "Oatmeal",      kcal: 150, imageUrl: "https://images.unsplash.com/photo-1517673400267-0251440c45dc?w=60&h=60&fit=crop&auto=format" },
-  { id: "banana",       name: "Banana",       kcal: 89,  imageUrl: "https://images.unsplash.com/photo-1571771894821-ce9b6c11b08e?w=60&h=60&fit=crop&auto=format" },
-  { id: "apple",        name: "Apple",        kcal: 52,  imageUrl: "https://images.unsplash.com/photo-1560806887-1e4cd0b6cbd6?w=60&h=60&fit=crop&auto=format" },
-  { id: "lettuce",      name: "Lettuce",      kcal: 15,  imageUrl: "https://images.unsplash.com/photo-1622206151226-18ca2c9ab4a1?w=60&h=60&fit=crop&auto=format" },
-  { id: "tomato",       name: "Tomato",       kcal: 18,  imageUrl: "https://images.unsplash.com/photo-1546094096-0df4bcaaa337?w=60&h=60&fit=crop&auto=format" },
-  { id: "corn",         name: "Corn",         kcal: 86,  imageUrl: "https://images.unsplash.com/photo-1551754655-cd27e38d2076?w=60&h=60&fit=crop&auto=format" },
-  { id: "rice",         name: "Rice",         kcal: 205, imageUrl: "https://images.unsplash.com/photo-1536304993881-ff86e0c9b96d?w=60&h=60&fit=crop&auto=format" },
-  { id: "chicken",      name: "Chicken",      kcal: 239, imageUrl: "https://images.unsplash.com/photo-1604503468506-a8da13d82791?w=60&h=60&fit=crop&auto=format" },
-  { id: "salmon",       name: "Salmon",       kcal: 208, imageUrl: "https://images.unsplash.com/photo-1519708227418-c8fd9a32b7a2?w=60&h=60&fit=crop&auto=format" },
-  { id: "hummus",       name: "Hummus",       kcal: 166, imageUrl: "https://images.unsplash.com/photo-1637949385162-e416a5527778?w=60&h=60&fit=crop&auto=format" },
-  { id: "carrot",       name: "Carrot",       kcal: 41,  imageUrl: "https://images.unsplash.com/photo-1598170845058-32b9d6a5da37?w=60&h=60&fit=crop&auto=format" },
-  { id: "sweet-potato", name: "Sweet Potato", kcal: 86,  imageUrl: "https://images.unsplash.com/photo-1596097635121-14b38c5d7de4?w=60&h=60&fit=crop&auto=format" },
-  { id: "coconut-milk", name: "Coconut Milk", kcal: 230, imageUrl: "https://images.unsplash.com/photo-1550989460-0adf9ea622e2?w=60&h=60&fit=crop&auto=format" },
-  { id: "almonds",      name: "Almonds",      kcal: 579, imageUrl: "https://images.unsplash.com/photo-1508061253366-f7da158b6d46?w=60&h=60&fit=crop&auto=format" },
-  { id: "yogurt",       name: "Yogurt",       kcal: 100, imageUrl: "https://images.unsplash.com/photo-1488477181228-c84de6156a6f?w=60&h=60&fit=crop&auto=format" },
+  { id: "bread",        name: "Whole-wheat Bread", kcal: 130, protein: 5,  carbs: 25, fats: 2,  grams: 50,  imageUrl: "https://images.unsplash.com/photo-1585478259715-876aced85a57?w=400&h=280&fit=crop&auto=format" },
+  { id: "egg",          name: "Egg",               kcal: 90,  protein: 7,  carbs: 1,  fats: 6,  grams: 60,  imageUrl: "https://images.unsplash.com/photo-1582722872445-44dc5f7e3c8f?w=400&h=280&fit=crop&auto=format" },
+  { id: "oatmeal",      name: "Oatmeal",           kcal: 150, protein: 5,  carbs: 27, fats: 3,  grams: 80,  imageUrl: "https://images.unsplash.com/photo-1614961908502-af4ff36b5fac?w=400&h=280&fit=crop&auto=format" },
+  { id: "banana",       name: "Banana",            kcal: 89,  protein: 1,  carbs: 23, fats: 0,  grams: 120, imageUrl: "https://images.unsplash.com/photo-1571771894821-ce9b6c11b08e?w=400&h=280&fit=crop&auto=format" },
+  { id: "apple",        name: "Apple",             kcal: 52,  protein: 0,  carbs: 14, fats: 0,  grams: 100, imageUrl: "https://images.unsplash.com/photo-1560806887-1e4cd0b6cbd6?w=400&h=280&fit=crop&auto=format" },
+  { id: "tomato",       name: "Tomatoes",          kcal: 18,  protein: 1,  carbs: 4,  fats: 0,  grams: 100, imageUrl: "https://images.unsplash.com/photo-1546094096-0df4bcaaa337?w=400&h=280&fit=crop&auto=format" },
+  { id: "lettuce",      name: "Lettuce",           kcal: 15,  protein: 1,  carbs: 2,  fats: 0,  grams: 100, imageUrl: "https://images.unsplash.com/photo-1622206151226-18ca2c9ab4a1?w=400&h=280&fit=crop&auto=format" },
+  { id: "rice",         name: "Brown Rice",        kcal: 205, protein: 4,  carbs: 45, fats: 2,  grams: 100, imageUrl: "https://images.unsplash.com/photo-1536304993881-ff86e0c9b96d?w=400&h=280&fit=crop&auto=format" },
+  { id: "chicken",      name: "Chicken",           kcal: 165, protein: 25, carbs: 0,  fats: 6,  grams: 85,  imageUrl: "https://images.unsplash.com/photo-1604503468506-a8da13d82791?w=400&h=280&fit=crop&auto=format" },
+  { id: "salmon",       name: "Salmon",            kcal: 208, protein: 20, carbs: 0,  fats: 13, grams: 85,  imageUrl: "https://images.unsplash.com/photo-1519708227418-c8fd9a32b7a2?w=400&h=280&fit=crop&auto=format" },
+  { id: "hummus",       name: "Hummus",            kcal: 166, protein: 7,  carbs: 14, fats: 9,  grams: 70,  imageUrl: "https://images.unsplash.com/photo-1637949385162-e416a5527778?w=400&h=280&fit=crop&auto=format" },
+  { id: "carrot",       name: "Carrots",           kcal: 41,  protein: 1,  carbs: 10, fats: 0,  grams: 100, imageUrl: "https://images.unsplash.com/photo-1598170845058-32b9d6a5da37?w=400&h=280&fit=crop&auto=format" },
+  { id: "sweet-potato", name: "Sweet Potato",      kcal: 86,  protein: 2,  carbs: 20, fats: 0,  grams: 100, imageUrl: "https://images.unsplash.com/photo-1596097635121-14b38c5d7de4?w=400&h=280&fit=crop&auto=format" },
+  { id: "almonds",      name: "Almonds",           kcal: 170, protein: 6,  carbs: 6,  fats: 15, grams: 30,  imageUrl: "https://images.unsplash.com/photo-1508061253366-f7da158b6d46?w=400&h=280&fit=crop&auto=format" },
+  { id: "yogurt",       name: "Greek Yogurt",      kcal: 100, protein: 8,  carbs: 11, fats: 4,  grams: 150, imageUrl: "https://images.unsplash.com/photo-1488477181228-c84de6156a6f?w=400&h=280&fit=crop&auto=format" },
+  { id: "cheese",       name: "Cheese",            kcal: 120, protein: 7,  carbs: 0,  fats: 10, grams: 30,  imageUrl: "https://images.unsplash.com/photo-1486297678162-eb2a19b0a32d?w=400&h=280&fit=crop&auto=format" },
+  { id: "corn",         name: "Corn",              kcal: 86,  protein: 3,  carbs: 19, fats: 1,  grams: 85,  imageUrl: "https://images.unsplash.com/photo-1551754655-cd27e38d2076?w=400&h=280&fit=crop&auto=format" },
+  { id: "coconut-milk", name: "Coconut Milk",      kcal: 230, protein: 2,  carbs: 6,  fats: 24, grams: 120, imageUrl: "https://images.unsplash.com/photo-1550989460-0adf9ea622e2?w=400&h=280&fit=crop&auto=format" },
 ];
 
-const INITIAL_COLUMNS: MealColumn[] = [
-  {
-    key: "breakfast",
-    label: "Breakfast",
-    items: [
-      FOOD_CATALOGUE.find((f) => f.id === "bread")!,
-      FOOD_CATALOGUE.find((f) => f.id === "egg")!,
-    ],
-  },
-  {
-    key: "lunch",
-    label: "Lunch",
-    items: [
-      FOOD_CATALOGUE.find((f) => f.id === "lettuce")!,
-      FOOD_CATALOGUE.find((f) => f.id === "tomato")!,
-      FOOD_CATALOGUE.find((f) => f.id === "rice")!,
-    ],
-  },
-  {
-    key: "snacks",
-    label: "Snacks",
-    items: [
-      FOOD_CATALOGUE.find((f) => f.id === "apple")!,
-      FOOD_CATALOGUE.find((f) => f.id === "hummus")!,
-    ],
-  },
-  {
-    key: "dinner",
-    label: "Dinner",
-    items: [
-      FOOD_CATALOGUE.find((f) => f.id === "chicken")!,
-      FOOD_CATALOGUE.find((f) => f.id === "sweet-potato")!,
-    ],
-  },
-];
+const findFood = (id: string) => FOOD_CATALOGUE.find((f) => f.id === id)!;
 
-/* ------------------------------------------------------------------ */
-/*  Macro circle                                                        */
-/* ------------------------------------------------------------------ */
-function MacroCircle({
-  label,
-  grams,
-  color,
-}: {
-  label: string;
-  grams: number;
-  color: string;
-}) {
-  const [hovered, setHovered] = useState(false);
-  const radius = 16;
-  const circ = 2 * Math.PI * radius;
+/* ──────────────────────── Day meals state ──────────────────────────── */
+type DayMeals = Record<MealSlot, FoodItem[]>;
+type AllDayMeals = Record<string, DayMeals>;
 
-  return (
-    <div
-      className="relative flex h-[42px] w-[42px] cursor-default items-center justify-center"
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-    >
-      <svg width="42" height="42" className="-rotate-90">
-        {/* track */}
-        <circle cx="21" cy="21" r={radius} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="3" />
-        {/* progress — full circle, just colored */}
-        <circle
-          cx="21"
-          cy="21"
-          r={radius}
-          fill="none"
-          stroke={color}
-          strokeWidth="3"
-          strokeDasharray={circ}
-          strokeDashoffset={0}
-          strokeLinecap="round"
-        />
-      </svg>
-      {/* Center label */}
-      <span
-        className="absolute inset-0 flex items-center justify-center text-[9px] font-bold leading-none text-white transition-all duration-200"
-        style={{ fontSize: hovered ? "8px" : "9px" }}
-      >
-        {hovered ? `${grams}g` : label}
-      </span>
-    </div>
-  );
-}
+const createEmptyDay = (): DayMeals => ({
+  breakfast: [],
+  lunch: [],
+  snacks: [],
+  dinner: [],
+});
 
-/* ------------------------------------------------------------------ */
-/*  Food picker popover                                                */
-/* ------------------------------------------------------------------ */
+const INITIAL_MEALS: AllDayMeals = {
+  "day-1": {
+    breakfast: [findFood("bread"), findFood("egg"), findFood("yogurt")],
+    lunch:     [findFood("lettuce"), findFood("tomato"), findFood("chicken"), findFood("rice")],
+    snacks:    [findFood("apple"), findFood("hummus"), findFood("carrot")],
+    dinner:    [findFood("salmon"), findFood("sweet-potato"), findFood("almonds")],
+  },
+  ...Object.fromEntries(
+    Array.from({ length: 6 }, (_, i) => [`day-${i + 2}`, createEmptyDay()]),
+  ),
+};
+
+/* ──────────────────────── FoodPicker (dropdown) ────────────────────── */
 function FoodPicker({
+  existing,
   onAdd,
   onClose,
-  existing,
 }: {
+  existing: string[];
   onAdd: (food: FoodItem) => void;
   onClose: () => void;
-  existing: string[];
 }) {
   const [q, setQ] = useState("");
   const available = FOOD_CATALOGUE.filter(
@@ -149,88 +95,293 @@ function FoodPicker({
   );
 
   return (
-    <div className="absolute bottom-12 left-0 z-50 w-64 overflow-hidden rounded-2xl border border-white/12 bg-slate-900 shadow-[0_24px_48px_rgba(0,0,0,0.6)]">
-      <div className="p-3">
-        <input
-          autoFocus
-          type="text"
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          placeholder="Search foods..."
-          className="h-9 w-full rounded-lg border border-white/10 bg-white/5 px-3 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-emerald-500/50"
-        />
+    <>
+      {/* backdrop that closes picker */}
+      <div className="fixed inset-0 z-[190]" onClick={onClose} />
+      {/* panel — above backdrop */}
+      <div className="absolute bottom-full left-0 z-[200] mb-2 w-64 overflow-hidden rounded-2xl border border-white/12 bg-slate-900 shadow-[0_24px_48px_rgba(0,0,0,0.7)]">
+        <div className="p-3">
+          <input
+            autoFocus
+            type="text"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Search foods…"
+            className="h-9 w-full rounded-lg border border-white/10 bg-white/5 px-3 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-emerald-500/50"
+          />
+        </div>
+        <div className="max-h-60 overflow-y-auto px-2 pb-2">
+          {available.length === 0 && (
+            <p className="py-6 text-center text-xs text-slate-400">No foods found</p>
+          )}
+          {available.map((food) => (
+            <button
+              key={food.id}
+              type="button"
+              onClick={() => { onAdd(food); onClose(); }}
+              className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left transition-colors hover:bg-white/8"
+            >
+              <img src={food.imageUrl} alt={food.name} className="h-8 w-8 rounded-lg object-cover" loading="lazy" />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm text-slate-200">{food.name}</p>
+                <p className="text-xs text-slate-400">{food.kcal} kcal · {food.grams}g</p>
+              </div>
+            </button>
+          ))}
+        </div>
       </div>
-      <div className="max-h-56 overflow-y-auto px-2 pb-2">
-        {available.length === 0 && (
-          <p className="py-6 text-center text-xs text-slate-400">No foods found</p>
-        )}
-        {available.map((food) => (
-          <button
-            key={food.id}
-            type="button"
-            onClick={() => {
-              onAdd(food);
-              onClose();
-            }}
-            className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors hover:bg-white/8"
-          >
-            <img
-              src={food.imageUrl}
-              alt={food.name}
-              className="h-8 w-8 rounded-lg object-cover"
-            />
-            <span className="flex-1 text-sm text-slate-200">{food.name}</span>
-            <span className="text-xs text-slate-400">{food.kcal} kcal</span>
-          </button>
-        ))}
+    </>
+  );
+}
+
+/* ──────────────────────────── FoodCard ─────────────────────────────── */
+function FoodCard({ food, onRemove }: { food: FoodItem; onRemove: () => void }) {
+  return (
+    <div className="overflow-hidden rounded-2xl border border-white/10 bg-white/5 transition-all hover:border-white/20">
+      {/* Image */}
+      <div className="relative h-36 w-full overflow-hidden bg-slate-800">
+        <img
+          src={food.imageUrl}
+          alt={food.name}
+          className="h-full w-full object-cover"
+          loading="lazy"
+        />
+        {/* Gram badge — bottom left */}
+        <span className="absolute bottom-2 left-2 rounded-lg bg-emerald-600/90 px-2 py-0.5 text-[11px] font-bold text-white shadow">
+          {food.grams}g
+        </span>
+        {/* Remove button — top right */}
+        <button
+          type="button"
+          onClick={onRemove}
+          aria-label={`Remove ${food.name}`}
+          className="absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-full bg-rose-500 shadow-md transition-all hover:bg-rose-400"
+        >
+          <X className="h-3 w-3 text-white" />
+        </button>
+      </div>
+
+      {/* Macro row */}
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 px-3 pt-2 pb-1 text-[11px]">
+        <span className="flex items-center gap-0.5 font-medium text-orange-400">
+          <Flame className="h-3 w-3" />{food.kcal}
+        </span>
+        <span className="font-medium text-amber-300">{food.carbs}g</span>
+        <span className="font-medium text-rose-300">{food.protein}g</span>
+        <span className="font-medium text-lime-300">{food.fats}g</span>
+      </div>
+
+      {/* Name */}
+      <div className="px-3 pb-3 pt-0.5">
+        <p className="text-sm font-bold leading-snug text-slate-100">{food.name}</p>
+        <p className="text-[11px] text-emerald-400">add alternatives</p>
       </div>
     </div>
   );
 }
 
-/* ------------------------------------------------------------------ */
-/*  Main page                                                           */
-/* ------------------------------------------------------------------ */
+/* ──────────────────────────── MealSection ──────────────────────────── */
+function MealSection({
+  slot,
+  items,
+  collapsed,
+  onToggleCollapse,
+  onAdd,
+  onRemove,
+}: {
+  slot: MealSlot;
+  items: FoodItem[];
+  collapsed: boolean;
+  onToggleCollapse: () => void;
+  onAdd: (food: FoodItem) => void;
+  onRemove: (foodId: string) => void;
+}) {
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const slotKcal = items.reduce((s, f) => s + f.kcal, 0);
+
+  return (
+    // No overflow-hidden on this container so the picker dropdown can escape
+    <section className="mb-4 rounded-2xl border border-white/10 bg-white/5">
+      {/* Collapsible header */}
+      <button
+        type="button"
+        onClick={() => { onToggleCollapse(); setPickerOpen(false); }}
+        className="flex w-full items-center justify-between px-5 py-4 text-left transition-colors hover:bg-white/[0.03]"
+      >
+        <span className="text-sm font-bold uppercase tracking-widest text-slate-50">
+          {MEAL_LABELS[slot]}
+        </span>
+        <div className="flex items-center gap-3">
+          <span className="text-sm text-slate-400">
+            <span className="font-semibold text-slate-200">{slotKcal}</span> kcal
+          </span>
+          {collapsed
+            ? <ChevronDown className="h-4 w-4 text-slate-400" />
+            : <ChevronUp className="h-4 w-4 text-slate-400" />
+          }
+        </div>
+      </button>
+
+      {/* CSS grid collapse */}
+      <div
+        className="grid transition-all duration-300 ease-in-out"
+        style={{ gridTemplateRows: collapsed ? "0fr" : "1fr" }}
+      >
+        <div className="overflow-hidden">
+          <div className="px-4 pb-5">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+              {/* Food cards */}
+              {items.map((food) => (
+                <FoodCard
+                  key={food.id}
+                  food={food}
+                  onRemove={() => onRemove(food.id)}
+                />
+              ))}
+
+              {/* Add food card */}
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setPickerOpen((p) => !p)}
+                  className="flex h-full min-h-[200px] w-full flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-white/20 bg-white/[0.02] text-slate-400 transition-all hover:border-emerald-400/40 hover:bg-emerald-500/5 hover:text-emerald-400"
+                >
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full border border-dashed border-white/25">
+                    <Plus className="h-6 w-6" />
+                  </div>
+                  <div className="text-center">
+                    <p className="text-sm font-medium">Add food</p>
+                    <p className="mt-0.5 text-xs text-slate-500">to {MEAL_LABELS[slot]}</p>
+                  </div>
+                </button>
+
+                {pickerOpen && (
+                  <FoodPicker
+                    existing={items.map((f) => f.id)}
+                    onAdd={(food) => { onAdd(food); setPickerOpen(false); }}
+                    onClose={() => setPickerOpen(false)}
+                  />
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ──────────────────────── Daily totals sidebar ─────────────────────── */
+function DailyTotals({ meals }: { meals: DayMeals }) {
+  const all = Object.values(meals).flat();
+  const kcal    = all.reduce((s, f) => s + f.kcal,    0);
+  const protein = all.reduce((s, f) => s + f.protein, 0);
+  const carbs   = all.reduce((s, f) => s + f.carbs,   0);
+  const fats    = all.reduce((s, f) => s + f.fats,    0);
+
+  return (
+    <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
+      <h3 className="mb-4 text-sm font-bold uppercase tracking-widest text-slate-300">
+        Daily totals
+      </h3>
+      <div className="space-y-3.5">
+        <div className="flex items-center justify-between">
+          <span className="text-sm text-slate-400">Calories</span>
+          <span className="text-sm font-semibold text-orange-400">{kcal.toLocaleString()} kcal</span>
+        </div>
+        <div className="flex items-center justify-between">
+          <span className="text-sm text-slate-400">Protein</span>
+          <span className="text-sm font-semibold text-emerald-400">{protein}g</span>
+        </div>
+        <div className="flex items-center justify-between">
+          <span className="text-sm text-slate-400">Fats</span>
+          <span className="text-sm font-semibold text-amber-400">{fats}g</span>
+        </div>
+        <div className="flex items-center justify-between">
+          <span className="text-sm text-slate-400">Carbs</span>
+          <span className="text-sm font-semibold text-blue-400">{carbs}g</span>
+        </div>
+      </div>
+
+      {kcal > 0 && (
+        <div className="mt-5">
+          <div className="flex h-2.5 overflow-hidden rounded-full">
+            <div
+              className="bg-emerald-500 transition-all"
+              style={{ width: `${Math.round((protein * 4 / kcal) * 100)}%` }}
+            />
+            <div
+              className="bg-amber-400 transition-all"
+              style={{ width: `${Math.round((fats * 9 / kcal) * 100)}%` }}
+            />
+            <div
+              className="bg-blue-400 transition-all"
+              style={{ width: `${Math.round((carbs * 4 / kcal) * 100)}%` }}
+            />
+          </div>
+          <div className="mt-2 flex justify-between text-[10px] text-slate-500">
+            <span className="text-emerald-400">Protein</span>
+            <span className="text-amber-400">Fats</span>
+            <span className="text-blue-400">Carbs</span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─────────────────────────── Main page ─────────────────────────────── */
 export default function MealPlanMenu() {
   const navigate = useNavigate();
   const titleRef = useRef<HTMLInputElement | null>(null);
-  const [title, setTitle] = useState("New Meal Plan");
+  const [title, setTitle]               = useState("New Meal Plan");
   const [titleFocused, setTitleFocused] = useState(false);
-  const [columns, setColumns] = useState<MealColumn[]>(INITIAL_COLUMNS);
-  const [openPicker, setOpenPicker] = useState<MealSlot | null>(null);
-  const [saved, setSaved] = useState(false);
+  const [activeDayId, setActiveDayId]   = useState("day-1");
+  const [allMeals, setAllMeals]         = useState<AllDayMeals>(INITIAL_MEALS);
+  const [collapsed, setCollapsed]       = useState<Record<MealSlot, boolean>>({
+    breakfast: false,
+    lunch: false,
+    snacks: false,
+    dinner: false,
+  });
+  const [saved, setSaved]     = useState(false);
   const [isDirty, setIsDirty] = useState(false);
 
-  const totalKcal = columns
-    .flatMap((c) => c.items)
-    .reduce((sum, f) => sum + f.kcal, 0);
+  const currentMeals = allMeals[activeDayId];
 
-  // Fake macro grams derived from kcal
-  const proteinG = Math.round(totalKcal * 0.25 / 4);
-  const carbsG   = Math.round(totalKcal * 0.45 / 4);
-  const fatsG    = Math.round(totalKcal * 0.30 / 9);
+  const allFoods    = useMemo(() => Object.values(currentMeals).flat(), [currentMeals]);
+  const totalKcal   = useMemo(() => allFoods.reduce((s, f) => s + f.kcal,    0), [allFoods]);
+  const totalP      = useMemo(() => allFoods.reduce((s, f) => s + f.protein, 0), [allFoods]);
+  const totalC      = useMemo(() => allFoods.reduce((s, f) => s + f.carbs,   0), [allFoods]);
+  const totalF      = useMemo(() => allFoods.reduce((s, f) => s + f.fats,    0), [allFoods]);
+
+  const proteinPct = totalKcal > 0 ? Math.round((totalP * 4 / totalKcal) * 100) : 0;
+  const fatsPct    = totalKcal > 0 ? Math.round((totalF * 9 / totalKcal) * 100) : 0;
+  const carbsPct   = totalKcal > 0 ? Math.round((totalC * 4 / totalKcal) * 100) : 0;
 
   const markDirty = () => { setIsDirty(true); setSaved(false); };
 
   const addFood = (slot: MealSlot, food: FoodItem) => {
-    setColumns((prev) =>
-      prev.map((col) =>
-        col.key === slot ? { ...col, items: [...col.items, food] } : col,
-      ),
-    );
+    setAllMeals((prev) => ({
+      ...prev,
+      [activeDayId]: { ...prev[activeDayId], [slot]: [...prev[activeDayId][slot], food] },
+    }));
     markDirty();
   };
 
   const removeFood = (slot: MealSlot, foodId: string) => {
-    setColumns((prev) =>
-      prev.map((col) =>
-        col.key === slot
-          ? { ...col, items: col.items.filter((f) => f.id !== foodId) }
-          : col,
-      ),
-    );
+    setAllMeals((prev) => ({
+      ...prev,
+      [activeDayId]: {
+        ...prev[activeDayId],
+        [slot]: prev[activeDayId][slot].filter((f) => f.id !== foodId),
+      },
+    }));
     markDirty();
   };
+
+  const toggleCollapse = (slot: MealSlot) =>
+    setCollapsed((prev) => ({ ...prev, [slot]: !prev[slot] }));
 
   const handleSave = () => {
     setIsDirty(false);
@@ -242,8 +393,8 @@ export default function MealPlanMenu() {
     <main className="min-h-screen text-slate-200">
       <div className="mx-auto w-full max-w-[1400px] px-4 py-6 sm:px-6 sm:py-8">
 
-        {/* ── Title ────────────────────────────────────────────── */}
-        <div className="mb-6 flex items-center justify-between gap-4">
+        {/* ── Title + Save ────────────────────────────────────── */}
+        <div className="mb-4 flex items-center justify-between gap-4">
           <input
             ref={titleRef}
             type="text"
@@ -266,145 +417,106 @@ export default function MealPlanMenu() {
                 : "bg-white/8 shadow-none hover:bg-white/12"
             }`}
           >
-            {saved ? <Check className="h-4 w-4" /> : null}
+            {saved && <Check className="h-4 w-4" />}
             {saved ? "Saved!" : "Save Changes"}
           </button>
         </div>
 
-        {/* ── Banner ───────────────────────────────────────────── */}
-        <div className="reveal-up mb-8 overflow-hidden rounded-2xl border border-white/10">
-          {/* Food photo */}
-          <div className="relative h-52 w-full overflow-hidden">
-            <img
-              src="https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=1200&h=400&fit=crop&auto=format"
-              alt="Meal plan banner"
-              className="h-full w-full object-cover"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
-          </div>
-
-          {/* Macro summary */}
-          <div className="flex items-center gap-6 bg-slate-900/80 px-6 py-4 backdrop-blur-sm">
-            {/* Kcal */}
-            <div className="flex items-center gap-3">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-orange-500/20">
-                <Flame className="h-5 w-5 text-orange-400" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-slate-50">
-                  {totalKcal.toLocaleString()}
-                </p>
-                <p className="text-xs text-slate-400">Total kcal</p>
-              </div>
-            </div>
-
-            <div className="h-8 w-px bg-white/10" />
-
-            {/* Macro circles */}
-            <div className="flex items-center gap-3">
-              <MacroCircle label="P" grams={proteinG} color="#34d399" />
-              <MacroCircle label="C" grams={carbsG}   color="#60a5fa" />
-              <MacroCircle label="F" grams={fatsG}    color="#fb923c" />
-            </div>
-
-            <div className="ml-2 flex flex-col gap-0.5 text-xs text-slate-400">
-              <span><span className="text-emerald-400 font-semibold">{proteinG}g</span> Protein</span>
-              <span><span className="text-blue-400 font-semibold">{carbsG}g</span> Carbs</span>
-              <span><span className="text-orange-400 font-semibold">{fatsG}g</span> Fats</span>
-            </div>
-          </div>
-        </div>
-
-        {/* ── Meal columns ─────────────────────────────────────── */}
-        <div className="reveal-up grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          {columns.map((col) => (
-            <div
-              key={col.key}
-              className="flex flex-col rounded-2xl border border-white/10 bg-white/5"
-            >
-              {/* Column header */}
-              <div className="border-b border-white/8 px-4 py-3">
-                <h3 className="text-base font-bold text-slate-50">{col.label}</h3>
-                <p className="text-xs text-slate-400">
-                  {col.items.reduce((s, f) => s + f.kcal, 0)} kcal
-                </p>
-              </div>
-
-              {/* Food items */}
-              <div className="flex flex-1 flex-col gap-2 p-3">
-                {col.items.map((food) => (
-                  <div
-                    key={food.id}
-                    className="group flex items-center gap-3 rounded-xl border border-white/8 bg-white/[0.03] px-3 py-2.5 transition-colors hover:border-white/15 hover:bg-white/8"
-                  >
-                    <img
-                      src={food.imageUrl}
-                      alt={food.name}
-                      className="h-9 w-9 shrink-0 rounded-lg object-cover"
-                      loading="lazy"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <p className="truncate text-sm font-semibold text-slate-200">
-                        {food.name}
-                      </p>
-                      <p className="text-xs text-emerald-400">{food.kcal} kcal</p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => removeFood(col.key, food.id)}
-                      aria-label={`Remove ${food.name}`}
-                      className="hidden h-7 w-7 shrink-0 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-rose-500/15 hover:text-rose-400 group-hover:flex"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-
-              {/* Add button */}
-              <div className="relative p-3 pt-0">
+        {/* ── Days selector (matches GymPlanMenu style, 7 days) ── */}
+        <section className="reveal-up mb-4 rounded-[14px] border border-white/12 bg-white/4 px-4 py-3 shadow-[0_14px_28px_rgba(0,0,0,0.25)] backdrop-blur-[6px]">
+          <div className="flex flex-wrap items-center gap-2.5">
+            {DAYS.map((day) => {
+              const isActive = day.id === activeDayId;
+              return (
                 <button
+                  key={day.id}
                   type="button"
-                  onClick={() =>
-                    setOpenPicker((prev) => (prev === col.key ? null : col.key))
-                  }
-                  className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-white/20 py-2.5 text-sm font-medium text-slate-400 transition-all hover:border-emerald-400/40 hover:text-emerald-400"
+                  onClick={() => setActiveDayId(day.id)}
+                  className={`rounded-[10px] border px-4 py-2 text-sm font-semibold transition-colors ${
+                    isActive
+                      ? "border-emerald-400/40 bg-emerald-500/20 text-emerald-200"
+                      : "border-white/10 bg-white/[0.02] text-slate-200 hover:bg-white/[0.08]"
+                  }`}
                 >
-                  <Plus className="h-4 w-4" />
-                  Add food
+                  {day.label}
                 </button>
+              );
+            })}
+          </div>
+        </section>
 
-                {openPicker === col.key && (
-                  <FoodPicker
-                    onAdd={(food) => addFood(col.key, food)}
-                    onClose={() => setOpenPicker(null)}
-                    existing={col.items.map((f) => f.id)}
-                  />
-                )}
-              </div>
+        {/* ── Macro progress bar ──────────────────────────────── */}
+        <div className="reveal-up mb-6">
+          <div className="flex h-6 overflow-hidden rounded-full text-[11px] font-semibold text-white">
+            <div
+              className="flex items-center justify-center bg-emerald-500 transition-all duration-500"
+              style={{ width: `${proteinPct}%` }}
+              title={`Protein ${proteinPct}%`}
+            >
+              {proteinPct > 9 && `Protein ${proteinPct}%`}
             </div>
-          ))}
+            <div
+              className="flex items-center justify-center bg-orange-400 transition-all duration-500"
+              style={{ width: `${fatsPct}%` }}
+              title={`Fats ${fatsPct}%`}
+            >
+              {fatsPct > 9 && `Fats ${fatsPct}%`}
+            </div>
+            <div
+              className="flex items-center justify-center bg-blue-400 transition-all duration-500"
+              style={{ width: `${carbsPct}%` }}
+              title={`Carbs ${carbsPct}%`}
+            >
+              {carbsPct > 9 && `Carbs ${carbsPct}%`}
+            </div>
+            {totalKcal === 0 && (
+              <div className="flex-1 bg-white/10" />
+            )}
+          </div>
+          <div className="mt-1.5 flex gap-4 text-[11px] text-slate-400">
+            <span className="flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-full bg-emerald-500" />Protein {proteinPct}%</span>
+            <span className="flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-full bg-orange-400" />Fats {fatsPct}%</span>
+            <span className="flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-full bg-blue-400" />Carbs {carbsPct}%</span>
+          </div>
         </div>
 
-        {/* ── Back link ────────────────────────────────────────── */}
+        {/* ── Two-column layout ───────────────────────────────── */}
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
+
+          {/* Left: meal sections */}
+          <div className="flex-1">
+            {MEAL_SLOTS.map((slot) => (
+              <MealSection
+                key={slot}
+                slot={slot}
+                items={currentMeals[slot]}
+                collapsed={collapsed[slot]}
+                onToggleCollapse={() => toggleCollapse(slot)}
+                onAdd={(food) => addFood(slot, food)}
+                onRemove={(id) => removeFood(slot, id)}
+              />
+            ))}
+          </div>
+
+          {/* Right: daily totals (sticky) */}
+          <div className="lg:w-64 lg:shrink-0 xl:w-72">
+            <div className="sticky top-6">
+              <DailyTotals meals={currentMeals} />
+            </div>
+          </div>
+        </div>
+
+        {/* ── Back link ───────────────────────────────────────── */}
         <div className="mt-8">
           <button
             type="button"
             onClick={() => navigate("/plans?tab=alimentation")}
-            className="text-sm text-slate-400 hover:text-slate-200 transition-colors"
+            className="text-sm text-slate-400 transition-colors hover:text-slate-200"
           >
             ← Back to My Plans
           </button>
         </div>
       </div>
-
-      {/* Close picker on outside click */}
-      {openPicker !== null && (
-        <div
-          className="fixed inset-0 z-40"
-          onClick={() => setOpenPicker(null)}
-        />
-      )}
     </main>
   );
 }
