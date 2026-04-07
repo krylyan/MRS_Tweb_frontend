@@ -122,9 +122,9 @@ export default function Sidebar() {
 
         {/* Exercises */}
         <Link
-          to="/gym-plan"
+          to="/exercises"
           className={`flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all duration-200 ${
-            location.pathname === "/gym-plan"
+            location.pathname === "/exercises"
               ? "bg-emerald-500/20 text-emerald-400 shadow-lg shadow-emerald-500/10"
               : "text-gray-400 hover:bg-white/5 hover:text-white"
           }`}
