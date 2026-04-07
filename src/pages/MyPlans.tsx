@@ -1,4 +1,4 @@
-import { CalendarDays, Clock, Dumbbell, Heart, Plus, Star, Trash2 } from "lucide-react";
+import { CalendarDays, Clock, Dumbbell, Heart, Plus, Search, Star, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { deleteWorkoutPlan, getWorkoutPlans } from "../utils/planStorage";
@@ -9,8 +9,14 @@ type PlanCategory = "workout" | "alimentation";
 interface MockMealPlan {
   id: string;
   name: string;
+  description: string;
   updatedAt: string;
   meals: number;
+  kcal: number;
+  carbs: number;
+  proteins: number;
+  fats: number;
+  imageUrl: string;
 }
 
 interface DisplayPlan {
@@ -33,20 +39,62 @@ const ALIMENTATION_PLANS: MockMealPlan[] = [
   {
     id: "meal-plan-cut",
     name: "Lean Cut Menu",
+    description: "A low-calorie balanced plan designed to help you lose weight while maintaining muscle mass.",
     updatedAt: "2026-03-21T09:00:00.000Z",
     meals: 5,
+    kcal: 1583,
+    carbs: 50,
+    proteins: 18,
+    fats: 32,
+    imageUrl: "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=120&h=120&fit=crop&auto=format",
   },
   {
     id: "meal-plan-balance",
     name: "Balanced Energy Week",
+    description: "A well-rounded meal plan to sustain energy levels throughout the week for active individuals.",
     updatedAt: "2026-03-20T09:00:00.000Z",
     meals: 4,
+    kcal: 1950,
+    carbs: 48,
+    proteins: 22,
+    fats: 30,
+    imageUrl: "https://images.unsplash.com/photo-1540189549336-e6e99c3679fe?w=120&h=120&fit=crop&auto=format",
   },
   {
     id: "meal-plan-mass",
     name: "Clean Bulk Plan",
+    description: "A high-protein high-calorie plan to support muscle growth during a clean bulking phase.",
     updatedAt: "2026-03-19T09:00:00.000Z",
     meals: 6,
+    kcal: 2474,
+    carbs: 49,
+    proteins: 24,
+    fats: 27,
+    imageUrl: "https://images.unsplash.com/photo-1490645935967-10de6ba17061?w=120&h=120&fit=crop&auto=format",
+  },
+  {
+    id: "meal-plan-keto",
+    name: "Keto Performance",
+    description: "Minimal carbs, high healthy fats to keep your body in ketosis and fuel intense training sessions.",
+    updatedAt: "2026-03-18T09:00:00.000Z",
+    meals: 4,
+    kcal: 1780,
+    carbs: 8,
+    proteins: 28,
+    fats: 64,
+    imageUrl: "https://images.unsplash.com/photo-1547592180-85f173990554?w=120&h=120&fit=crop&auto=format",
+  },
+  {
+    id: "meal-plan-veg",
+    name: "Plant Power Diet",
+    description: "100% plant-based macros to support your workouts while keeping your diet clean and sustainable.",
+    updatedAt: "2026-03-17T09:00:00.000Z",
+    meals: 5,
+    kcal: 1690,
+    carbs: 55,
+    proteins: 20,
+    fats: 25,
+    imageUrl: "https://images.unsplash.com/photo-1498837167922-ddd27525d352?w=120&h=120&fit=crop&auto=format",
   },
 ];
 
@@ -72,10 +120,20 @@ export default function MyPlans() {
   const menuAreaRef = useRef<HTMLDivElement | null>(null);
   const [workoutPlans, setWorkoutPlans] = useState<StoredWorkoutPlan[]>(() => getWorkoutPlans());
   const [favoriteIds, setFavoriteIds] = useState<string[]>(() => readFavoriteIds());
+  const [mealSearch, setMealSearch] = useState("");
 
   useEffect(() => {
     localStorage.setItem(FAVORITES_KEY, JSON.stringify(favoriteIds));
   }, [favoriteIds]);
+
+  const filteredMealPlans = useMemo(
+    () =>
+      ALIMENTATION_PLANS.filter((p) =>
+        p.name.toLowerCase().includes(mealSearch.toLowerCase()) ||
+        p.description.toLowerCase().includes(mealSearch.toLowerCase()),
+      ),
+    [mealSearch],
+  );
 
   const allWorkoutPlans = useMemo<DisplayPlan[]>(
     () =>
@@ -103,24 +161,6 @@ export default function MyPlans() {
   const savedWorkoutPlans = useMemo(
     () => allWorkoutPlans.filter((plan) => !favoriteIds.includes(plan.id)),
     [allWorkoutPlans, favoriteIds],
-  );
-
-  const alimentationPlans = useMemo<DisplayPlan[]>(
-    () =>
-      ALIMENTATION_PLANS.map((plan) => ({
-        id: plan.id,
-        sourceType: "alimentation",
-        label: "Alimentation",
-        name: plan.name,
-        updatedAt: plan.updatedAt,
-        statLabel: "Meals",
-        statValue: plan.meals,
-        exerciseCount: 0,
-        detailsEnabled: false,
-        favoriteEnabled: false,
-        deleteEnabled: false,
-      })),
-    [],
   );
 
   const handleDeletePlan = (planId: string, deleteEnabled: boolean): void => {
@@ -316,7 +356,86 @@ export default function MyPlans() {
               {renderSection("Saved workouts", savedWorkoutPlans, "saved-workouts", true)}
             </>
           ) : (
-            renderSection("Saved alimentation plans", alimentationPlans, "alimentation")
+            /* ── Alimentation list ─────────────────────────────── */
+            <section className="reveal-up reveal-delay-1">
+              {/* Header */}
+              <div className="mb-5 flex items-center justify-between">
+                <div>
+                  <h2 className="text-2xl font-bold text-slate-50">Meal Plans</h2>
+                  <p className="text-sm text-slate-400">{filteredMealPlans.length} plans saved</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => navigate("/meal-plan")}
+                  className="inline-flex items-center gap-2 rounded-xl bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-emerald-500/25 transition-all hover:bg-emerald-400"
+                >
+                  <Plus className="h-4 w-4" />
+                  Create meal plan
+                </button>
+              </div>
+
+              {/* Search */}
+              <div className="mb-5 relative">
+                <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  value={mealSearch}
+                  onChange={(e) => setMealSearch(e.target.value)}
+                  placeholder="Search meal plans..."
+                  className="h-11 w-full max-w-sm rounded-xl border border-white/10 bg-white/5 pl-10 pr-4 text-sm text-slate-100 outline-none transition-all placeholder:text-slate-500 focus:border-emerald-500/50 focus:bg-white/8"
+                />
+              </div>
+
+              {/* List */}
+              <div className="flex flex-col gap-3">
+                {filteredMealPlans.map((plan) => (
+                  <div
+                    key={plan.id}
+                    className="flex items-center gap-5 rounded-2xl border border-white/10 bg-white/5 p-4 transition-all duration-200 hover:border-emerald-400/30 hover:bg-white/8"
+                  >
+                    {/* Food image */}
+                    <img
+                      src={plan.imageUrl}
+                      alt={plan.name}
+                      className="h-20 w-20 shrink-0 rounded-xl object-cover"
+                      loading="lazy"
+                    />
+
+                    {/* Name + description */}
+                    <div className="flex-1 min-w-0">
+                      <h3 className="mb-1 text-base font-bold text-slate-50">{plan.name}</h3>
+                      <p className="text-sm text-slate-400 leading-relaxed line-clamp-2">{plan.description}</p>
+                    </div>
+
+                    {/* Macros */}
+                    <div className="hidden shrink-0 items-center gap-8 sm:flex">
+                      <div className="text-center">
+                        <p className="text-lg font-bold text-emerald-400">{plan.kcal.toLocaleString()}</p>
+                        <p className="text-xs text-slate-400">Kcal</p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-lg font-bold text-blue-400">{plan.carbs}%</p>
+                        <p className="text-xs text-slate-400">Carbs</p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-lg font-bold text-green-400">{plan.proteins}%</p>
+                        <p className="text-xs text-slate-400">Proteins</p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-lg font-bold text-orange-400">{plan.fats}%</p>
+                        <p className="text-xs text-slate-400">Fats</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+
+                {filteredMealPlans.length === 0 && (
+                  <div className="py-16 text-center text-slate-400">
+                    No meal plans match your search.
+                  </div>
+                )}
+              </div>
+            </section>
           )}
         </div>
       </div>

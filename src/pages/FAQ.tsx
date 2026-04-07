@@ -177,7 +177,7 @@ export default function FAQ() {
         </header>
 
         {/* Category filter cards */}
-        <div className="reveal-up mb-10 flex flex-wrap gap-3">
+        <div className="reveal-up mb-10 grid grid-cols-3 gap-3 sm:grid-cols-5">
           {CATEGORY_FILTERS.map((cat) => {
             const isActive = activeCategory === cat.key;
             return (
@@ -188,10 +188,10 @@ export default function FAQ() {
                   setActiveCategory(cat.key);
                   setOpenId(null);
                 }}
-                className={`flex min-w-[140px] flex-col items-center gap-2 rounded-xl border px-5 py-4 text-sm font-medium transition-all duration-200 ${
+                className={`flex flex-col items-center gap-2 rounded-xl border px-4 py-4 text-sm font-medium transition-all duration-200 ${
                   isActive
                     ? "border-emerald-400/50 bg-emerald-500/15 text-emerald-300 shadow-lg shadow-emerald-500/10"
-                    : "border-white/10 bg-white/[0.02] text-slate-400 hover:border-white/20 hover:bg-white/[0.05] hover:text-slate-200"
+                    : "border-white/10 bg-white/5 text-slate-400 hover:border-white/20 hover:bg-white/8 hover:text-slate-200"
                 }`}
               >
                 <cat.icon className="h-5 w-5" />
@@ -207,7 +207,7 @@ export default function FAQ() {
           return (
             <section
               key={section.key}
-              className="reveal-up mb-8 overflow-hidden rounded-2xl border border-white/8 bg-white/[0.02]"
+              className="reveal-up mb-8 overflow-hidden rounded-2xl border border-white/10 bg-white/5"
             >
               {/* Section header */}
               <div className="flex items-center gap-3 px-6 pt-6 pb-4">
@@ -228,8 +228,8 @@ export default function FAQ() {
                       key={id}
                       className={`overflow-hidden rounded-xl border transition-all duration-200 ${
                         isOpen
-                          ? "border-emerald-400/40 bg-white/[0.04] shadow-[0_0_20px_rgba(16,185,129,0.08)]"
-                          : "border-white/10 bg-white/[0.015] hover:border-emerald-400/30"
+                          ? "border-emerald-400/40 bg-white/8 shadow-[0_0_20px_rgba(16,185,129,0.08)]"
+                          : "border-white/10 bg-white/[0.03] hover:border-emerald-400/30"
                       }`}
                     >
                       <button

@@ -4,6 +4,7 @@ import ProtectedRoute from "./components/auth/ProtectedRoute";
 import Exercises from "./pages/Exercises";
 import FAQ from "./pages/FAQ";
 import GymPlanMenu from "./pages/GymPlanMenu";
+import MealPlanMenu from "./pages/MealPlanMenu";
 import Home from "./pages/Home";
 import MyPlans from "./pages/MyPlans";
 import Profile from "./pages/Profile";
@@ -37,6 +38,7 @@ export default function App() {
           <Route path="/faq" element={<FAQ />} />
           <Route path="/plans" element={<MyPlans />} />
           <Route path="/gym-plan" element={<GymPlanMenu />} />
+          <Route path="/meal-plan" element={<MealPlanMenu />} />
           <Route path="/exercises" element={<Exercises />} />
           <Route path="/profile" element={<Profile />} />
         </Route>
