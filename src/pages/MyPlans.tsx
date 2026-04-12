@@ -1,4 +1,4 @@
-import { CalendarDays, Clock, Dumbbell, Heart, Plus, Search, Star, Trash2 } from "lucide-react";
+import { CalendarDays, Clock, Dumbbell, Flame, Heart, Plus, Star, Trash2, Utensils } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { deleteWorkoutPlan, getWorkoutPlans } from "../utils/planStorage";
@@ -120,20 +120,10 @@ export default function MyPlans() {
   const menuAreaRef = useRef<HTMLDivElement | null>(null);
   const [workoutPlans, setWorkoutPlans] = useState<StoredWorkoutPlan[]>(() => getWorkoutPlans());
   const [favoriteIds, setFavoriteIds] = useState<string[]>(() => readFavoriteIds());
-  const [mealSearch, setMealSearch] = useState("");
 
   useEffect(() => {
     localStorage.setItem(FAVORITES_KEY, JSON.stringify(favoriteIds));
   }, [favoriteIds]);
-
-  const filteredMealPlans = useMemo(
-    () =>
-      ALIMENTATION_PLANS.filter((p) =>
-        p.name.toLowerCase().includes(mealSearch.toLowerCase()) ||
-        p.description.toLowerCase().includes(mealSearch.toLowerCase()),
-      ),
-    [mealSearch],
-  );
 
   const allWorkoutPlans = useMemo<DisplayPlan[]>(
     () =>
@@ -314,6 +304,92 @@ export default function MyPlans() {
     );
   };
 
+  const renderMealCard = (plan: MockMealPlan, index: number) => {
+    const accent = getAccentClasses(index);
+    return (
+      <article
+        key={plan.id}
+        className={`reveal-up flex flex-col rounded-2xl border p-4 shadow-[0_18px_36px_rgba(0,0,0,0.25)] backdrop-blur-[6px] transition-all duration-300 hover:-translate-y-1 hover:shadow-xl ${
+          accent.card
+        }`}
+      >
+        {/* Top row: icon */}
+        <div className="mb-4 flex items-start justify-between">
+          <div className={`flex h-12 w-12 items-center justify-center rounded-[12px] border ${
+            accent.icon
+          }`}>
+            <Utensils className="h-6 w-6" />
+          </div>
+        </div>
+
+        {/* Title */}
+        <h3 className="mb-1 break-words text-xl font-bold leading-snug text-slate-50">
+          {plan.name}
+        </h3>
+
+        {/* Subtitle */}
+        <p className="mb-3 text-xs text-slate-400">
+          Updated: {getDaysAgo(plan.updatedAt)}
+        </p>
+
+        {/* Description */}
+        <p className="mb-4 line-clamp-2 text-xs leading-relaxed text-slate-400">
+          {plan.description}
+        </p>
+
+        {/* Stats */}
+        <div className="mb-5 space-y-2">
+          <div className="flex items-center gap-2 text-sm text-slate-300">
+            <Flame className="h-4 w-4 shrink-0 text-slate-400" />
+            <span>{plan.kcal.toLocaleString()} kcal / day</span>
+          </div>
+          <div className="flex items-center gap-2 text-sm text-slate-300">
+            <CalendarDays className="h-4 w-4 shrink-0 text-slate-400" />
+            <span>{plan.meals} meals</span>
+          </div>
+          {/* Macro bar */}
+          <div className="flex h-1.5 overflow-hidden rounded-full">
+            <div className="bg-emerald-500 transition-all" style={{ width: `${plan.proteins}%` }} />
+            <div className="bg-orange-400 transition-all" style={{ width: `${plan.fats}%` }} />
+            <div className="bg-blue-400 transition-all" style={{ width: `${plan.carbs}%` }} />
+          </div>
+          <div className="flex gap-3 text-[10px]">
+            <span className="text-emerald-400">{plan.proteins}% protein</span>
+            <span className="text-orange-400">{plan.fats}% fats</span>
+            <span className="text-blue-400">{plan.carbs}% carbs</span>
+          </div>
+        </div>
+
+        {/* Open button */}
+        <button
+          type="button"
+          onClick={() => navigate("/meal-plan")}
+          className={`mt-auto w-full rounded-[10px] py-2.5 text-sm font-semibold text-white shadow-lg transition-all duration-200 active:scale-95 ${
+            accent.btn
+          }`}
+        >
+          Open Plan
+        </button>
+      </article>
+    );
+  };
+
+  const renderAddMealCard = (key: string) => (
+    <button
+      key={key}
+      type="button"
+      onClick={() => navigate("/meal-plan")}
+      className="reveal-up reveal-delay-2 flex min-h-[304px] items-center justify-center rounded-[16px] border border-dashed border-white/25 bg-gradient-to-br from-white/[0.08] to-slate-900/50 p-4 text-slate-100 transition-all hover:border-emerald-300/40 hover:bg-gradient-to-br hover:from-emerald-400/18 hover:to-slate-900/55 hover:text-emerald-100"
+    >
+      <div className="flex flex-col items-center gap-4">
+        <span className="inline-flex h-16 w-16 items-center justify-center rounded-[14px] border border-white/12 bg-white/[0.06]">
+          <Plus className="h-8 w-8" />
+        </span>
+        <span className="text-lg font-semibold">Add meal plan</span>
+      </div>
+    </button>
+  );
+
   const renderAddWorkoutCard = (key: string) => (
     <button
       key={key}
@@ -356,84 +432,25 @@ export default function MyPlans() {
               {renderSection("Saved workouts", savedWorkoutPlans, "saved-workouts", true)}
             </>
           ) : (
-            /* ── Alimentation list ─────────────────────────────── */
-            <section className="reveal-up reveal-delay-1">
-              {/* Header */}
-              <div className="mb-5 flex items-center justify-between">
-                <div>
-                  <h2 className="text-2xl font-bold text-slate-50">Meal Plans</h2>
-                  <p className="text-sm text-slate-400">{filteredMealPlans.length} plans saved</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => navigate("/meal-plan")}
-                  className="inline-flex items-center gap-2 rounded-xl bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-emerald-500/25 transition-all hover:bg-emerald-400"
-                >
-                  <Plus className="h-4 w-4" />
-                  Create meal plan
-                </button>
-              </div>
-
-              {/* Search */}
-              <div className="mb-5 relative">
-                <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                <input
-                  type="text"
-                  value={mealSearch}
-                  onChange={(e) => setMealSearch(e.target.value)}
-                  placeholder="Search meal plans..."
-                  className="h-11 w-full max-w-sm rounded-xl border border-white/10 bg-white/5 pl-10 pr-4 text-sm text-slate-100 outline-none transition-all placeholder:text-slate-500 focus:border-emerald-500/50 focus:bg-white/8"
-                />
-              </div>
-
-              {/* List */}
-              <div className="flex flex-col gap-3">
-                {filteredMealPlans.map((plan) => (
-                  <div
-                    key={plan.id}
-                    className="flex items-center gap-5 rounded-2xl border border-white/10 bg-white/5 p-4 transition-all duration-200 hover:border-emerald-400/30 hover:bg-white/8"
+            /* ── Alimentation grid (matches workout card style) ── */
+            <section className="reveal-up reveal-delay-1 rounded-[14px] border border-white/12 bg-white/4 p-4 shadow-[0_14px_28px_rgba(0,0,0,0.25)] backdrop-blur-[6px]">
+              <div className="mb-4 flex items-center justify-between">
+                <h2 className="text-lg font-semibold text-slate-50">Meal Plans</h2>
+                <div className="flex items-center gap-3">
+                  <span className="text-sm text-slate-400">{ALIMENTATION_PLANS.length} plans</span>
+                  <button
+                    type="button"
+                    onClick={() => navigate("/meal-plan")}
+                    className="inline-flex items-center gap-2 rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-emerald-500/25 transition-all hover:bg-emerald-400"
                   >
-                    {/* Food image */}
-                    <img
-                      src={plan.imageUrl}
-                      alt={plan.name}
-                      className="h-20 w-20 shrink-0 rounded-xl object-cover"
-                      loading="lazy"
-                    />
-
-                    {/* Name + description */}
-                    <div className="flex-1 min-w-0">
-                      <h3 className="mb-1 text-base font-bold text-slate-50">{plan.name}</h3>
-                      <p className="text-sm text-slate-400 leading-relaxed line-clamp-2">{plan.description}</p>
-                    </div>
-
-                    {/* Macros */}
-                    <div className="hidden shrink-0 items-center gap-8 sm:flex">
-                      <div className="text-center">
-                        <p className="text-lg font-bold text-emerald-400">{plan.kcal.toLocaleString()}</p>
-                        <p className="text-xs text-slate-400">Kcal</p>
-                      </div>
-                      <div className="text-center">
-                        <p className="text-lg font-bold text-blue-400">{plan.carbs}%</p>
-                        <p className="text-xs text-slate-400">Carbs</p>
-                      </div>
-                      <div className="text-center">
-                        <p className="text-lg font-bold text-green-400">{plan.proteins}%</p>
-                        <p className="text-xs text-slate-400">Proteins</p>
-                      </div>
-                      <div className="text-center">
-                        <p className="text-lg font-bold text-orange-400">{plan.fats}%</p>
-                        <p className="text-xs text-slate-400">Fats</p>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-
-                {filteredMealPlans.length === 0 && (
-                  <div className="py-16 text-center text-slate-400">
-                    No meal plans match your search.
-                  </div>
-                )}
+                    <Plus className="h-4 w-4" />
+                    Create meal plan
+                  </button>
+                </div>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                {ALIMENTATION_PLANS.map((plan, index) => renderMealCard(plan, index))}
+                {renderAddMealCard("meal-add")}
               </div>
             </section>
           )}
