@@ -1,4 +1,4 @@
-import { CalendarDays, Clock, Dumbbell, Flame, Heart, Plus, Star, Trash2, Utensils } from "lucide-react";
+import { CalendarDays, Clock, Dumbbell, Flame, Heart, Plus, Star, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { deleteWorkoutPlan, getWorkoutPlans } from "../utils/planStorage";
@@ -173,13 +173,6 @@ export default function MyPlans() {
     );
   };
 
-  const getDaysAgo = (dateStr: string): string => {
-    const diff = Math.floor((Date.now() - new Date(dateStr).getTime()) / 86_400_000);
-    if (diff === 0) return "today";
-    if (diff === 1) return "1 day ago";
-    return `${diff} days ago`;
-  };
-
   const getAccentClasses = (index: number) => {
     if (index % 4 === 0)
       return {
@@ -187,6 +180,8 @@ export default function MyPlans() {
         icon: "bg-emerald-500/20 border-emerald-400/30 text-emerald-300",
         btn: "bg-emerald-500 hover:bg-emerald-400 shadow-emerald-500/30",
         heart: "hover:text-rose-400",
+        badge: "bg-emerald-600/90",
+        imgBg: "from-emerald-800/50 to-emerald-950/80",
       };
     if (index % 4 === 1)
       return {
@@ -194,6 +189,8 @@ export default function MyPlans() {
         icon: "bg-blue-500/20 border-blue-400/30 text-blue-300",
         btn: "bg-blue-500 hover:bg-blue-400 shadow-blue-500/30",
         heart: "hover:text-rose-400",
+        badge: "bg-blue-600/90",
+        imgBg: "from-blue-800/50 to-blue-950/80",
       };
     if (index % 4 === 2)
       return {
@@ -201,12 +198,16 @@ export default function MyPlans() {
         icon: "bg-purple-500/20 border-purple-400/30 text-purple-300",
         btn: "bg-purple-500 hover:bg-purple-400 shadow-purple-500/30",
         heart: "hover:text-rose-400",
+        badge: "bg-purple-600/90",
+        imgBg: "from-purple-800/50 to-purple-950/80",
       };
     return {
       card: "border-orange-500/40 bg-gradient-to-br from-orange-600/20 to-amber-900/40 hover:border-orange-400/60 hover:shadow-orange-500/20",
       icon: "bg-orange-500/20 border-orange-400/30 text-orange-300",
       btn: "bg-orange-500 hover:bg-orange-400 shadow-orange-500/30",
       heart: "hover:text-rose-400",
+      badge: "bg-orange-600/90",
+      imgBg: "from-orange-800/50 to-amber-950/80",
     };
   };
 
@@ -218,29 +219,29 @@ export default function MyPlans() {
     return (
       <article
         key={`${sectionKey}-${plan.id}`}
-        className={`reveal-up flex flex-col rounded-2xl border p-4 shadow-[0_18px_36px_rgba(0,0,0,0.25)] backdrop-blur-[6px] transition-all duration-300 hover:-translate-y-1 hover:shadow-xl ${
+        className={`reveal-up flex flex-col overflow-hidden rounded-2xl border shadow-[0_18px_36px_rgba(0,0,0,0.25)] backdrop-blur-[6px] transition-all duration-300 hover:-translate-y-1 hover:shadow-xl ${
           accent.card
         }`}
       >
-        {/* Top row: icon + actions */}
-        <div className="mb-4 flex items-start justify-between">
-          <div className={`flex h-12 w-12 items-center justify-center rounded-[12px] border ${
-            accent.icon
-          }`}>
-            <Dumbbell className="h-6 w-6" />
-          </div>
-
-          <div className="flex items-center gap-2">
+        {/* Image area */}
+        <div className={`relative flex h-44 items-center justify-center bg-gradient-to-br ${accent.imgBg}`}>
+          <Dumbbell className="h-16 w-16 text-white/20" />
+          {/* Days badge */}
+          <span className={`absolute bottom-3 left-3 rounded-lg ${accent.badge} px-2.5 py-1 text-xs font-bold text-white backdrop-blur-sm`}>
+            {plan.statValue} {plan.statLabel === "Days" ? "days" : "meals"}
+          </span>
+          {/* Action buttons */}
+          <div className="absolute right-2 top-2 flex gap-1.5">
             {plan.favoriteEnabled && (
               <button
                 type="button"
                 onClick={() => handleToggleFavorite(plan.id, plan.favoriteEnabled)}
                 aria-label={isFavorite ? "Remove from favorites" : "Add to favorites"}
-                className={`inline-flex h-9 w-9 items-center justify-center rounded-[10px] border border-white/12 bg-white/[0.06] transition-all hover:bg-white/[0.12] ${
-                  isFavorite ? "text-rose-400" : "text-slate-400 hover:text-rose-400"
+                className={`inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/20 bg-black/40 backdrop-blur-sm transition-all hover:bg-black/60 ${
+                  isFavorite ? "text-rose-400" : "text-white/70 hover:text-rose-400"
                 }`}
               >
-                <Heart className={`h-4 w-4 ${ isFavorite ? "fill-rose-400" : ""}`} />
+                <Heart className={`h-3.5 w-3.5 ${isFavorite ? "fill-rose-400" : ""}`} />
               </button>
             )}
             {plan.deleteEnabled && (
@@ -248,58 +249,56 @@ export default function MyPlans() {
                 type="button"
                 onClick={() => handleDeletePlan(plan.id, plan.deleteEnabled)}
                 aria-label={`Delete ${plan.name}`}
-                className="inline-flex h-9 w-9 items-center justify-center rounded-[10px] border border-white/12 bg-white/[0.06] text-slate-400 transition-all hover:bg-rose-500/15 hover:text-rose-400"
+                className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/20 bg-black/40 backdrop-blur-sm text-white/70 transition-all hover:bg-rose-500/50 hover:text-white"
               >
-                <Trash2 className="h-4 w-4" />
+                <Trash2 className="h-3.5 w-3.5" />
               </button>
             )}
           </div>
         </div>
 
-        {/* Title */}
-        <h3 className="mb-1 break-words text-xl font-bold leading-snug text-slate-50">
-          {plan.name}
-        </h3>
-
-        {/* Subtitle */}
-        <p className="mb-4 text-xs text-slate-400">
-          Updated: {getDaysAgo(plan.updatedAt)}
-        </p>
-
-        {/* Stats */}
-        <div className="mb-5 space-y-2">
-          <div className="flex items-center gap-2 text-sm text-slate-300">
-            <CalendarDays className="h-4 w-4 shrink-0 text-slate-400" />
-            <span>{plan.statValue} {plan.statLabel === "Days" ? "training days" : "meals"}</span>
+        {/* Content */}
+        <div className="flex flex-1 flex-col p-4">
+          {/* Stats row */}
+          <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-400">
+            <span className="flex items-center gap-1">
+              <CalendarDays className="h-3.5 w-3.5" />
+              {plan.statValue} {plan.statLabel === "Days" ? "training days" : "meals"}
+            </span>
+            {plan.sourceType === "workout" && (
+              <>
+                <span className="flex items-center gap-1">
+                  <Star className="h-3.5 w-3.5" />
+                  {plan.exerciseCount} exercises
+                </span>
+                <span className="flex items-center gap-1">
+                  <Clock className="h-3.5 w-3.5" />
+                  ~{estMinutes} min
+                </span>
+              </>
+            )}
           </div>
-          {plan.sourceType === "workout" && (
-            <div className="flex items-center gap-2 text-sm text-slate-300">
-              <Star className="h-4 w-4 shrink-0 text-slate-400" />
-              <span>{plan.exerciseCount} exercises</span>
-            </div>
-          )}
-          {plan.sourceType === "workout" && (
-            <div className="flex items-center gap-2 text-sm text-slate-300">
-              <Clock className="h-4 w-4 shrink-0 text-slate-400" />
-              <span>~{estMinutes} min</span>
-            </div>
-          )}
-        </div>
 
-        {/* Open button */}
-        <button
-          type="button"
-          onClick={() => {
-            if (!plan.detailsEnabled) return;
-            navigate(`/gym-plan?planId=${plan.id}`);
-          }}
-          disabled={!plan.detailsEnabled}
-          className={`mt-auto w-full rounded-[10px] py-2.5 text-sm font-semibold text-white shadow-lg transition-all duration-200 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 ${
-            accent.btn
-          }`}
-        >
-          Open Plan
-        </button>
+          {/* Name */}
+          <h3 className="mb-4 break-words text-base font-bold leading-snug text-slate-50">
+            {plan.name}
+          </h3>
+
+          {/* Open button */}
+          <button
+            type="button"
+            onClick={() => {
+              if (!plan.detailsEnabled) return;
+              navigate(`/gym-plan?planId=${plan.id}`);
+            }}
+            disabled={!plan.detailsEnabled}
+            className={`mt-auto w-full rounded-[10px] py-2.5 text-sm font-semibold text-white shadow-lg transition-all duration-200 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 ${
+              accent.btn
+            }`}
+          >
+            Open Plan
+          </button>
+        </div>
       </article>
     );
   };
@@ -309,67 +308,66 @@ export default function MyPlans() {
     return (
       <article
         key={plan.id}
-        className={`reveal-up flex flex-col rounded-2xl border p-4 shadow-[0_18px_36px_rgba(0,0,0,0.25)] backdrop-blur-[6px] transition-all duration-300 hover:-translate-y-1 hover:shadow-xl ${
+        className={`reveal-up flex flex-col overflow-hidden rounded-2xl border shadow-[0_18px_36px_rgba(0,0,0,0.25)] backdrop-blur-[6px] transition-all duration-300 hover:-translate-y-1 hover:shadow-xl ${
           accent.card
         }`}
       >
-        {/* Top row: icon */}
-        <div className="mb-4 flex items-start justify-between">
-          <div className={`flex h-12 w-12 items-center justify-center rounded-[12px] border ${
-            accent.icon
-          }`}>
-            <Utensils className="h-6 w-6" />
-          </div>
+        {/* Image area */}
+        <div className="relative h-44">
+          <img
+            src={plan.imageUrl}
+            alt={plan.name}
+            className="h-full w-full object-cover"
+            loading="lazy"
+          />
+          {/* Kcal badge */}
+          <span className={`absolute bottom-3 left-3 rounded-lg ${accent.badge} px-2.5 py-1 text-xs font-bold text-white backdrop-blur-sm`}>
+            {plan.kcal.toLocaleString()} kcal
+          </span>
         </div>
 
-        {/* Title */}
-        <h3 className="mb-1 break-words text-xl font-bold leading-snug text-slate-50">
-          {plan.name}
-        </h3>
-
-        {/* Subtitle */}
-        <p className="mb-3 text-xs text-slate-400">
-          Updated: {getDaysAgo(plan.updatedAt)}
-        </p>
-
-        {/* Description */}
-        <p className="mb-4 line-clamp-2 text-xs leading-relaxed text-slate-400">
-          {plan.description}
-        </p>
-
-        {/* Stats */}
-        <div className="mb-5 space-y-2">
-          <div className="flex items-center gap-2 text-sm text-slate-300">
-            <Flame className="h-4 w-4 shrink-0 text-slate-400" />
-            <span>{plan.kcal.toLocaleString()} kcal / day</span>
+        {/* Content */}
+        <div className="flex flex-1 flex-col p-4">
+          {/* Stats row */}
+          <div className="mb-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-400">
+            <span className="flex items-center gap-1">
+              <Flame className="h-3.5 w-3.5 text-orange-400" />
+              {plan.kcal.toLocaleString()} kcal / day
+            </span>
+            <span className="flex items-center gap-1">
+              <CalendarDays className="h-3.5 w-3.5" />
+              {plan.meals} meals
+            </span>
           </div>
-          <div className="flex items-center gap-2 text-sm text-slate-300">
-            <CalendarDays className="h-4 w-4 shrink-0 text-slate-400" />
-            <span>{plan.meals} meals</span>
-          </div>
+
           {/* Macro bar */}
-          <div className="flex h-1.5 overflow-hidden rounded-full">
-            <div className="bg-emerald-500 transition-all" style={{ width: `${plan.proteins}%` }} />
-            <div className="bg-orange-400 transition-all" style={{ width: `${plan.fats}%` }} />
-            <div className="bg-blue-400 transition-all" style={{ width: `${plan.carbs}%` }} />
+          <div className="mb-1 flex h-1.5 overflow-hidden rounded-full">
+            <div className="bg-emerald-500" style={{ width: `${plan.proteins}%` }} />
+            <div className="bg-orange-400" style={{ width: `${plan.fats}%` }} />
+            <div className="bg-blue-400" style={{ width: `${plan.carbs}%` }} />
           </div>
-          <div className="flex gap-3 text-[10px]">
+          <div className="mb-3 flex gap-3 text-[10px]">
             <span className="text-emerald-400">{plan.proteins}% protein</span>
             <span className="text-orange-400">{plan.fats}% fats</span>
             <span className="text-blue-400">{plan.carbs}% carbs</span>
           </div>
-        </div>
 
-        {/* Open button */}
-        <button
-          type="button"
-          onClick={() => navigate("/meal-plan")}
-          className={`mt-auto w-full rounded-[10px] py-2.5 text-sm font-semibold text-white shadow-lg transition-all duration-200 active:scale-95 ${
-            accent.btn
-          }`}
-        >
-          Open Plan
-        </button>
+          {/* Name */}
+          <h3 className="mb-4 break-words text-base font-bold leading-snug text-slate-50">
+            {plan.name}
+          </h3>
+
+          {/* Open button */}
+          <button
+            type="button"
+            onClick={() => navigate("/meal-plan")}
+            className={`mt-auto w-full rounded-[10px] py-2.5 text-sm font-semibold text-white shadow-lg transition-all duration-200 active:scale-95 ${
+              accent.btn
+            }`}
+          >
+            Open Plan
+          </button>
+        </div>
       </article>
     );
   };
