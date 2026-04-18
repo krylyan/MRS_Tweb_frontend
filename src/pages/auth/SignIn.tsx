@@ -32,7 +32,9 @@ export default function SignIn() {
 
     await new Promise((resolve) => setTimeout(resolve, 300));
 
-    if (AuthUtils.login(email, password)) {
+    const result = AuthUtils.login(email, password);
+
+    if (result.ok) {
       setLoading(false);
       if (AuthUtils.isQuestionnaireRequired()) {
         navigate("/questionnaire", { replace: true });
@@ -43,7 +45,7 @@ export default function SignIn() {
     }
 
     setLoading(false);
-    setError("Invalid credentials. Test account: admin / admin");
+    setError(result.message ?? "Login failed");
   };
 
   return (
@@ -87,13 +89,16 @@ export default function SignIn() {
               ) : null}
 
               <p className="text-xs leading-[1.5] text-gray-400">
-                Test account: <span className="font-semibold text-emerald-300">admin / admin</span>
+                Default accounts:{" "}
+                <span className="font-semibold text-emerald-300">max / max</span>
+                {" "}and{" "}
+                <span className="font-semibold text-emerald-300">admin / admin</span>
               </p>
 
               <AuthInput
                 label="Email or Username"
                 type="text"
-                placeholder="admin"
+                placeholder="max"
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
                 required

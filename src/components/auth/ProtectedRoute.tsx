@@ -4,9 +4,10 @@ import AuthUtils from "../../utils/authUtils";
 
 interface ProtectedRouteProps {
   children: ReactNode;
+  requireAdminMode?: boolean;
 }
 
-export default function ProtectedRoute({ children }: ProtectedRouteProps) {
+export default function ProtectedRoute({ children, requireAdminMode = false }: ProtectedRouteProps) {
   const location = useLocation();
   const isLoggedIn = AuthUtils.isAuthenticated();
   const questionnaireRequired = AuthUtils.isQuestionnaireRequired();
@@ -17,6 +18,10 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
 
   if (questionnaireRequired && location.pathname !== "/questionnaire") {
     return <Navigate to="/questionnaire" replace />;
+  }
+
+  if (requireAdminMode && !AuthUtils.isAdminModeEnabled()) {
+    return <Navigate to="/home" replace />;
   }
 
   return <>{children}</>;

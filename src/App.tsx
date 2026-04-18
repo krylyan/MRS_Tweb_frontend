@@ -1,6 +1,7 @@
 ﻿import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import AppLayout from "./components/AppLayout";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
+import AdminUsers from "./pages/AdminUsers";
 import Exercises from "./pages/Exercises";
 import FAQ from "./pages/FAQ";
 import GymPlanMenu from "./pages/GymPlanMenu";
@@ -41,6 +42,14 @@ export default function App() {
           <Route path="/gym-plan" element={<GymPlanMenu />} />
           <Route path="/meal-plan" element={<MealPlanMenu />} />
           <Route path="/meals" element={<Meals />} />
+          <Route
+            path="/admin"
+            element={
+              <ProtectedRoute requireAdminMode>
+                <AdminUsers />
+              </ProtectedRoute>
+            }
+          />
           <Route path="/exercises" element={<Exercises />} />
           <Route path="/profile" element={<Profile />} />
         </Route>
