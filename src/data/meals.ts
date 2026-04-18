@@ -1,4 +1,7 @@
 import type { FoodItem } from "../types/meal";
+import brownRiceImage from "../assets/meals/brown-rice.png";
+import oatmealImage from "../assets/meals/oatmeal.png";
+import wholeWheatBreadImage from "../assets/meals/whole-wheat-bread.png";
 
 export const FOOD_CATALOGUE: FoodItem[] = [
   {
@@ -9,7 +12,7 @@ export const FOOD_CATALOGUE: FoodItem[] = [
     carbs: 25,
     fats: 2,
     grams: 50,
-    imageUrl: "https://images.unsplash.com/photo-1585478259715-876aced85a57?w=400&h=280&fit=crop&auto=format",
+    imageUrl: wholeWheatBreadImage,
     category: "breakfast",
     description: "A versatile complex-carb option that adds fiber and steady energy to breakfasts, sandwiches, and snack plates.",
     preparationSteps: [
@@ -43,7 +46,7 @@ export const FOOD_CATALOGUE: FoodItem[] = [
     carbs: 27,
     fats: 3,
     grams: 80,
-    imageUrl: "https://images.unsplash.com/photo-1614961908502-af4ff36b5fac?w=400&h=280&fit=crop&auto=format",
+    imageUrl: oatmealImage,
     category: "breakfast",
     description: "Oatmeal is a filling breakfast base that delivers slow-release carbohydrates and works well with fruit or yogurt.",
     preparationSteps: [
@@ -108,7 +111,7 @@ export const FOOD_CATALOGUE: FoodItem[] = [
     carbs: 45,
     fats: 2,
     grams: 100,
-    imageUrl: "https://images.unsplash.com/photo-1536304993881-ff86e0c9b96d?w=400&h=280&fit=crop&auto=format",
+    imageUrl: brownRiceImage,
     category: "carbs",
     description: "Brown rice is a classic meal-prep carbohydrate that supports energy needs and pairs easily with lean proteins.",
     preparationSteps: [
