@@ -133,6 +133,18 @@ export default function Sidebar() {
           <span>Exercises</span>
         </Link>
 
+        <Link
+          to="/meals"
+          className={`flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all duration-200 ${
+            location.pathname === "/meals"
+              ? "bg-emerald-500/20 text-emerald-400 shadow-lg shadow-emerald-500/10"
+              : "text-gray-400 hover:bg-white/5 hover:text-white"
+          }`}
+        >
+          <UtensilsCrossed className="h-5 w-5" />
+          <span>Meals</span>
+        </Link>
+
         {/* Profile */}
         <Link
           to="/profile"

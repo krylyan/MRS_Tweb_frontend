@@ -1,19 +1,10 @@
 import { Check, ChevronDown, ChevronUp, Flame, Plus, X } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { FOOD_CATALOGUE } from "../data/meals";
+import type { FoodItem } from "../types/meal";
 
 /* ────────────────────────────── Types ──────────────────────────────── */
-interface FoodItem {
-  id: string;
-  name: string;
-  kcal: number;
-  protein: number;
-  carbs: number;
-  fats: number;
-  grams: number;
-  imageUrl: string;
-}
-
 type MealSlot = "breakfast" | "lunch" | "snacks" | "dinner";
 
 const MEAL_LABELS: Record<MealSlot, string> = {
@@ -31,27 +22,6 @@ const DAYS = Array.from({ length: 7 }, (_, i) => ({
 }));
 
 /* ────────────────────────── Food catalogue ─────────────────────────── */
-const FOOD_CATALOGUE: FoodItem[] = [
-  { id: "bread",        name: "Whole-wheat Bread", kcal: 130, protein: 5,  carbs: 25, fats: 2,  grams: 50,  imageUrl: "https://images.unsplash.com/photo-1585478259715-876aced85a57?w=400&h=280&fit=crop&auto=format" },
-  { id: "egg",          name: "Egg",               kcal: 90,  protein: 7,  carbs: 1,  fats: 6,  grams: 60,  imageUrl: "https://images.unsplash.com/photo-1582722872445-44dc5f7e3c8f?w=400&h=280&fit=crop&auto=format" },
-  { id: "oatmeal",      name: "Oatmeal",           kcal: 150, protein: 5,  carbs: 27, fats: 3,  grams: 80,  imageUrl: "https://images.unsplash.com/photo-1614961908502-af4ff36b5fac?w=400&h=280&fit=crop&auto=format" },
-  { id: "banana",       name: "Banana",            kcal: 89,  protein: 1,  carbs: 23, fats: 0,  grams: 120, imageUrl: "https://images.unsplash.com/photo-1571771894821-ce9b6c11b08e?w=400&h=280&fit=crop&auto=format" },
-  { id: "apple",        name: "Apple",             kcal: 52,  protein: 0,  carbs: 14, fats: 0,  grams: 100, imageUrl: "https://images.unsplash.com/photo-1560806887-1e4cd0b6cbd6?w=400&h=280&fit=crop&auto=format" },
-  { id: "tomato",       name: "Tomatoes",          kcal: 18,  protein: 1,  carbs: 4,  fats: 0,  grams: 100, imageUrl: "https://images.unsplash.com/photo-1546094096-0df4bcaaa337?w=400&h=280&fit=crop&auto=format" },
-  { id: "lettuce",      name: "Lettuce",           kcal: 15,  protein: 1,  carbs: 2,  fats: 0,  grams: 100, imageUrl: "https://images.unsplash.com/photo-1622206151226-18ca2c9ab4a1?w=400&h=280&fit=crop&auto=format" },
-  { id: "rice",         name: "Brown Rice",        kcal: 205, protein: 4,  carbs: 45, fats: 2,  grams: 100, imageUrl: "https://images.unsplash.com/photo-1536304993881-ff86e0c9b96d?w=400&h=280&fit=crop&auto=format" },
-  { id: "chicken",      name: "Chicken",           kcal: 165, protein: 25, carbs: 0,  fats: 6,  grams: 85,  imageUrl: "https://images.unsplash.com/photo-1604503468506-a8da13d82791?w=400&h=280&fit=crop&auto=format" },
-  { id: "salmon",       name: "Salmon",            kcal: 208, protein: 20, carbs: 0,  fats: 13, grams: 85,  imageUrl: "https://images.unsplash.com/photo-1519708227418-c8fd9a32b7a2?w=400&h=280&fit=crop&auto=format" },
-  { id: "hummus",       name: "Hummus",            kcal: 166, protein: 7,  carbs: 14, fats: 9,  grams: 70,  imageUrl: "https://images.unsplash.com/photo-1637949385162-e416a5527778?w=400&h=280&fit=crop&auto=format" },
-  { id: "carrot",       name: "Carrots",           kcal: 41,  protein: 1,  carbs: 10, fats: 0,  grams: 100, imageUrl: "https://images.unsplash.com/photo-1598170845058-32b9d6a5da37?w=400&h=280&fit=crop&auto=format" },
-  { id: "sweet-potato", name: "Sweet Potato",      kcal: 86,  protein: 2,  carbs: 20, fats: 0,  grams: 100, imageUrl: "https://images.unsplash.com/photo-1596097635121-14b38c5d7de4?w=400&h=280&fit=crop&auto=format" },
-  { id: "almonds",      name: "Almonds",           kcal: 170, protein: 6,  carbs: 6,  fats: 15, grams: 30,  imageUrl: "https://images.unsplash.com/photo-1508061253366-f7da158b6d46?w=400&h=280&fit=crop&auto=format" },
-  { id: "yogurt",       name: "Greek Yogurt",      kcal: 100, protein: 8,  carbs: 11, fats: 4,  grams: 150, imageUrl: "https://images.unsplash.com/photo-1488477181228-c84de6156a6f?w=400&h=280&fit=crop&auto=format" },
-  { id: "cheese",       name: "Cheese",            kcal: 120, protein: 7,  carbs: 0,  fats: 10, grams: 30,  imageUrl: "https://images.unsplash.com/photo-1486297678162-eb2a19b0a32d?w=400&h=280&fit=crop&auto=format" },
-  { id: "corn",         name: "Corn",              kcal: 86,  protein: 3,  carbs: 19, fats: 1,  grams: 85,  imageUrl: "https://images.unsplash.com/photo-1551754655-cd27e38d2076?w=400&h=280&fit=crop&auto=format" },
-  { id: "coconut-milk", name: "Coconut Milk",      kcal: 230, protein: 2,  carbs: 6,  fats: 24, grams: 120, imageUrl: "https://images.unsplash.com/photo-1550989460-0adf9ea622e2?w=400&h=280&fit=crop&auto=format" },
-];
-
 const findFood = (id: string) => FOOD_CATALOGUE.find((f) => f.id === id)!;
 
 /* ──────────────────────── Day meals state ──────────────────────────── */
