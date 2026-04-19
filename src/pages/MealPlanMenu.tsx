@@ -76,7 +76,7 @@ function FoodPicker({
             type="text"
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="Search foods…"
+            placeholder="Search foods..."
             className="h-9 w-full rounded-lg border border-white/10 bg-white/5 px-3 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-emerald-500/50"
           />
         </div>
@@ -94,7 +94,7 @@ function FoodPicker({
               <img src={food.imageUrl} alt={food.name} className="h-8 w-8 rounded-lg object-cover" loading="lazy" />
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm text-slate-200">{food.name}</p>
-                <p className="text-xs text-slate-400">{food.kcal} kcal · {food.grams}g</p>
+                <p className="text-xs text-slate-400">{food.kcal} kcal - {food.grams}g</p>
               </div>
             </button>
           ))}
@@ -364,7 +364,7 @@ export default function MealPlanMenu() {
       <div className="mx-auto w-full max-w-[1400px] px-4 py-6 sm:px-6 sm:py-8">
 
         {/* ── Title + Save ────────────────────────────────────── */}
-        <div className="mb-4 flex items-center justify-between gap-4">
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
           <input
             ref={titleRef}
             type="text"
@@ -372,14 +372,14 @@ export default function MealPlanMenu() {
             onChange={(e) => { setTitle(e.target.value); markDirty(); }}
             onFocus={() => setTitleFocused(true)}
             onBlur={() => setTitleFocused(false)}
-            className={`w-full max-w-xl rounded-xl border bg-transparent px-2 py-1 text-4xl font-bold text-slate-50 outline-none transition-all ${
+            className={`w-full max-w-xl rounded-xl border bg-transparent px-2 py-1 text-3xl font-bold text-slate-50 outline-none transition-all sm:text-4xl ${
               titleFocused ? "border-emerald-400/60" : "border-transparent"
             }`}
           />
           <button
             type="button"
             onClick={handleSave}
-            className={`inline-flex shrink-0 items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold text-white shadow-lg transition-all duration-200 active:scale-95 ${
+            className={`inline-flex w-fit shrink-0 items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold text-white shadow-lg transition-all duration-200 active:scale-95 ${
               saved
                 ? "bg-emerald-600 shadow-emerald-600/30"
                 : isDirty
@@ -443,7 +443,7 @@ export default function MealPlanMenu() {
               <div className="flex-1 bg-white/10" />
             )}
           </div>
-          <div className="mt-1.5 flex gap-4 text-[11px] text-slate-400">
+          <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-slate-400">
             <span className="flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-full bg-emerald-500" />Protein {proteinPct}%</span>
             <span className="flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-full bg-orange-400" />Fats {fatsPct}%</span>
             <span className="flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-full bg-blue-400" />Carbs {carbsPct}%</span>
@@ -483,7 +483,7 @@ export default function MealPlanMenu() {
             onClick={() => navigate("/plans?tab=alimentation")}
             className="text-sm text-slate-400 transition-colors hover:text-slate-200"
           >
-            ← Back to My Plans
+            &lt;- Back to My Plans
           </button>
         </div>
       </div>

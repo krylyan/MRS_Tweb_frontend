@@ -58,7 +58,7 @@ export default function Sidebar() {
 
   return (
     <aside
-      className={`fixed left-0 top-0 z-50 flex h-screen w-64 flex-col border-r backdrop-blur-md ${
+      className={`fixed left-0 top-0 z-50 hidden h-screen w-64 flex-col border-r backdrop-blur-md md:flex ${
         isAdminMode
           ? "border-amber-200/10 bg-[linear-gradient(180deg,rgba(41,37,36,0.98),rgba(17,24,39,0.98))]"
           : "border-white/10 bg-gray-950/95"

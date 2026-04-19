@@ -110,11 +110,11 @@ export default function Profile() {
         }`}
       >
         <section className="reveal-up mb-6 flex flex-col gap-5 rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-sm sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-5">
+          <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-center sm:gap-5">
             <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-full border border-white/15 bg-white/10">
               <UserCircle2 className="h-12 w-12 text-slate-400" />
             </div>
-            <div>
+            <div className="min-w-0">
               {isEditing ? (
                 <div className="space-y-2">
                   <input
@@ -142,7 +142,7 @@ export default function Profile() {
                       </span>
                     ) : null}
                   </div>
-                  <p className="text-sm text-gray-400">{displayEmail}</p>
+                  <p className="break-all text-sm text-gray-400 sm:break-normal">{displayEmail}</p>
                 </>
               )}
               <span
