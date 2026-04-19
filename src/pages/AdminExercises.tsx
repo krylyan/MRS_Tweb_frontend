@@ -10,7 +10,7 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { exerciseLibrary } from "../utils/exerciseLibrary";
 import type { Exercise } from "../types/exercise";
 
@@ -39,6 +39,18 @@ export default function AdminExercises() {
   const [form, setForm] = useState<ExerciseFormState>(createEmptyForm);
   const [exercises, setExercises] = useState<Exercise[]>(() => exerciseLibrary.getAllExercisesForAdmin());
   const [categories, setCategories] = useState<string[]>(() => exerciseLibrary.getFilterCategories());
+
+  useEffect(() => {
+    if (!statusMessage) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setStatusMessage("");
+    }, 3200);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [statusMessage]);
 
   const filteredExercises = useMemo(() => {
     const normalizedQuery = searchQuery.trim().toLowerCase();
@@ -188,18 +200,6 @@ export default function AdminExercises() {
           </div>
         </section>
 
-        {statusMessage ? (
-          <section
-            className={`reveal-up mb-5 rounded-2xl border px-4 py-3 text-sm ${
-              statusTone === "success"
-                ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
-                : "border-rose-500/30 bg-rose-500/10 text-rose-300"
-            }`}
-          >
-            {statusMessage}
-          </section>
-        ) : null}
-
         <div className="grid gap-6 xl:grid-cols-[1.25fr_0.75fr]">
           <section className="reveal-up reveal-delay-1 rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-sm">
             <div className="mb-4 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -279,42 +279,38 @@ export default function AdminExercises() {
                       </div>
                     </div>
 
-                    <div className="flex flex-wrap gap-2 xl:max-w-[360px] xl:justify-end">
-                      <button
-                        type="button"
+                    <div className="grid grid-cols-4 gap-2 xl:w-[220px] xl:justify-items-end">
+                      <ActionIconButton
+                        label="Edit"
+                        title="Edit"
+                        icon={<Pencil className="h-4 w-4" />}
+                        tone="sky"
                         onClick={() => handleEditExercise(exercise)}
-                        className="inline-flex items-center gap-2 rounded-xl border border-sky-400/25 bg-sky-400/10 px-3 py-2 text-sm font-semibold text-sky-100 transition-colors hover:bg-sky-400/20"
-                      >
-                        <Pencil className="h-4 w-4" />
-                        Edit
-                      </button>
+                      />
 
-                      <button
-                        type="button"
+                      <ActionIconButton
+                        label={exercise.recommended ? "Unrecommend" : "Recommend"}
+                        title={exercise.recommended ? "Unrecommend" : "Recommend"}
+                        icon={<Sparkles className="h-4 w-4" />}
+                        tone="amber"
                         onClick={() => handleToggleRecommended(exercise)}
-                        className="inline-flex items-center gap-2 rounded-xl border border-amber-400/25 bg-amber-400/10 px-3 py-2 text-sm font-semibold text-amber-100 transition-colors hover:bg-amber-400/20"
-                      >
-                        <Sparkles className="h-4 w-4" />
-                        {exercise.recommended ? "Unrecommend" : "Recommend"}
-                      </button>
+                      />
 
-                      <button
-                        type="button"
+                      <ActionIconButton
+                        label={exercise.hidden ? "Show" : "Hide"}
+                        title={exercise.hidden ? "Show" : "Hide"}
+                        icon={exercise.hidden ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+                        tone="violet"
                         onClick={() => handleToggleHidden(exercise)}
-                        className="inline-flex items-center gap-2 rounded-xl border border-violet-400/25 bg-violet-400/10 px-3 py-2 text-sm font-semibold text-violet-100 transition-colors hover:bg-violet-400/20"
-                      >
-                        {exercise.hidden ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
-                        {exercise.hidden ? "Show" : "Hide"}
-                      </button>
+                      />
 
-                      <button
-                        type="button"
+                      <ActionIconButton
+                        label="Delete"
+                        title="Delete"
+                        icon={<Trash2 className="h-4 w-4" />}
+                        tone="rose"
                         onClick={() => handleDeleteExercise(exercise)}
-                        className="inline-flex items-center gap-2 rounded-xl border border-rose-400/25 bg-rose-400/10 px-3 py-2 text-sm font-semibold text-rose-100 transition-colors hover:bg-rose-400/20"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                        Delete
-                      </button>
+                      />
                     </div>
                   </div>
                 </article>
@@ -450,6 +446,20 @@ export default function AdminExercises() {
           </div>
         </div>
       </div>
+
+      {statusMessage ? (
+        <div className="pointer-events-none fixed bottom-4 right-4 z-[9999]">
+          <div
+            className={`min-w-[260px] max-w-[360px] rounded-2xl border px-4 py-3 text-sm shadow-[0_18px_42px_rgba(0,0,0,0.35)] backdrop-blur-md ${
+              statusTone === "success"
+                ? "border-emerald-500/30 bg-emerald-500/12 text-emerald-200"
+                : "border-rose-500/30 bg-rose-500/12 text-rose-200"
+            }`}
+          >
+            {statusMessage}
+          </div>
+        </div>
+      ) : null}
     </main>
   );
 }
@@ -459,6 +469,44 @@ function AdminStatCard({ label, value }: { label: string; value: string }) {
     <div className="rounded-2xl border border-white/10 bg-black/20 p-4 backdrop-blur-sm">
       <p className="text-2xl font-bold text-white">{value}</p>
       <p className="text-sm text-slate-300">{label}</p>
+    </div>
+  );
+}
+
+function ActionIconButton({
+  icon,
+  label,
+  onClick,
+  title,
+  tone,
+}: {
+  icon: ReactNode;
+  label: string;
+  onClick: () => void;
+  title: string;
+  tone: "sky" | "amber" | "violet" | "rose";
+}) {
+  const toneClasses: Record<typeof tone, string> = {
+    sky: "border-sky-400/25 bg-sky-400/10 text-sky-100 hover:bg-sky-400/20",
+    amber: "border-amber-400/25 bg-amber-400/10 text-amber-100 hover:bg-amber-400/20",
+    violet: "border-violet-400/25 bg-violet-400/10 text-violet-100 hover:bg-violet-400/20",
+    rose: "border-rose-400/25 bg-rose-400/10 text-rose-100 hover:bg-rose-400/20",
+  };
+
+  return (
+    <div className="group relative">
+      <button
+        type="button"
+        onClick={onClick}
+        aria-label={label}
+        title={title}
+        className={`inline-flex h-11 w-11 items-center justify-center rounded-xl border transition-colors ${toneClasses[tone]}`}
+      >
+        {icon}
+      </button>
+      <div className="pointer-events-none absolute -top-10 left-1/2 -translate-x-1/2 rounded-lg border border-white/10 bg-slate-950/95 px-2.5 py-1 text-xs font-medium text-slate-100 opacity-0 shadow-lg transition-opacity duration-150 group-hover:opacity-100">
+        {label}
+      </div>
     </div>
   );
 }
