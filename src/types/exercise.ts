@@ -1,4 +1,4 @@
-export type MuscleGroup = "chest" | "back" | "legs" | "arms" | "core" | "cardio";
+export type MuscleGroup = string;
 
 export interface Exercise {
   id: string;
@@ -6,4 +6,6 @@ export interface Exercise {
   muscleGroup: MuscleGroup;
   gifUrl: string;
   instructions: string;
+  recommended?: boolean;
+  hidden?: boolean;
 }

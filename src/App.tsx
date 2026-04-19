@@ -2,6 +2,7 @@
 import AppLayout from "./components/AppLayout";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 import AdminUsers from "./pages/AdminUsers";
+import AdminExercises from "./pages/AdminExercises";
 import Exercises from "./pages/Exercises";
 import FAQ from "./pages/FAQ";
 import GymPlanMenu from "./pages/GymPlanMenu";
@@ -47,6 +48,14 @@ export default function App() {
             element={
               <ProtectedRoute requireAdminMode>
                 <AdminUsers />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/exercises"
+            element={
+              <ProtectedRoute requireAdminMode>
+                <AdminExercises />
               </ProtectedRoute>
             }
           />

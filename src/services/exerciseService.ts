@@ -1,22 +1,20 @@
-import { exercises } from "../data/exercises";
+import { exerciseLibrary } from "../utils/exerciseLibrary";
 import type { Exercise, MuscleGroup } from "../types/exercise";
 
-const getAllExercises = (): Exercise[] => exercises;
+const getAllExercises = (): Exercise[] => exerciseLibrary.getVisibleExercises();
 
 const getExercisesByMuscleGroup = (muscleGroup: MuscleGroup): Exercise[] =>
-  exercises.filter((exercise) => exercise.muscleGroup === muscleGroup);
+  exerciseLibrary
+    .getVisibleExercises()
+    .filter((exercise) => exercise.muscleGroup === muscleGroup);
 
-const searchExercises = (query: string): Exercise[] => {
-  const normalized = query.trim().toLowerCase();
-  if (!normalized) {
-    return exercises;
-  }
+const searchExercises = (query: string): Exercise[] => exerciseLibrary.searchExercises(query);
 
-  return exercises.filter((exercise) => exercise.name.toLowerCase().includes(normalized));
-};
+const getFilterCategories = (): string[] => exerciseLibrary.getFilterCategories();
 
 export const exerciseService = {
   getAllExercises,
   getExercisesByMuscleGroup,
   searchExercises,
+  getFilterCategories,
 };

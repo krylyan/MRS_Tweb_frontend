@@ -2,6 +2,7 @@ import { Plus, Search, X } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import ReactDOM from "react-dom";
+import { exerciseService } from "../services/exerciseService";
 import type { Exercise, MuscleGroup } from "../types/exercise";
 import ActivityCard from "./ActivityCard";
 
@@ -14,8 +15,6 @@ interface ActivitiesListProps {
   onSelectExercise: (exercise: Exercise) => void;
   onDeleteExercise: (exerciseId: string) => void;
 }
-
-const MUSCLE_GROUPS: Array<MuscleGroup | "all"> = ["all", "chest", "back", "legs", "arms", "core", "cardio"];
 
 export default function ActivitiesList({
   dayExercises,
@@ -30,6 +29,10 @@ export default function ActivitiesList({
   const [searchQuery, setSearchQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState<MuscleGroup | "all">("all");
   const searchInputRef = useRef<HTMLInputElement | null>(null);
+  const muscleGroups = useMemo<Array<MuscleGroup | "all">>(
+    () => ["all", ...exerciseService.getFilterCategories()],
+    [],
+  );
 
   useEffect(() => {
     if (isModalOpen) {
@@ -132,8 +135,8 @@ export default function ActivitiesList({
             </div>
 
             {/* Filter pills */}
-            <div className="flex flex-wrap gap-2 px-6 py-4">
-              {MUSCLE_GROUPS.map((group) => (
+              <div className="flex flex-wrap gap-2 px-6 py-4">
+               {muscleGroups.map((group) => (
                 <button
                   key={group}
                   type="button"

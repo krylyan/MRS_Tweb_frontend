@@ -2,6 +2,7 @@ import {
   CalendarCheck2,
   ChevronDown,
   ChevronUp,
+  Dumbbell,
   Grid3X3,
   Heart,
   Plus,
@@ -53,7 +54,7 @@ interface ActivityDetailsProps {
   onRemoveSet: (index: number) => void;
 }
 
-const EXERCISE_ICON_BY_GROUP: Record<MuscleGroup, LucideIcon> = {
+const EXERCISE_ICON_BY_GROUP: Record<string, LucideIcon> = {
   chest: Trophy,
   back: CalendarCheck2,
   legs: Users,
@@ -502,7 +503,7 @@ export default function GymPlanMenu() {
   }, [planName, days, workoutTracking, hasLoadedPlan]);
 
   const getIconForMuscleGroup = (muscleGroup: MuscleGroup): LucideIcon =>
-    EXERCISE_ICON_BY_GROUP[muscleGroup];
+    EXERCISE_ICON_BY_GROUP[muscleGroup] ?? Dumbbell;
 
   const handlePlanNameChange = (value: string): void => {
     setPlanName(value);

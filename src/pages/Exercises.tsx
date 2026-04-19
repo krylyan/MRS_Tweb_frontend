@@ -4,21 +4,15 @@ import ReactDOM from "react-dom";
 import { exerciseService } from "../services/exerciseService";
 import type { Exercise, MuscleGroup } from "../types/exercise";
 
-const MUSCLE_GROUPS: Array<MuscleGroup | "all"> = [
-  "all",
-  "chest",
-  "back",
-  "legs",
-  "arms",
-  "core",
-  "cardio",
-];
-
 export default function Exercises() {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState<MuscleGroup | "all">("all");
   const [selectedExercise, setSelectedExercise] = useState<Exercise | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
+  const muscleGroups = useMemo<Array<MuscleGroup | "all">>(
+    () => ["all", ...exerciseService.getFilterCategories()],
+    [],
+  );
 
   const allResults = useMemo(
     () => exerciseService.searchExercises(searchQuery),
@@ -70,7 +64,7 @@ export default function Exercises() {
 
         {/* Filter pills */}
         <div className="reveal-up reveal-delay-2 mb-4 flex flex-wrap items-center gap-2">
-          {MUSCLE_GROUPS.map((group) => (
+          {muscleGroups.map((group) => (
             <button
               key={group}
               type="button"
@@ -119,6 +113,11 @@ export default function Exercises() {
                   <span className="rounded-full bg-emerald-500/20 px-2.5 py-0.5 text-[11px] font-semibold capitalize text-emerald-300">
                     {exercise.muscleGroup}
                   </span>
+                  {exercise.recommended ? (
+                    <span className="rounded-full bg-amber-400/20 px-2.5 py-0.5 text-[11px] font-semibold text-amber-100">
+                      Recommended
+                    </span>
+                  ) : null}
                 </div>
               </div>
             </button>
@@ -206,6 +205,11 @@ function ExerciseDetailModal({ exercise, onClose }: ExerciseDetailModalProps) {
             <span className="rounded-full bg-emerald-500/20 px-3 py-1 text-xs font-semibold capitalize text-emerald-300">
               {exercise.muscleGroup}
             </span>
+            {exercise.recommended ? (
+              <span className="rounded-full bg-amber-400/20 px-3 py-1 text-xs font-semibold text-amber-100">
+                Recommended
+              </span>
+            ) : null}
           </div>
 
           {/* How to Perform */}

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import {
+  BookOpen,
   CalendarCheck2,
   ChevronDown,
   Dumbbell,
@@ -126,15 +127,26 @@ export default function Sidebar() {
         </Link>
 
         {isAdminMode ? (
-          <Link
-            to="/admin"
-            className={`flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all duration-200 ${
-              location.pathname === "/admin" ? activeLinkClasses : idleLinkClasses
-            }`}
-          >
-            <Users className="h-5 w-5" />
-            <span>Admin Panel</span>
-          </Link>
+          <>
+            <Link
+              to="/admin"
+              className={`flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all duration-200 ${
+                location.pathname === "/admin" ? activeLinkClasses : idleLinkClasses
+              }`}
+            >
+              <Users className="h-5 w-5" />
+              <span>Admin Users</span>
+            </Link>
+            <Link
+              to="/admin/exercises"
+              className={`flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all duration-200 ${
+                location.pathname === "/admin/exercises" ? activeLinkClasses : idleLinkClasses
+              }`}
+            >
+              <BookOpen className="h-5 w-5" />
+              <span>Admin Exercises</span>
+            </Link>
+          </>
         ) : (
           <div>
             <button
