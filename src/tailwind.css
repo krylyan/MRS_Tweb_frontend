@@ -78,3 +78,15 @@
 .modal-panel {
   animation: modalPanelIn 0.25s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
+
+.input-no-spinner {
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+.input-no-spinner::-webkit-outer-spin-button,
+.input-no-spinner::-webkit-inner-spin-button {
+  margin: 0;
+  appearance: none;
+  -webkit-appearance: none;
+}

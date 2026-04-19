@@ -1,5 +1,4 @@
 import {
-  BookOpen,
   CalendarCheck2,
   Dumbbell,
   HelpCircle,
@@ -42,8 +41,6 @@ function MobileNavigation({ isAdminMode }: { isAdminMode: boolean }) {
   const adminItems: MobileNavItem[] = isAdminAccount
     ? [
         { to: "/admin", label: "Users", icon: Users },
-        { to: "/admin/exercises", label: "Exercises", icon: BookOpen },
-        { to: "/admin/meals", label: "Meals", icon: UtensilsCrossed },
       ]
     : [];
 

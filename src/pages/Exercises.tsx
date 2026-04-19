@@ -1,14 +1,19 @@
-import { Search, X } from "lucide-react";
+import { Pencil, Search, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import ReactDOM from "react-dom";
+import { Link } from "react-router-dom";
 import { exerciseService } from "../services/exerciseService";
 import type { Exercise, MuscleGroup } from "../types/exercise";
+import AuthUtils from "../utils/authUtils";
 
 export default function Exercises() {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState<MuscleGroup | "all">("all");
   const [selectedExercise, setSelectedExercise] = useState<Exercise | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
+  const currentUser = AuthUtils.getCurrentUser();
+  const isAdminMode = AuthUtils.isAdminModeEnabled();
+  const canEditLibrary = isAdminMode && currentUser?.role === "admin";
   const muscleGroups = useMemo<Array<MuscleGroup | "all">>(
     () => ["all", ...exerciseService.getFilterCategories()],
     [],
@@ -40,11 +45,22 @@ export default function Exercises() {
     <main className="min-h-screen text-slate-200">
       <div className="mx-auto w-full max-w-[1400px] px-3 py-4 sm:px-6 sm:py-8">
         {/* Header */}
-        <div className="reveal-up mb-6">
-          <h1 className="text-4xl font-bold text-slate-50">Exercise Library</h1>
-          <p className="mt-1 text-slate-400">
-            Discover exercises with detailed instructions and guidance
-          </p>
+        <div className="reveal-up mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h1 className="text-4xl font-bold text-slate-50">Exercise Library</h1>
+            <p className="mt-1 text-slate-400">
+              Discover exercises with detailed instructions and guidance
+            </p>
+          </div>
+          {canEditLibrary ? (
+            <Link
+              to="/admin/exercises"
+              className="inline-flex items-center gap-2 rounded-xl border border-amber-300/25 bg-amber-400/10 px-4 py-2.5 text-sm font-semibold text-amber-100 transition-all hover:bg-amber-400/20 hover:text-white"
+            >
+              <Pencil className="h-4 w-4" />
+              Edit
+            </Link>
+          ) : null}
         </div>
 
         {/* Search */}

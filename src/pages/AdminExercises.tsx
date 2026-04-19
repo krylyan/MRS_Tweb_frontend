@@ -205,7 +205,7 @@ export default function AdminExercises() {
               </p>
             </div>
 
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
               <AdminStatCard label="Exercises" value={exercises.length.toString()} />
               <AdminStatCard
                 label="Recommended"
@@ -215,6 +215,7 @@ export default function AdminExercises() {
                 label="Hidden"
                 value={exercises.filter((exercise) => exercise.hidden).length.toString()}
               />
+              <AdminStatCard label="Categories" value={categories.length.toString()} />
             </div>
           </div>
         </section>

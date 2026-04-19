@@ -67,7 +67,6 @@ export default function AdminMeals() {
   const [meals, setMeals] = useState<FoodItem[]>(() => mealLibrary.getAllMealsForAdmin());
   const [categories, setCategories] = useState<string[]>(() => mealLibrary.getFilterCategories());
   const [mealToDelete, setMealToDelete] = useState<FoodItem | null>(null);
-  const [invalidImageIds, setInvalidImageIds] = useState<string[]>([]);
 
   useEffect(() => {
     if (!statusMessage) {
@@ -184,7 +183,6 @@ export default function AdminMeals() {
       if (form.id === meal.id) {
         setForm(createEmptyForm());
       }
-      setInvalidImageIds((prev) => prev.filter((id) => id !== meal.id));
       refreshLibrary();
     }
 
@@ -237,10 +235,6 @@ export default function AdminMeals() {
       }
       refreshLibrary();
     }
-  };
-
-  const markImageInvalid = (mealId: string) => {
-    setInvalidImageIds((prev) => (prev.includes(mealId) ? prev : [...prev, mealId]));
   };
 
   return (
@@ -330,8 +324,6 @@ export default function AdminMeals() {
 
             <div className="space-y-3">
               {filteredMeals.map((meal) => {
-                const hasInvalidImage = invalidImageIds.includes(meal.id) || !meal.imageUrl.trim();
-
                 return (
                   <article
                     key={meal.id}
@@ -343,7 +335,6 @@ export default function AdminMeals() {
                           src={meal.imageUrl}
                           alt={meal.name}
                           className="h-24 w-24 rounded-2xl object-cover"
-                          onError={() => markImageInvalid(meal.id)}
                         />
                       </div>
 
@@ -352,9 +343,6 @@ export default function AdminMeals() {
                           <h3 className="text-lg font-semibold text-white">{meal.name}</h3>
                           <span className="rounded-full bg-emerald-500/20 px-2.5 py-1 text-[11px] font-semibold text-emerald-200">
                             {toCategoryLabel(meal.category)}
-                          </span>
-                          <span className="rounded-full bg-white/[0.06] px-2.5 py-1 text-[11px] font-semibold text-slate-300">
-                            {meal.itemType === "prepared" ? "Prepared meal" : "Simple product"}
                           </span>
                           {meal.recommended ? (
                             <span className="rounded-full bg-amber-400/20 px-2.5 py-1 text-[11px] font-semibold text-amber-100">
@@ -366,15 +354,6 @@ export default function AdminMeals() {
                               Hidden
                             </span>
                           ) : null}
-                          {hasInvalidImage ? (
-                            <span className="rounded-full bg-rose-400/20 px-2.5 py-1 text-[11px] font-semibold text-rose-100">
-                              Image missing/invalid
-                            </span>
-                          ) : (
-                            <span className="rounded-full bg-sky-400/20 px-2.5 py-1 text-[11px] font-semibold text-sky-100">
-                              Image ready
-                            </span>
-                          )}
                         </div>
                         <p className="mt-2 line-clamp-2 max-w-2xl text-sm text-slate-400">
                           {meal.description}
@@ -480,7 +459,7 @@ export default function AdminMeals() {
                       type="number"
                       value={form.kcal}
                       onChange={(event) => setForm((prev) => ({ ...prev, kcal: event.target.value }))}
-                      className="h-11 w-full rounded-xl border border-white/12 bg-white/[0.04] px-3 text-sm text-white outline-none transition-all focus:border-amber-400/50"
+                      className="input-no-spinner h-11 w-full rounded-xl border border-white/12 bg-white/[0.04] px-3 text-sm text-white outline-none transition-all focus:border-amber-400/50"
                     />
                   </FormField>
                   <FormField label="Protein">
@@ -488,7 +467,7 @@ export default function AdminMeals() {
                       type="number"
                       value={form.protein}
                       onChange={(event) => setForm((prev) => ({ ...prev, protein: event.target.value }))}
-                      className="h-11 w-full rounded-xl border border-white/12 bg-white/[0.04] px-3 text-sm text-white outline-none transition-all focus:border-amber-400/50"
+                      className="input-no-spinner h-11 w-full rounded-xl border border-white/12 bg-white/[0.04] px-3 text-sm text-white outline-none transition-all focus:border-amber-400/50"
                     />
                   </FormField>
                   <FormField label="Fats">
@@ -496,7 +475,7 @@ export default function AdminMeals() {
                       type="number"
                       value={form.fats}
                       onChange={(event) => setForm((prev) => ({ ...prev, fats: event.target.value }))}
-                      className="h-11 w-full rounded-xl border border-white/12 bg-white/[0.04] px-3 text-sm text-white outline-none transition-all focus:border-amber-400/50"
+                      className="input-no-spinner h-11 w-full rounded-xl border border-white/12 bg-white/[0.04] px-3 text-sm text-white outline-none transition-all focus:border-amber-400/50"
                     />
                   </FormField>
                   <FormField label="Carbs">
@@ -504,7 +483,7 @@ export default function AdminMeals() {
                       type="number"
                       value={form.carbs}
                       onChange={(event) => setForm((prev) => ({ ...prev, carbs: event.target.value }))}
-                      className="h-11 w-full rounded-xl border border-white/12 bg-white/[0.04] px-3 text-sm text-white outline-none transition-all focus:border-amber-400/50"
+                      className="input-no-spinner h-11 w-full rounded-xl border border-white/12 bg-white/[0.04] px-3 text-sm text-white outline-none transition-all focus:border-amber-400/50"
                     />
                   </FormField>
                 </div>
@@ -515,7 +494,7 @@ export default function AdminMeals() {
                       type="number"
                       value={form.grams}
                       onChange={(event) => setForm((prev) => ({ ...prev, grams: event.target.value }))}
-                      className="h-11 w-full rounded-xl border border-white/12 bg-white/[0.04] px-3 text-sm text-white outline-none transition-all focus:border-amber-400/50"
+                      className="input-no-spinner h-11 w-full rounded-xl border border-white/12 bg-white/[0.04] px-3 text-sm text-white outline-none transition-all focus:border-amber-400/50"
                     />
                   </FormField>
                   <FormField label="Priority">
@@ -523,7 +502,7 @@ export default function AdminMeals() {
                       type="number"
                       value={form.priority}
                       onChange={(event) => setForm((prev) => ({ ...prev, priority: event.target.value }))}
-                      className="h-11 w-full rounded-xl border border-white/12 bg-white/[0.04] px-3 text-sm text-white outline-none transition-all focus:border-amber-400/50"
+                      className="input-no-spinner h-11 w-full rounded-xl border border-white/12 bg-white/[0.04] px-3 text-sm text-white outline-none transition-all focus:border-amber-400/50"
                     />
                   </FormField>
                   <FormField label="Popularity">
@@ -531,12 +510,12 @@ export default function AdminMeals() {
                       type="number"
                       value={form.popularity}
                       onChange={(event) => setForm((prev) => ({ ...prev, popularity: event.target.value }))}
-                      className="h-11 w-full rounded-xl border border-white/12 bg-white/[0.04] px-3 text-sm text-white outline-none transition-all focus:border-amber-400/50"
+                      className="input-no-spinner h-11 w-full rounded-xl border border-white/12 bg-white/[0.04] px-3 text-sm text-white outline-none transition-all focus:border-amber-400/50"
                     />
                   </FormField>
                 </div>
 
-                <FormField label="Item type">
+                <FormField label="Details mode">
                   <div className="grid grid-cols-2 gap-2">
                     <button
                       type="button"
@@ -547,7 +526,7 @@ export default function AdminMeals() {
                           : "border-white/12 bg-white/[0.04] text-slate-300 hover:bg-white/[0.08]"
                       }`}
                     >
-                      Prepared meal
+                      Recipe
                     </button>
                     <button
                       type="button"
@@ -558,7 +537,7 @@ export default function AdminMeals() {
                           : "border-white/12 bg-white/[0.04] text-slate-300 hover:bg-white/[0.08]"
                       }`}
                     >
-                      Simple product
+                      Product
                     </button>
                   </div>
                 </FormField>

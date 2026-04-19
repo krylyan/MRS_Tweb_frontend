@@ -1,9 +1,11 @@
-import { ArrowDownWideNarrow, Search, X } from "lucide-react";
+import { ArrowDownWideNarrow, Pencil, Search, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import ReactDOM from "react-dom";
+import { Link } from "react-router-dom";
 import { mealService } from "../services/mealService";
 import type { FoodItem, MealCategory } from "../types/meal";
 import type { MealSortMode } from "../utils/mealLibrary";
+import AuthUtils from "../utils/authUtils";
 
 const toCategoryLabel = (category: string): string =>
   category
@@ -16,6 +18,9 @@ export default function Meals() {
   const [activeFilter, setActiveFilter] = useState<MealCategory | "all">("all");
   const [selectedMeal, setSelectedMeal] = useState<FoodItem | null>(null);
   const [sortMode, setSortMode] = useState<MealSortMode>("priority");
+  const currentUser = AuthUtils.getCurrentUser();
+  const isAdminMode = AuthUtils.isAdminModeEnabled();
+  const canEditLibrary = isAdminMode && currentUser?.role === "admin";
 
   const mealCategories = useMemo<Array<MealCategory | "all">>(
     () => ["all", ...mealService.getFilterCategories()],
@@ -59,11 +64,22 @@ export default function Meals() {
   return (
     <main className="min-h-screen text-slate-200">
       <div className="mx-auto w-full max-w-[1400px] px-3 py-4 sm:px-6 sm:py-8">
-        <div className="reveal-up mb-6">
-          <h1 className="text-4xl font-bold text-slate-50">Meal Library</h1>
-          <p className="mt-1 text-slate-400">
-            Discover meals and food products with macros, preparation guidance, and serving details
-          </p>
+        <div className="reveal-up mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h1 className="text-4xl font-bold text-slate-50">Meal Library</h1>
+            <p className="mt-1 text-slate-400">
+              Discover meals and food products with macros, preparation guidance, and serving details
+            </p>
+          </div>
+          {canEditLibrary ? (
+            <Link
+              to="/admin/meals"
+              className="inline-flex items-center gap-2 rounded-xl border border-amber-300/25 bg-amber-400/10 px-4 py-2.5 text-sm font-semibold text-amber-100 transition-all hover:bg-amber-400/20 hover:text-white"
+            >
+              <Pencil className="h-4 w-4" />
+              Edit
+            </Link>
+          ) : null}
         </div>
 
         <div className="reveal-up reveal-delay-1 mb-4 grid gap-3 lg:grid-cols-[1fr_220px]">
