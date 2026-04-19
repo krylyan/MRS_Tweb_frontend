@@ -249,37 +249,38 @@ export default function AdminExercises() {
                   key={exercise.id}
                   className="rounded-2xl border border-white/8 bg-slate-950/40 p-4 shadow-[0_12px_30px_rgba(0,0,0,0.2)]"
                 >
-                  <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-                    <div className="flex gap-4">
+                  <div className="grid gap-4 xl:grid-cols-[96px_minmax(0,1fr)_220px] xl:items-center">
+                    <div className="xl:col-start-1">
                       <img
                         src={exercise.gifUrl}
                         alt={exercise.name}
                         className="h-24 w-24 rounded-2xl object-cover"
                       />
-                      <div>
-                        <div className="flex flex-wrap items-center gap-2">
-                          <h3 className="text-lg font-semibold text-white">{exercise.name}</h3>
-                          <span className="rounded-full bg-emerald-500/20 px-2.5 py-1 text-[11px] font-semibold capitalize text-emerald-200">
-                            {exercise.muscleGroup}
-                          </span>
-                          {exercise.recommended ? (
-                            <span className="rounded-full bg-amber-400/20 px-2.5 py-1 text-[11px] font-semibold text-amber-100">
-                              Recommended
-                            </span>
-                          ) : null}
-                          {exercise.hidden ? (
-                            <span className="rounded-full bg-rose-400/20 px-2.5 py-1 text-[11px] font-semibold text-rose-100">
-                              Hidden
-                            </span>
-                          ) : null}
-                        </div>
-                        <p className="mt-2 line-clamp-2 max-w-2xl text-sm text-slate-400">
-                          {exercise.instructions}
-                        </p>
-                      </div>
                     </div>
 
-                    <div className="grid grid-cols-4 gap-2 xl:w-[220px] xl:justify-items-end">
+                    <div className="min-w-0 xl:col-start-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="text-lg font-semibold text-white">{exercise.name}</h3>
+                        <span className="rounded-full bg-emerald-500/20 px-2.5 py-1 text-[11px] font-semibold capitalize text-emerald-200">
+                          {exercise.muscleGroup}
+                        </span>
+                        {exercise.recommended ? (
+                          <span className="rounded-full bg-amber-400/20 px-2.5 py-1 text-[11px] font-semibold text-amber-100">
+                            Recommended
+                          </span>
+                        ) : null}
+                        {exercise.hidden ? (
+                          <span className="rounded-full bg-rose-400/20 px-2.5 py-1 text-[11px] font-semibold text-rose-100">
+                            Hidden
+                          </span>
+                        ) : null}
+                      </div>
+                      <p className="mt-2 line-clamp-2 max-w-2xl text-sm text-slate-400">
+                        {exercise.instructions}
+                      </p>
+                    </div>
+
+                    <div className="grid grid-cols-4 gap-2 xl:col-start-3 xl:w-[220px] xl:justify-self-end">
                       <ActionIconButton
                         label="Edit"
                         title="Edit"
