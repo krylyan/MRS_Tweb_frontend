@@ -11,6 +11,7 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
+import ReactDOM from "react-dom";
 import { exerciseLibrary } from "../utils/exerciseLibrary";
 import type { Exercise } from "../types/exercise";
 
@@ -39,6 +40,7 @@ export default function AdminExercises() {
   const [form, setForm] = useState<ExerciseFormState>(createEmptyForm);
   const [exercises, setExercises] = useState<Exercise[]>(() => exerciseLibrary.getAllExercisesForAdmin());
   const [categories, setCategories] = useState<string[]>(() => exerciseLibrary.getFilterCategories());
+  const [exerciseToDelete, setExerciseToDelete] = useState<Exercise | null>(null);
 
   useEffect(() => {
     if (!statusMessage) {
@@ -51,6 +53,21 @@ export default function AdminExercises() {
 
     return () => window.clearTimeout(timeoutId);
   }, [statusMessage]);
+
+  useEffect(() => {
+    if (!exerciseToDelete) {
+      return;
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setExerciseToDelete(null);
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [exerciseToDelete]);
 
   const filteredExercises = useMemo(() => {
     const normalizedQuery = searchQuery.trim().toLowerCase();
@@ -110,7 +127,7 @@ export default function AdminExercises() {
     });
   };
 
-  const handleDeleteExercise = (exercise: Exercise) => {
+  const handleConfirmDeleteExercise = (exercise: Exercise) => {
     const result = exerciseLibrary.deleteExercise(exercise.id);
     setResultMessage(result.ok, `${exercise.name} deleted.`, result.message);
 
@@ -120,6 +137,8 @@ export default function AdminExercises() {
       }
       refreshLibrary();
     }
+
+    setExerciseToDelete(null);
   };
 
   const handleToggleRecommended = (exercise: Exercise) => {
@@ -310,7 +329,7 @@ export default function AdminExercises() {
                         title="Delete"
                         icon={<Trash2 className="h-4 w-4" />}
                         tone="rose"
-                        onClick={() => handleDeleteExercise(exercise)}
+                        onClick={() => setExerciseToDelete(exercise)}
                       />
                     </div>
                   </div>
@@ -461,6 +480,17 @@ export default function AdminExercises() {
           </div>
         </div>
       ) : null}
+
+      {exerciseToDelete
+        ? ReactDOM.createPortal(
+            <DeleteExerciseModal
+              exerciseName={exerciseToDelete.name}
+              onCancel={() => setExerciseToDelete(null)}
+              onConfirm={() => handleConfirmDeleteExercise(exerciseToDelete)}
+            />,
+            document.body,
+          )
+        : null}
     </main>
   );
 }
@@ -507,6 +537,56 @@ function ActionIconButton({
       </button>
       <div className="pointer-events-none absolute -top-10 left-1/2 -translate-x-1/2 rounded-lg border border-white/10 bg-slate-950/95 px-2.5 py-1 text-xs font-medium text-slate-100 opacity-0 shadow-lg transition-opacity duration-150 group-hover:opacity-100">
         {label}
+      </div>
+    </div>
+  );
+}
+
+function DeleteExerciseModal({
+  exerciseName,
+  onCancel,
+  onConfirm,
+}: {
+  exerciseName: string;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-[10000] flex items-center justify-center p-4"
+      onClick={(event) => {
+        if (event.target === event.currentTarget) {
+          onCancel();
+        }
+      }}
+    >
+      <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-[2px]" onClick={onCancel} />
+
+      <div className="relative z-10 w-full max-w-md overflow-hidden rounded-[24px] border border-white/12 bg-[linear-gradient(180deg,rgba(30,41,59,0.98),rgba(15,23,42,0.98))] shadow-[0_32px_80px_rgba(0,0,0,0.55)]">
+        <div className="border-b border-white/10 px-8 py-8 text-center">
+          <h2 className="text-3xl font-bold tracking-tight text-white">Delete Exercise?</h2>
+          <p className="mt-3 text-sm text-slate-300">
+            Are you sure you want to delete <span className="font-semibold text-white">{exerciseName}</span>?
+          </p>
+          <p className="mt-2 text-sm text-slate-400">This action cannot be undone.</p>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3 p-4">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="rounded-2xl border border-white/12 bg-white/[0.04] px-4 py-3 text-base font-semibold text-slate-200 transition-colors hover:bg-white/[0.08] hover:text-white"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            className="rounded-2xl border border-rose-400/25 bg-rose-500/15 px-4 py-3 text-base font-semibold text-rose-200 transition-colors hover:bg-rose-500/25 hover:text-rose-100"
+          >
+            Delete
+          </button>
+        </div>
       </div>
     </div>
   );
