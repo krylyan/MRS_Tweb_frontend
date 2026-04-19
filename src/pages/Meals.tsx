@@ -1,46 +1,48 @@
-import { Search, X } from "lucide-react";
+import { ArrowDownWideNarrow, Search, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import ReactDOM from "react-dom";
 import { mealService } from "../services/mealService";
 import type { FoodItem, MealCategory } from "../types/meal";
+import type { MealSortMode } from "../utils/mealLibrary";
 
-const MEAL_CATEGORIES: Array<MealCategory | "all"> = [
-  "all",
-  "breakfast",
-  "protein",
-  "fruits",
-  "vegetables",
-  "carbs",
-  "healthy-fats",
-  "dairy",
-];
-
-const CATEGORY_LABELS: Record<MealCategory, string> = {
-  breakfast: "Breakfast",
-  protein: "Protein",
-  fruits: "Fruits",
-  vegetables: "Vegetables",
-  carbs: "Carbs",
-  "healthy-fats": "Healthy fats",
-  dairy: "Dairy",
-};
+const toCategoryLabel = (category: string): string =>
+  category
+    .split("-")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
 
 export default function Meals() {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState<MealCategory | "all">("all");
   const [selectedMeal, setSelectedMeal] = useState<FoodItem | null>(null);
+  const [sortMode, setSortMode] = useState<MealSortMode>("priority");
 
-  const allResults = useMemo(
-    () => mealService.searchMeals(searchQuery),
-    [searchQuery],
+  const mealCategories = useMemo<Array<MealCategory | "all">>(
+    () => ["all", ...mealService.getFilterCategories()],
+    [],
   );
+
+  const allResults = useMemo(() => {
+    const sortedMeals = mealService.getMealsForSort(sortMode);
+
+    if (!searchQuery.trim()) {
+      return sortedMeals;
+    }
+
+    const normalized = searchQuery.trim().toLowerCase();
+    return sortedMeals.filter(
+      (meal) =>
+        meal.name.toLowerCase().includes(normalized) ||
+        meal.description.toLowerCase().includes(normalized),
+    );
+  }, [searchQuery, sortMode]);
 
   const filtered = useMemo(
     () =>
       activeFilter === "all"
         ? allResults
         : allResults.filter((meal) => meal.category === activeFilter),
-    [allResults, activeFilter],
+    [activeFilter, allResults],
   );
 
   useEffect(() => {
@@ -64,7 +66,7 @@ export default function Meals() {
           </p>
         </div>
 
-        <div className="reveal-up reveal-delay-1 mb-4">
+        <div className="reveal-up reveal-delay-1 mb-4 grid gap-3 lg:grid-cols-[1fr_220px]">
           <div className="relative">
             <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
             <input
@@ -75,10 +77,23 @@ export default function Meals() {
               className="h-12 w-full rounded-[14px] border border-white/12 bg-white/4 pl-12 pr-4 text-sm text-slate-100 outline-none transition-all placeholder:text-slate-400 focus:border-emerald-500/60 focus:shadow-[0_0_16px_rgba(16,185,129,0.18)]"
             />
           </div>
+
+          <label className="relative">
+            <ArrowDownWideNarrow className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <select
+              value={sortMode}
+              onChange={(event) => setSortMode(event.target.value as MealSortMode)}
+              className="h-12 w-full appearance-none rounded-[14px] border border-white/12 bg-white/4 pl-11 pr-4 text-sm font-semibold text-slate-100 outline-none transition-all focus:border-emerald-500/60"
+            >
+              <option value="priority">Sort: Priority</option>
+              <option value="popularity">Sort: Popularity</option>
+              <option value="category">Sort: Category</option>
+            </select>
+          </label>
         </div>
 
         <div className="reveal-up reveal-delay-2 mb-4 flex flex-wrap items-center gap-2">
-          {MEAL_CATEGORIES.map((category) => (
+          {mealCategories.map((category) => (
             <button
               key={category}
               type="button"
@@ -89,7 +104,7 @@ export default function Meals() {
                   : "border-white/12 bg-white/[0.04] text-slate-300 hover:bg-white/[0.08] hover:text-slate-100"
               }`}
             >
-              {category === "all" ? "All" : CATEGORY_LABELS[category]}
+              {category === "all" ? "All" : toCategoryLabel(category)}
             </button>
           ))}
         </div>
@@ -133,9 +148,19 @@ export default function Meals() {
                   </span>
                 </div>
 
-                <span className="mt-auto rounded-full bg-white/[0.06] px-2.5 py-1 text-[11px] font-semibold text-slate-300">
-                  {CATEGORY_LABELS[meal.category]}
-                </span>
+                <div className="mt-auto flex flex-wrap gap-1.5">
+                  <span className="rounded-full bg-white/[0.06] px-2.5 py-1 text-[11px] font-semibold text-slate-300">
+                    {toCategoryLabel(meal.category)}
+                  </span>
+                  {meal.recommended ? (
+                    <span className="rounded-full bg-amber-400/20 px-2.5 py-1 text-[11px] font-semibold text-amber-100">
+                      Recommended
+                    </span>
+                  ) : null}
+                  <span className="rounded-full bg-white/[0.06] px-2.5 py-1 text-[11px] font-semibold text-slate-300">
+                    {meal.itemType === "prepared" ? "Meal" : "Product"}
+                  </span>
+                </div>
               </div>
             </button>
           ))}
@@ -164,6 +189,9 @@ interface MealDetailModalProps {
 }
 
 function MealDetailModal({ meal, onClose }: MealDetailModalProps) {
+  const shouldShowPreparation =
+    meal.itemType === "prepared" && Boolean(meal.preparationSteps?.length);
+
   return (
     <div
       className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
@@ -215,11 +243,11 @@ function MealDetailModal({ meal, onClose }: MealDetailModalProps) {
             <p className="text-sm leading-relaxed text-slate-300">{meal.description}</p>
           </div>
 
-          {meal.preparationSteps?.length ? (
+          {shouldShowPreparation ? (
             <>
               <h3 className="mb-3 text-sm font-semibold text-slate-200">Preparation Steps</h3>
               <div className="space-y-3">
-                {meal.preparationSteps.map((step, index) => (
+                {meal.preparationSteps?.map((step, index) => (
                   <div key={index} className="flex gap-3">
                     <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-500/20 text-xs font-bold text-emerald-300">
                       {index + 1}
@@ -232,10 +260,7 @@ function MealDetailModal({ meal, onClose }: MealDetailModalProps) {
           ) : (
             <>
               <h3 className="mb-3 text-sm font-semibold text-slate-200">About This Product</h3>
-              <p className="text-sm leading-relaxed text-slate-300">
-                This item does not need special preparation. It can be eaten as-is or combined with
-                other foods in your meal plan for extra variety and better macro balance.
-              </p>
+              <p className="text-sm leading-relaxed text-slate-300">{meal.description}</p>
             </>
           )}
         </div>

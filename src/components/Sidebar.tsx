@@ -146,6 +146,15 @@ export default function Sidebar() {
               <BookOpen className="h-5 w-5" />
               <span>Admin Exercises</span>
             </Link>
+            <Link
+              to="/admin/meals"
+              className={`flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all duration-200 ${
+                location.pathname === "/admin/meals" ? activeLinkClasses : idleLinkClasses
+              }`}
+            >
+              <UtensilsCrossed className="h-5 w-5" />
+              <span>Admin Meals</span>
+            </Link>
           </>
         ) : (
           <div>

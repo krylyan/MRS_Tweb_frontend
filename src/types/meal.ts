@@ -1,11 +1,5 @@
-export type MealCategory =
-  | "breakfast"
-  | "protein"
-  | "fruits"
-  | "vegetables"
-  | "carbs"
-  | "healthy-fats"
-  | "dairy";
+export type MealCategory = string;
+export type MealItemType = "prepared" | "simple";
 
 export interface FoodItem {
   id: string;
@@ -18,5 +12,10 @@ export interface FoodItem {
   imageUrl: string;
   category: MealCategory;
   description: string;
+  itemType?: MealItemType;
   preparationSteps?: string[];
+  recommended?: boolean;
+  hidden?: boolean;
+  priority?: number;
+  popularity?: number;
 }

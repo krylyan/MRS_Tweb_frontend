@@ -42,7 +42,8 @@ function MobileNavigation({ isAdminMode }: { isAdminMode: boolean }) {
   const adminItems: MobileNavItem[] = isAdminAccount
     ? [
         { to: "/admin", label: "Users", icon: Users },
-        { to: "/admin/exercises", label: "Library", icon: BookOpen },
+        { to: "/admin/exercises", label: "Exercises", icon: BookOpen },
+        { to: "/admin/meals", label: "Meals", icon: UtensilsCrossed },
       ]
     : [];
 

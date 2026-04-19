@@ -1,23 +1,22 @@
-import { FOOD_CATALOGUE } from "../data/meals";
 import type { FoodItem, MealCategory } from "../types/meal";
+import { mealLibrary, type MealSortMode } from "../utils/mealLibrary";
 
-const getAllMeals = (): FoodItem[] => FOOD_CATALOGUE;
+const getAllMeals = (): FoodItem[] => mealLibrary.getVisibleMeals();
 
 const getMealsByCategory = (category: MealCategory): FoodItem[] =>
-  FOOD_CATALOGUE.filter((meal) => meal.category === category);
+  mealLibrary.getVisibleMeals().filter((meal) => meal.category === category);
 
-const searchMeals = (query: string): FoodItem[] => {
-  const normalized = query.trim().toLowerCase();
+const searchMeals = (query: string): FoodItem[] => mealLibrary.searchMeals(query);
 
-  if (!normalized) {
-    return FOOD_CATALOGUE;
-  }
+const getFilterCategories = (): string[] => mealLibrary.getFilterCategories();
 
-  return FOOD_CATALOGUE.filter((meal) => meal.name.toLowerCase().includes(normalized));
-};
+const getMealsForSort = (sortMode: MealSortMode): FoodItem[] =>
+  mealLibrary.getVisibleMeals(sortMode);
 
 export const mealService = {
   getAllMeals,
   getMealsByCategory,
   searchMeals,
+  getFilterCategories,
+  getMealsForSort,
 };
