@@ -484,7 +484,6 @@ export default function AdminExercises() {
       {exerciseToDelete
         ? ReactDOM.createPortal(
             <DeleteExerciseModal
-              exerciseName={exerciseToDelete.name}
               onCancel={() => setExerciseToDelete(null)}
               onConfirm={() => handleConfirmDeleteExercise(exerciseToDelete)}
             />,
@@ -543,11 +542,9 @@ function ActionIconButton({
 }
 
 function DeleteExerciseModal({
-  exerciseName,
   onCancel,
   onConfirm,
 }: {
-  exerciseName: string;
   onCancel: () => void;
   onConfirm: () => void;
 }) {
@@ -560,15 +557,16 @@ function DeleteExerciseModal({
         }
       }}
     >
-      <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-[2px]" onClick={onCancel} />
+      <div className="modal-backdrop absolute inset-0 bg-black/75" onClick={onCancel} />
 
-      <div className="relative z-10 w-full max-w-md overflow-hidden rounded-[24px] border border-white/12 bg-[linear-gradient(180deg,rgba(30,41,59,0.98),rgba(15,23,42,0.98))] shadow-[0_32px_80px_rgba(0,0,0,0.55)]">
+      <div className="modal-panel relative z-10 w-full max-w-md overflow-hidden rounded-2xl border border-white/12 bg-slate-900 shadow-[0_32px_80px_rgba(0,0,0,0.7)]">
         <div className="border-b border-white/10 px-8 py-8 text-center">
-          <h2 className="text-3xl font-bold tracking-tight text-white">Delete Exercise?</h2>
-          <p className="mt-3 text-sm text-slate-300">
-            Are you sure you want to delete <span className="font-semibold text-white">{exerciseName}</span>?
+          <h2 className="mx-auto max-w-[290px] text-[20px] font-bold leading-[1.2] text-slate-50 sm:text-[22px]">
+            Are you sure you want to delete this item?
+          </h2>
+          <p className="mt-6 text-sm leading-6 text-slate-400">
+            This action cannot be undone.
           </p>
-          <p className="mt-2 text-sm text-slate-400">This action cannot be undone.</p>
         </div>
 
         <div className="grid grid-cols-2 gap-3 p-4">
