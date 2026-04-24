@@ -7,13 +7,53 @@
   Target,
   TrendingUp,
 } from "lucide-react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { getWorkoutPlans } from "../utils/planStorage";
+import { useTimer } from "../contexts/TimerContext";
 
 export default function Home() {
   const navigate = useNavigate();
+  const { timeLeft, isRunning, setTime, start, pause, reset, setIsActive } = useTimer();
   const plans = getWorkoutPlans();
   const totalPlans = plans.length;
+  const [customTime, setCustomTime] = useState<string>('');
+  const [unit, setUnit] = useState<string>('minutes');
+  const [timerReady, setTimerReady] = useState<boolean>(false);
+
+  useEffect(() => {
+    setIsActive(true);
+    return () => setIsActive(false);
+  }, [setIsActive]);
+
+  useEffect(() => {
+    // Check if timer is ready to start
+    const hasCustomTime = customTime.trim() !== '' && !isNaN(parseInt(customTime)) && parseInt(customTime) > 0;
+    const hasTimeLeft = timeLeft > 0;
+    setTimerReady(hasCustomTime || hasTimeLeft);
+  }, [customTime, timeLeft]);
+
+  const formatTime = (seconds: number): string => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const handleSetTime = (minutes: number) => {
+    setTime(minutes * 60);
+  };
+
+  const handleStart = () => {
+    // If there's custom time in input, set it first
+    if (customTime.trim() !== '') {
+      const num = parseInt(customTime);
+      if (!isNaN(num) && num > 0) {
+        const seconds = unit === 'minutes' ? num * 60 : num;
+        setTime(seconds);
+      }
+    }
+    start();
+  };
 
   return (
     <div className="min-h-screen px-8 py-8 lg:px-12">
@@ -57,6 +97,75 @@ export default function Home() {
           </div>
           <p className="text-3xl font-bold text-white">18</p>
           <p className="mt-1 text-sm text-gray-400">Active Days</p>
+        </div>
+      </div>
+
+      {/* Quick Timer */}
+      <div className="reveal-up reveal-delay-1 mb-10">
+        <h2 className="mb-5 text-xl font-bold text-white">Quick Timer</h2>
+        <div className="rounded-2xl border border-white/12 bg-white/4 p-6 shadow-[0_18px_36px_rgba(0,0,0,0.25)] backdrop-blur-[6px]">
+          <div className="mb-6 text-center">
+            <div className="text-4xl font-bold text-slate-50">{formatTime(timeLeft)}</div>
+          </div>
+          <div className="mb-4 flex justify-center gap-3">
+            <button
+              onClick={() => handleSetTime(1)}
+              className="rounded-[10px] bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-emerald-500/30 transition-all duration-200 hover:bg-emerald-400 active:scale-95"
+            >
+              1 min
+            </button>
+            <button
+              onClick={() => handleSetTime(5)}
+              className="rounded-[10px] bg-blue-500 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-blue-500/30 transition-all duration-200 hover:bg-blue-400 active:scale-95"
+            >
+              5 min
+            </button>
+            <button
+              onClick={() => handleSetTime(10)}
+              className="rounded-[10px] bg-purple-500 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-purple-500/30 transition-all duration-200 hover:bg-purple-400 active:scale-95"
+            >
+              10 min
+            </button>
+          </div>
+          <div className="mb-4 flex items-center justify-center gap-3">
+            <input
+              type="number"
+              value={customTime}
+              onChange={(e) => setCustomTime(e.target.value)}
+              placeholder="Enter time"
+              className="rounded-[10px] border border-white/12 bg-white/[0.06] px-3 py-2 text-sm text-slate-50 placeholder-slate-400 focus:border-emerald-400/60 focus:outline-none"
+            />
+            <select
+              value={unit}
+              onChange={(e) => setUnit(e.target.value)}
+              className="rounded-[10px] border border-white/12 bg-white/[0.06] px-3 py-2 text-sm text-slate-50 focus:border-emerald-400/60 focus:outline-none"
+            >
+              <option value="minutes">minutes</option>
+              <option value="seconds">seconds</option>
+            </select>
+          </div>
+          <div className="flex justify-center gap-3">
+            <button
+              onClick={handleStart}
+              disabled={!timerReady || isRunning}
+              className="rounded-[10px] bg-green-500 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-green-500/30 transition-all duration-200 hover:bg-green-400 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Start
+            </button>
+            <button
+              onClick={pause}
+              disabled={!isRunning}
+              className="rounded-[10px] bg-yellow-500 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-yellow-500/30 transition-all duration-200 hover:bg-yellow-400 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Pause
+            </button>
+            <button
+              onClick={reset}
+              className="rounded-[10px] bg-red-500 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-red-500/30 transition-all duration-200 hover:bg-red-400 active:scale-95"
+            >
+              Reset
+            </button>
+          </div>
         </div>
       </div>
 

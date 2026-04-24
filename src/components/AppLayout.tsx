@@ -1,4 +1,5 @@
 import { Outlet } from "react-router-dom";
+import FloatingTimer from "./FloatingTimer";
 import Sidebar from "./Sidebar";
 
 export default function AppLayout() {
@@ -8,6 +9,7 @@ export default function AppLayout() {
       <main className="ml-64 flex-1">
         <Outlet />
       </main>
+      <FloatingTimer />
     </div>
   );
 }

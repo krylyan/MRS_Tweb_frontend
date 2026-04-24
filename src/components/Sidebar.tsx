@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import {
   CalendarCheck2,
   ChevronDown,
+  Clock,
   Dumbbell,
   HelpCircle,
   Home,
@@ -131,6 +132,19 @@ export default function Sidebar() {
         >
           <Dumbbell className="h-5 w-5" />
           <span>Exercises</span>
+        </Link>
+
+        {/* Timer */}
+        <Link
+          to="/timer"
+          className={`flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all duration-200 ${
+            location.pathname === "/timer"
+              ? "bg-emerald-500/20 text-emerald-400 shadow-lg shadow-emerald-500/10"
+              : "text-gray-400 hover:bg-white/5 hover:text-white"
+          }`}
+        >
+          <Clock className="h-5 w-5" />
+          <span>Timer</span>
         </Link>
 
         {/* Profile */}
