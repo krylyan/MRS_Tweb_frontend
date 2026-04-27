@@ -216,7 +216,7 @@ function MealSection({
       >
         <div className="overflow-hidden">
           <div className="px-4 pb-5">
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7">
               {items.map((food) => (
                 <FoodCard
                   key={food.id}
@@ -440,6 +440,33 @@ export default function MealPlanMenu() {
           </div>
         </section>
 
+        {/* Daily totals inline strip */}
+        <div className="reveal-up mb-4 flex flex-wrap items-center gap-4 rounded-[14px] border border-white/12 bg-white/4 px-5 py-3 shadow-[0_8px_20px_rgba(0,0,0,0.2)] backdrop-blur-[6px]">
+          <div className="flex items-center gap-1.5">
+            <Flame className="h-4 w-4 text-orange-400" />
+            <span className="text-sm font-bold text-orange-400">{totalKcal.toLocaleString()} kcal</span>
+          </div>
+          <div className="h-4 w-px bg-white/15" />
+          <div className="flex items-center gap-1.5">
+            <span className="inline-block h-2.5 w-2.5 rounded-full bg-emerald-500" />
+            <span className="text-xs text-slate-400">Protein</span>
+            <span className="text-sm font-semibold text-emerald-400">{totalP}g</span>
+          </div>
+          <div className="h-4 w-px bg-white/15" />
+          <div className="flex items-center gap-1.5">
+            <span className="inline-block h-2.5 w-2.5 rounded-full bg-amber-400" />
+            <span className="text-xs text-slate-400">Fats</span>
+            <span className="text-sm font-semibold text-amber-400">{totalF}g</span>
+          </div>
+          <div className="h-4 w-px bg-white/15" />
+          <div className="flex items-center gap-1.5">
+            <span className="inline-block h-2.5 w-2.5 rounded-full bg-blue-400" />
+            <span className="text-xs text-slate-400">Carbs</span>
+            <span className="text-sm font-semibold text-blue-400">{totalC}g</span>
+          </div>
+        </div>
+
+        {/* Macro percentage bar */}
         <div className="reveal-up mb-6">
           <div className="flex h-6 overflow-hidden rounded-full text-[11px] font-semibold text-white">
             <div
@@ -482,27 +509,19 @@ export default function MealPlanMenu() {
           </div>
         </div>
 
-        <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
-          <div className="flex-1">
-            {MEAL_SLOTS.map((slot) => (
-              <MealSection
-                key={slot}
-                catalogue={availableMeals}
-                slot={slot}
-                items={currentMeals[slot]}
-                collapsed={collapsed[slot]}
-                onToggleCollapse={() => toggleCollapse(slot)}
-                onAdd={(food) => addFood(slot, food)}
-                onRemove={(id) => removeFood(slot, id)}
-              />
-            ))}
-          </div>
-
-          <div className="lg:w-64 lg:shrink-0 xl:w-72">
-            <div className="sticky top-6">
-              <DailyTotals meals={currentMeals} />
-            </div>
-          </div>
+        <div className="w-full">
+          {MEAL_SLOTS.map((slot) => (
+            <MealSection
+              key={slot}
+              catalogue={availableMeals}
+              slot={slot}
+              items={currentMeals[slot]}
+              collapsed={collapsed[slot]}
+              onToggleCollapse={() => toggleCollapse(slot)}
+              onAdd={(food) => addFood(slot, food)}
+              onRemove={(id) => removeFood(slot, id)}
+            />
+          ))}
         </div>
 
         <div className="mt-8">
