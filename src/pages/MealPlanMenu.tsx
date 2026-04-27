@@ -1,5 +1,6 @@
-import { Check, ChevronDown, ChevronUp, Flame, Plus, X } from "lucide-react";
-import { useMemo, useRef, useState } from "react";
+import { Check, ChevronDown, ChevronUp, Flame, Plus, Search, X } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import ReactDOM from "react-dom";
 import { useNavigate } from "react-router-dom";
 import type { FoodItem } from "../types/meal";
 import { mealLibrary } from "../utils/mealLibrary";
@@ -56,71 +57,184 @@ const createInitialMeals = (catalogue: FoodItem[]): AllDayMeals => {
   };
 };
 
-function FoodPicker({
+function FoodPickerModal({
   catalogue,
   existing,
+  slotLabel,
   onAdd,
   onClose,
 }: {
   catalogue: FoodItem[];
   existing: string[];
+  slotLabel: string;
   onAdd: (food: FoodItem) => void;
   onClose: () => void;
 }) {
   const [q, setQ] = useState("");
-  const available = catalogue.filter(
-    (food) =>
-      !existing.includes(food.id) &&
-      food.name.toLowerCase().includes(q.toLowerCase()),
-  );
+  const [activeCategory, setActiveCategory] = useState<string>("all");
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
 
-  return (
-    <>
-      <div className="fixed inset-0 z-[190]" onClick={onClose} />
-      <div className="absolute bottom-full left-0 z-[200] mb-2 w-64 overflow-hidden rounded-2xl border border-white/12 bg-slate-900 shadow-[0_24px_48px_rgba(0,0,0,0.7)]">
-        <div className="p-3">
-          <input
-            autoFocus
-            type="text"
-            value={q}
-            onChange={(event) => setQ(event.target.value)}
-            placeholder="Search foods..."
-            className="h-9 w-full rounded-lg border border-white/10 bg-white/5 px-3 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-emerald-500/50"
-          />
+  const categories = useMemo(() => {
+    const cats = Array.from(new Set(catalogue.map((f) => f.category))).sort();
+    return ["all", ...cats];
+  }, [catalogue]);
+
+  useEffect(() => {
+    setTimeout(() => searchInputRef.current?.focus(), 50);
+  }, []);
+
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", handleKey);
+    return () => document.removeEventListener("keydown", handleKey);
+  }, [onClose]);
+
+  const filtered = useMemo(() => {
+    const q_lower = q.trim().toLowerCase();
+    return catalogue.filter((food) => {
+      const matchesSearch =
+        !q_lower ||
+        food.name.toLowerCase().includes(q_lower) ||
+        food.description.toLowerCase().includes(q_lower);
+      const matchesCategory =
+        activeCategory === "all" || food.category === activeCategory;
+      return matchesSearch && matchesCategory;
+    });
+  }, [catalogue, q, activeCategory]);
+
+  const existingSet = useMemo(() => new Set(existing), [existing]);
+
+  return ReactDOM.createPortal(
+    <div
+      className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      {/* Backdrop */}
+      <div
+        className="modal-backdrop absolute inset-0 bg-black/75"
+        onClick={onClose}
+      />
+
+      {/* Modal panel */}
+      <div className="modal-panel relative z-10 flex w-full max-w-2xl flex-col rounded-2xl border border-white/12 bg-slate-900 shadow-[0_32px_80px_rgba(0,0,0,0.7)]">
+        {/* Header */}
+        <div className="flex items-center justify-between border-b border-white/10 px-6 py-5">
+          <h3 className="text-xl font-bold text-slate-50">
+            Food Library
+            <span className="ml-2 text-base font-normal text-slate-400">— {slotLabel}</span>
+          </h3>
+          <button
+            type="button"
+            onClick={onClose}
+            className="inline-flex h-8 w-8 items-center justify-center rounded-[8px] text-slate-400 transition-all hover:bg-white/10 hover:text-slate-100"
+            aria-label="Close modal"
+          >
+            <X className="h-4 w-4" />
+          </button>
         </div>
 
-        <div className="max-h-60 overflow-y-auto px-2 pb-2">
-          {available.length === 0 ? (
-            <p className="py-6 text-center text-xs text-slate-400">No foods found</p>
-          ) : null}
+        {/* Search */}
+        <div className="px-6 pt-5">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <input
+              ref={searchInputRef}
+              type="text"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Search foods..."
+              className="h-11 w-full rounded-[10px] border border-white/20 bg-white/[0.04] pl-10 pr-3 text-sm text-slate-100 outline-none transition-all placeholder:text-slate-400 focus:border-emerald-500/60 focus:shadow-[0_0_16px_rgba(16,185,129,0.18)]"
+            />
+          </div>
+        </div>
 
-          {available.map((food) => (
+        {/* Category filter pills */}
+        <div className="flex flex-wrap gap-2 px-6 py-4">
+          {categories.map((cat) => (
             <button
-              key={food.id}
+              key={cat}
               type="button"
-              onClick={() => {
-                onAdd(food);
-                onClose();
-              }}
-              className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left transition-colors hover:bg-white/8"
+              onClick={() => setActiveCategory(cat)}
+              className={`rounded-full px-4 py-1.5 text-sm font-semibold capitalize transition-all ${
+                activeCategory === cat
+                  ? "bg-emerald-500/25 text-emerald-200 ring-1 ring-emerald-400/40"
+                  : "bg-white/[0.05] text-slate-300 hover:bg-white/[0.10] hover:text-slate-100"
+              }`}
             >
-              <img
-                src={food.imageUrl}
-                alt={food.name}
-                className="h-8 w-8 rounded-lg object-cover"
-                loading="lazy"
-              />
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm text-slate-200">{food.name}</p>
-                <p className="text-xs text-slate-400">
-                  {food.kcal} kcal - {food.grams}g
-                </p>
-              </div>
+              {cat === "all" ? "All" : cat.charAt(0).toUpperCase() + cat.slice(1)}
             </button>
           ))}
         </div>
+
+        {/* Food cards grid */}
+        <div className="max-h-[420px] overflow-y-auto px-6 pb-6">
+          {filtered.length === 0 ? (
+            <p className="py-8 text-center text-sm text-slate-400">No foods found.</p>
+          ) : (
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+              {filtered.map((food) => {
+                const alreadyAdded = existingSet.has(food.id);
+                return (
+                  <button
+                    key={food.id}
+                    type="button"
+                    disabled={alreadyAdded}
+                    onClick={() => {
+                      if (!alreadyAdded) {
+                        onAdd(food);
+                        onClose();
+                      }
+                    }}
+                    className={`group relative overflow-hidden rounded-2xl border text-left transition-all ${
+                      alreadyAdded
+                        ? "cursor-default border-emerald-400/30 bg-emerald-500/5 opacity-70"
+                        : "border-white/10 bg-white/5 hover:border-emerald-400/40 hover:bg-emerald-500/10"
+                    }`}
+                  >
+                    {/* Image */}
+                    <div className="relative h-32 w-full overflow-hidden bg-slate-800">
+                      <img
+                        src={food.imageUrl}
+                        alt={food.name}
+                        className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                        loading="lazy"
+                      />
+                      <span className="absolute bottom-2 left-2 rounded-lg bg-emerald-600/90 px-2 py-0.5 text-[11px] font-bold text-white shadow">
+                        {food.grams}g
+                      </span>
+                      {alreadyAdded ? (
+                        <span className="absolute right-2 top-2 rounded-full bg-emerald-500/90 px-2 py-0.5 text-[10px] font-semibold text-white">
+                          Added
+                        </span>
+                      ) : null}
+                    </div>
+
+                    {/* Info */}
+                    <div className="px-3 pb-3 pt-2">
+                      <p className="mb-1.5 text-sm font-bold leading-snug text-slate-100">{food.name}</p>
+                      <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px]">
+                        <span className="flex items-center gap-0.5 font-semibold text-orange-400">
+                          <Flame className="h-3 w-3" />
+                          {food.kcal}
+                        </span>
+                        <span className="font-medium text-emerald-400">{food.protein}g P</span>
+                        <span className="font-medium text-amber-300">{food.fats}g F</span>
+                        <span className="font-medium text-blue-400">{food.carbs}g C</span>
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
       </div>
-    </>
+    </div>,
+    document.body,
   );
 }
 
@@ -186,49 +300,48 @@ function MealSection({
   const slotKcal = items.reduce((sum, food) => sum + food.kcal, 0);
 
   return (
-    <section className="mb-4 rounded-2xl border border-white/10 bg-white/5">
-      <button
-        type="button"
-        onClick={() => {
-          onToggleCollapse();
-          setPickerOpen(false);
-        }}
-        className="flex w-full items-center justify-between px-5 py-4 text-left transition-colors hover:bg-white/[0.03]"
-      >
-        <span className="text-sm font-bold uppercase tracking-widest text-slate-50">
-          {MEAL_LABELS[slot]}
-        </span>
-        <div className="flex items-center gap-3">
-          <span className="text-sm text-slate-400">
-            <span className="font-semibold text-slate-200">{slotKcal}</span> kcal
+    <>
+      <section className="mb-4 rounded-2xl border border-white/10 bg-white/5">
+        <button
+          type="button"
+          onClick={() => {
+            onToggleCollapse();
+          }}
+          className="flex w-full items-center justify-between px-5 py-4 text-left transition-colors hover:bg-white/[0.03]"
+        >
+          <span className="text-sm font-bold uppercase tracking-widest text-slate-50">
+            {MEAL_LABELS[slot]}
           </span>
-          {collapsed ? (
-            <ChevronDown className="h-4 w-4 text-slate-400" />
-          ) : (
-            <ChevronUp className="h-4 w-4 text-slate-400" />
-          )}
-        </div>
-      </button>
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-slate-400">
+              <span className="font-semibold text-slate-200">{slotKcal}</span> kcal
+            </span>
+            {collapsed ? (
+              <ChevronDown className="h-4 w-4 text-slate-400" />
+            ) : (
+              <ChevronUp className="h-4 w-4 text-slate-400" />
+            )}
+          </div>
+        </button>
 
-      <div
-        className="grid transition-all duration-300 ease-in-out"
-        style={{ gridTemplateRows: collapsed ? "0fr" : "1fr" }}
-      >
-        <div className="overflow-hidden">
-          <div className="px-4 pb-5">
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7">
-              {items.map((food) => (
-                <FoodCard
-                  key={food.id}
-                  food={food}
-                  onRemove={() => onRemove(food.id)}
-                />
-              ))}
+        <div
+          className="grid transition-all duration-300 ease-in-out"
+          style={{ gridTemplateRows: collapsed ? "0fr" : "1fr" }}
+        >
+          <div className="overflow-hidden">
+            <div className="px-4 pb-5">
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7">
+                {items.map((food) => (
+                  <FoodCard
+                    key={food.id}
+                    food={food}
+                    onRemove={() => onRemove(food.id)}
+                  />
+                ))}
 
-              <div className="relative">
                 <button
                   type="button"
-                  onClick={() => setPickerOpen((prev) => !prev)}
+                  onClick={() => setPickerOpen(true)}
                   className="flex h-full min-h-[200px] w-full flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-white/20 bg-white/[0.02] text-slate-400 transition-all hover:border-emerald-400/40 hover:bg-emerald-500/5 hover:text-emerald-400"
                 >
                   <div className="flex h-12 w-12 items-center justify-center rounded-full border border-dashed border-white/25">
@@ -239,24 +352,25 @@ function MealSection({
                     <p className="mt-0.5 text-xs text-slate-500">to {MEAL_LABELS[slot]}</p>
                   </div>
                 </button>
-
-                {pickerOpen ? (
-                  <FoodPicker
-                    catalogue={catalogue}
-                    existing={items.map((food) => food.id)}
-                    onAdd={(food) => {
-                      onAdd(food);
-                      setPickerOpen(false);
-                    }}
-                    onClose={() => setPickerOpen(false)}
-                  />
-                ) : null}
               </div>
             </div>
           </div>
         </div>
-      </div>
-    </section>
+      </section>
+
+      {pickerOpen ? (
+        <FoodPickerModal
+          catalogue={catalogue}
+          existing={items.map((food) => food.id)}
+          slotLabel={MEAL_LABELS[slot]}
+          onAdd={(food) => {
+            onAdd(food);
+            setPickerOpen(false);
+          }}
+          onClose={() => setPickerOpen(false)}
+        />
+      ) : null}
+    </>
   );
 }
 
