@@ -120,7 +120,7 @@ function FoodPickerModal({
       />
 
       {/* Modal panel */}
-      <div className="modal-panel relative z-10 flex w-full max-w-2xl flex-col rounded-2xl border border-white/12 bg-slate-900 shadow-[0_32px_80px_rgba(0,0,0,0.7)]">
+      <div className="modal-panel relative z-10 flex w-full max-w-4xl flex-col rounded-2xl border border-white/12 bg-slate-900 shadow-[0_32px_80px_rgba(0,0,0,0.7)]">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-white/10 px-6 py-5">
           <h3 className="text-xl font-bold text-slate-50">
@@ -175,7 +175,7 @@ function FoodPickerModal({
           {filtered.length === 0 ? (
             <p className="py-8 text-center text-sm text-slate-400">No foods found.</p>
           ) : (
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
               {filtered.map((food) => {
                 const alreadyAdded = existingSet.has(food.id);
                 return (
