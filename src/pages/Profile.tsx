@@ -336,8 +336,8 @@ export default function Profile() {
               );
             })() : (
               <div className="rounded-xl border border-dashed border-white/15 bg-white/[0.02] px-4 py-8 text-center">
-                <p className="mb-3 text-sm text-slate-400">No workout plans yet</p>
-                <Link to="/gym-plan?new=1" className="inline-flex items-center gap-2 rounded-xl bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-400">Create Workout</Link>
+                <p className="mb-3 text-sm text-slate-400">No active workout plan</p>
+                <Link to="/plans?tab=workout" className="inline-flex items-center gap-2 rounded-xl bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-400">Go to My Plans</Link>
               </div>
             )}
           </section>
@@ -389,7 +389,7 @@ export default function Profile() {
             })() : (
               <div className="rounded-xl border border-dashed border-white/15 bg-white/[0.02] px-4 py-8 text-center">
                 <p className="mb-3 text-sm text-slate-400">No active alimentation plan</p>
-                <Link to="/my-plans" className="inline-flex items-center gap-2 rounded-xl bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-orange-400">Go to My Plans</Link>
+                <Link to="/plans?tab=alimentation" className="inline-flex items-center gap-2 rounded-xl bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-orange-400">Go to My Plans</Link>
               </div>
             )}
           </section>
