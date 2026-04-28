@@ -9,16 +9,16 @@ import {
   Scale,
   ShieldCheck,
   Target,
-  Timer,
   Trophy,
   UserCircle2,
   UtensilsCrossed,
+  Star,
+  Clock,
 } from "lucide-react";
 import AuthUtils from "../utils/authUtils";
 import { getActivePlan, getWorkoutPlans } from "../utils/planStorage";
 import type { StoredWorkoutPlan } from "../utils/planStorage";
-import { mealLibrary } from "../utils/mealLibrary";
-import type { FoodItem } from "../types/meal";
+import { ALIMENTATION_PLANS, readCustomizations, readMealCustomizations, getThemeById, DEFAULT_THEME_IDS } from "./MyPlans";
 
 /* ── Profile persistence ─────────────────────────────────────────────────── */
 
@@ -80,31 +80,7 @@ const uniqueExercises = (plans: StoredWorkoutPlan[]) => {
 
 const fmtWeight = (kg: number) => (kg >= 1000 ? `${(kg / 1000).toFixed(1)}t` : `${kg} kg`);
 
-/* ── Meal plan summary (default Day 1) ────────────────────────────────────── */
 
-const DAY1: Record<string, string[]> = {
-  breakfast: ["bread", "egg", "yogurt"],
-  lunch: ["lettuce", "tomato", "chicken", "rice"],
-  snacks: ["apple", "hummus", "carrot"],
-  dinner: ["salmon", "sweet-potato", "almonds"],
-};
-
-const getMealSummary = (catalogue: FoodItem[]) => {
-  const byId = new Map(catalogue.map((f) => [f.id, f]));
-  const foods: FoodItem[] = [];
-  for (const ids of Object.values(DAY1))
-    for (const id of ids) {
-      const f = byId.get(id);
-      if (f) foods.push(f);
-    }
-  return {
-    kcal: foods.reduce((s, f) => s + f.kcal, 0),
-    protein: foods.reduce((s, f) => s + f.protein, 0),
-    carbs: foods.reduce((s, f) => s + f.carbs, 0),
-    fats: foods.reduce((s, f) => s + f.fats, 0),
-    count: foods.length,
-  };
-};
 
 /* ── Sub-components ───────────────────────────────────────────────────────── */
 
@@ -158,18 +134,6 @@ function InfoCard({
   );
 }
 
-function MacroRow({ label, value, color }: { label: string; value: string; color: string }) {
-  return (
-    <div className="flex items-center justify-between">
-      <div className="flex items-center gap-2">
-        <span className={`inline-block h-2.5 w-2.5 rounded-full ${color}`} />
-        <span className="text-sm text-slate-400">{label}</span>
-      </div>
-      <span className="text-sm font-semibold text-white">{value}</span>
-    </div>
-  );
-}
-
 /* ── Main Component ───────────────────────────────────────────────────────── */
 
 export default function Profile() {
@@ -209,12 +173,12 @@ export default function Profile() {
   const te = useMemo(() => uniqueExercises(plans), [plans]);
   const activePlan = useMemo(() => getActivePlan(), []);
 
-  const catalogue = useMemo(() => mealLibrary.getVisibleMeals("priority"), []);
-  const meal = useMemo(() => getMealSummary(catalogue), [catalogue]);
-  const mealKcal = meal.kcal;
-  const protPct = mealKcal > 0 ? Math.round((meal.protein * 4 / mealKcal) * 100) : 0;
-  const fatPct = mealKcal > 0 ? Math.round((meal.fats * 9 / mealKcal) * 100) : 0;
-  const carbPct = mealKcal > 0 ? Math.round((meal.carbs * 4 / mealKcal) * 100) : 0;
+  // New logic for active plans styling
+  const ACTIVE_MEAL_KEY = "fitlife_active_meal_plan";
+  const activeMealPlanId = localStorage.getItem(ACTIVE_MEAL_KEY);
+  const activeMealPlan = useMemo(() => ALIMENTATION_PLANS.find(p => p.id === activeMealPlanId), [activeMealPlanId]);
+  const customizations = useMemo(() => readCustomizations(), []);
+  const mealCustomizations = useMemo(() => readMealCustomizations(), []);
 
   const displayName = formName || currentUser?.fullName || "User";
   const displayEmail = formEmail || currentUser?.username || "user@example.com";
@@ -330,24 +294,47 @@ export default function Profile() {
         {/* ── Active Plans Row ── */}
         <div className="grid gap-6 lg:grid-cols-2">
           {/* Workout Plan */}
-          <section className="reveal-up reveal-delay-3 rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-sm">
+          <section className="reveal-up reveal-delay-3 flex flex-col">
             <div className="mb-4 flex items-center gap-2">
               <Dumbbell className="h-5 w-5 text-emerald-400" />
               <h2 className="text-lg font-bold text-white">Active Workout Plan</h2>
             </div>
-            {activePlan ? (
-              <div>
-                <h3 className="mb-2 text-xl font-bold text-white">{activePlan.name}</h3>
-                <div className="mb-4 flex flex-wrap gap-3 text-sm text-slate-400">
-                  <span className="flex items-center gap-1.5"><Calendar className="h-3.5 w-3.5" />{activePlan.days.length} {activePlan.days.length === 1 ? "day" : "days"}</span>
-                  <span className="flex items-center gap-1.5"><Dumbbell className="h-3.5 w-3.5" />{activePlan.days.reduce((s, d) => s + d.exerciseIds.length, 0)} exercises</span>
-                  <span className="flex items-center gap-1.5"><Timer className="h-3.5 w-3.5" />{activePlan.workoutTracking.sets.length} sets tracked</span>
-                </div>
-                <Link to={`/gym-plan?planId=${activePlan.id}`} className="inline-flex items-center gap-2 rounded-xl border border-emerald-400/30 bg-emerald-500/15 px-4 py-2.5 text-sm font-semibold text-emerald-200 transition-all hover:bg-emerald-500/25">
-                  Open Plan
-                </Link>
-              </div>
-            ) : (
+            {activePlan ? (() => {
+              // Same styling logic as MyPlans
+              const planIndex = plans.findIndex(p => p.id === activePlan.id);
+              const custom = customizations[activePlan.id];
+              const accent = custom?.colorId ? getThemeById(custom.colorId) : getThemeById(DEFAULT_THEME_IDS[Math.max(0, planIndex) % 4]);
+              const customImg = custom?.imageUrl;
+              const estMinutes = activePlan.days.length * 45;
+
+              return (
+                <article className={`flex flex-1 flex-col overflow-hidden rounded-2xl border shadow-[0_18px_36px_rgba(0,0,0,0.25)] backdrop-blur-[6px] transition-all duration-300 hover:-translate-y-1 hover:shadow-xl ${accent.card}`}>
+                  {/* Image Area */}
+                  <div className={`relative flex h-48 items-center justify-center bg-gradient-to-br ${accent.imgBg}`}>
+                    {customImg ? (
+                      <img src={customImg} alt={activePlan.name} className="h-full w-full object-cover" />
+                    ) : (
+                      <Dumbbell className="h-16 w-16 text-white/20" />
+                    )}
+                    <span className={`absolute bottom-3 left-3 rounded-lg ${accent.badge} px-2.5 py-1 text-xs font-bold text-white backdrop-blur-sm`}>
+                      {activePlan.days.length} days
+                    </span>
+                  </div>
+                  {/* Content */}
+                  <div className="flex flex-1 flex-col p-5">
+                    <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-400">
+                      <span className="flex items-center gap-1"><Calendar className="h-3.5 w-3.5" />{activePlan.days.length} training days</span>
+                      <span className="flex items-center gap-1"><Star className="h-3.5 w-3.5" />{activePlan.days.reduce((s, d) => s + d.exerciseIds.length, 0)} exercises</span>
+                      <span className="flex items-center gap-1"><Clock className="h-3.5 w-3.5" />~{estMinutes} min</span>
+                    </div>
+                    <h3 className="mb-5 break-words text-xl font-bold leading-snug text-slate-50">{activePlan.name}</h3>
+                    <Link to={`/gym-plan?planId=${activePlan.id}`} className={`mt-auto inline-flex w-max items-center justify-center rounded-[10px] px-6 py-2.5 text-sm font-semibold text-white shadow-lg transition-all duration-200 active:scale-95 ${accent.btn}`}>
+                      Open Plan
+                    </Link>
+                  </div>
+                </article>
+              );
+            })() : (
               <div className="rounded-xl border border-dashed border-white/15 bg-white/[0.02] px-4 py-8 text-center">
                 <p className="mb-3 text-sm text-slate-400">No workout plans yet</p>
                 <Link to="/gym-plan?new=1" className="inline-flex items-center gap-2 rounded-xl bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-400">Create Workout</Link>
@@ -356,45 +343,53 @@ export default function Profile() {
           </section>
 
           {/* Meal Plan */}
-          <section className="reveal-up reveal-delay-4 rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-sm">
+          <section className="reveal-up reveal-delay-4 flex flex-col">
             <div className="mb-4 flex items-center gap-2">
               <UtensilsCrossed className="h-5 w-5 text-orange-400" />
-              <h2 className="text-lg font-bold text-white">Meal Plan Summary</h2>
+              <h2 className="text-lg font-bold text-white">Active Alimentation Plan</h2>
             </div>
-            {meal.count > 0 ? (
-              <div>
-                <div className="mb-4 flex items-center gap-2">
-                  <Flame className="h-5 w-5 text-orange-400" />
-                  <span className="text-2xl font-bold text-white">{mealKcal.toLocaleString()}</span>
-                  <span className="text-sm text-slate-400">kcal / day</span>
-                </div>
-                <div className="mb-4 space-y-2.5">
-                  <MacroRow label="Protein" value={`${meal.protein}g`} color="bg-emerald-500" />
-                  <MacroRow label="Fats" value={`${meal.fats}g`} color="bg-amber-400" />
-                  <MacroRow label="Carbs" value={`${meal.carbs}g`} color="bg-blue-400" />
-                </div>
-                {mealKcal > 0 ? (
-                  <div className="mb-4">
-                    <div className="flex h-2.5 overflow-hidden rounded-full">
-                      <div className="bg-emerald-500 transition-all" style={{ width: `${protPct}%` }} />
-                      <div className="bg-amber-400 transition-all" style={{ width: `${fatPct}%` }} />
-                      <div className="bg-blue-400 transition-all" style={{ width: `${carbPct}%` }} />
-                    </div>
-                    <div className="mt-1.5 flex justify-between text-[10px] text-slate-500">
-                      <span className="text-emerald-400">Protein {protPct}%</span>
-                      <span className="text-amber-400">Fats {fatPct}%</span>
-                      <span className="text-blue-400">Carbs {carbPct}%</span>
-                    </div>
+            {activeMealPlan ? (() => {
+              const planIndex = ALIMENTATION_PLANS.findIndex(p => p.id === activeMealPlan.id);
+              const custom = mealCustomizations[activeMealPlan.id];
+              const accent = custom?.colorId ? getThemeById(custom.colorId) : getThemeById(DEFAULT_THEME_IDS[Math.max(0, planIndex) % 4]);
+              const displayImg = custom?.imageUrl || activeMealPlan.imageUrl;
+
+              return (
+                <article className={`flex flex-1 flex-col overflow-hidden rounded-2xl border shadow-[0_18px_36px_rgba(0,0,0,0.25)] backdrop-blur-[6px] transition-all duration-300 hover:-translate-y-1 hover:shadow-xl ${accent.card}`}>
+                  {/* Image Area */}
+                  <div className="relative h-48">
+                    <img src={displayImg} alt={activeMealPlan.name} className="h-full w-full object-cover" loading="lazy" />
+                    <span className={`absolute bottom-3 left-3 rounded-lg ${accent.badge} px-2.5 py-1 text-xs font-bold text-white backdrop-blur-sm`}>
+                      {activeMealPlan.kcal.toLocaleString()} kcal
+                    </span>
                   </div>
-                ) : null}
-                <Link to="/meal-plan" className="inline-flex items-center gap-2 rounded-xl border border-orange-400/30 bg-orange-500/15 px-4 py-2.5 text-sm font-semibold text-orange-200 transition-all hover:bg-orange-500/25">
-                  Open Meal Plan
-                </Link>
-              </div>
-            ) : (
+                  {/* Content */}
+                  <div className="flex flex-1 flex-col p-5">
+                    <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-400">
+                      <span className="flex items-center gap-1"><Flame className="h-3.5 w-3.5 text-orange-400" />{activeMealPlan.kcal.toLocaleString()} kcal / day</span>
+                      <span className="flex items-center gap-1"><Calendar className="h-3.5 w-3.5" />{activeMealPlan.meals} meals</span>
+                    </div>
+                    <div className="mb-1.5 flex h-1.5 overflow-hidden rounded-full">
+                      <div className="bg-emerald-500" style={{ width: `${activeMealPlan.proteins}%` }} />
+                      <div className="bg-orange-400" style={{ width: `${activeMealPlan.fats}%` }} />
+                      <div className="bg-blue-400" style={{ width: `${activeMealPlan.carbs}%` }} />
+                    </div>
+                    <div className="mb-4 flex justify-between text-[10px]">
+                      <span className="text-emerald-400">{activeMealPlan.proteins}% protein</span>
+                      <span className="text-orange-400">{activeMealPlan.fats}% fats</span>
+                      <span className="text-blue-400">{activeMealPlan.carbs}% carbs</span>
+                    </div>
+                    <h3 className="mb-5 break-words text-xl font-bold leading-snug text-slate-50">{activeMealPlan.name}</h3>
+                    <Link to="/meal-plan" className={`mt-auto inline-flex w-max items-center justify-center rounded-[10px] px-6 py-2.5 text-sm font-semibold text-white shadow-lg transition-all duration-200 active:scale-95 ${accent.btn}`}>
+                      Open Plan
+                    </Link>
+                  </div>
+                </article>
+              );
+            })() : (
               <div className="rounded-xl border border-dashed border-white/15 bg-white/[0.02] px-4 py-8 text-center">
-                <p className="mb-3 text-sm text-slate-400">No meal plan data</p>
-                <Link to="/meal-plan" className="inline-flex items-center gap-2 rounded-xl bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-orange-400">Start Meal Plan</Link>
+                <p className="mb-3 text-sm text-slate-400">No active alimentation plan</p>
+                <Link to="/my-plans" className="inline-flex items-center gap-2 rounded-xl bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-orange-400">Go to My Plans</Link>
               </div>
             )}
           </section>

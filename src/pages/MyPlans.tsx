@@ -1,4 +1,4 @@
-import { CalendarDays, Check, Clock, Dumbbell, Flame, Image, MoreHorizontal, Palette, Plus, Star, Trash2, X } from "lucide-react";
+import { CalendarDays, Check, Clock, Dumbbell, Flame, Image, MoreHorizontal, Palette, Plus, Star, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { deleteWorkoutPlan, getActivePlanId, getWorkoutPlans, setActivePlanId } from "../utils/planStorage";
@@ -6,7 +6,7 @@ import type { StoredWorkoutPlan } from "../utils/planStorage";
 
 type PlanCategory = "workout" | "alimentation";
 
-interface MockMealPlan {
+export interface MockMealPlan {
   id: string;
   name: string;
   description: string;
@@ -36,14 +36,14 @@ interface DisplayPlan {
 const FAVORITES_KEY = "fitlife_favorite_workout_plans";
 const CUSTOMIZATIONS_KEY = "fitlife_plan_customizations";
 
-interface PlanCustomization {
+export interface PlanCustomization {
   colorId: string;
   imageUrl: string;
 }
 
-type PlanCustomizations = Record<string, PlanCustomization>;
+export type PlanCustomizations = Record<string, PlanCustomization>;
 
-const PLAN_THEMES = [
+export const PLAN_THEMES = [
   { id: "emerald",  dot: "#10b981", card: "border-emerald-500/40 bg-gradient-to-br from-emerald-600/25 to-emerald-900/40 hover:border-emerald-400/60 hover:shadow-emerald-500/20",  btn: "bg-emerald-500 hover:bg-emerald-400 shadow-emerald-500/30",  badge: "bg-emerald-600/90",  imgBg: "from-emerald-800/50 to-emerald-950/80" },
   { id: "blue",     dot: "#3b82f6", card: "border-blue-500/40 bg-gradient-to-br from-blue-600/25 to-blue-900/40 hover:border-blue-400/60 hover:shadow-blue-500/20",           btn: "bg-blue-500 hover:bg-blue-400 shadow-blue-500/30",           badge: "bg-blue-600/90",     imgBg: "from-blue-800/50 to-blue-950/80" },
   { id: "purple",   dot: "#a855f7", card: "border-purple-500/40 bg-gradient-to-br from-purple-600/25 to-purple-900/40 hover:border-purple-400/60 hover:shadow-purple-500/20",   btn: "bg-purple-500 hover:bg-purple-400 shadow-purple-500/30",   badge: "bg-purple-600/90",   imgBg: "from-purple-800/50 to-purple-950/80" },
@@ -56,9 +56,9 @@ const PLAN_THEMES = [
   { id: "slate",    dot: "#64748b", card: "border-slate-500/40 bg-gradient-to-br from-slate-600/25 to-slate-900/40 hover:border-slate-400/60 hover:shadow-slate-500/20",       btn: "bg-slate-500 hover:bg-slate-400 shadow-slate-500/30",       badge: "bg-slate-600/90",    imgBg: "from-slate-700/50 to-slate-950/80" },
 ] as const;
 
-const DEFAULT_THEME_IDS = ["emerald", "blue", "purple", "orange"] as const;
+export const DEFAULT_THEME_IDS = ["emerald", "blue", "purple", "orange"] as const;
 
-const readCustomizations = (): PlanCustomizations => {
+export const readCustomizations = (): PlanCustomizations => {
   try {
     const raw = localStorage.getItem(CUSTOMIZATIONS_KEY);
     if (!raw) return {};
@@ -69,11 +69,11 @@ const readCustomizations = (): PlanCustomizations => {
 const writeCustomizations = (data: PlanCustomizations) =>
   localStorage.setItem(CUSTOMIZATIONS_KEY, JSON.stringify(data));
 
-const getThemeById = (id: string) =>
+export const getThemeById = (id: string) =>
   PLAN_THEMES.find((t) => t.id === id) ?? PLAN_THEMES[0];
 
 
-const ALIMENTATION_PLANS: MockMealPlan[] = [
+export const ALIMENTATION_PLANS: MockMealPlan[] = [
   {
     id: "meal-plan-cut",
     name: "Lean Cut Menu",
@@ -159,7 +159,7 @@ const readHiddenMealIds = (): string[] => {
   } catch { return []; }
 };
 
-const readMealCustomizations = (): PlanCustomizations => {
+export const readMealCustomizations = (): PlanCustomizations => {
   try {
     const raw = localStorage.getItem(MEAL_CUSTOMIZATIONS_KEY);
     if (!raw) return {};
@@ -757,13 +757,6 @@ function EditPlanModal({ planName, currentColorId, currentImageUrl, onSave, onCl
             <h2 className="text-lg font-bold text-white">Edit Plan</h2>
             <p className="text-sm text-slate-400">{planName}</p>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/[0.05] text-slate-400 transition-colors hover:bg-white/10 hover:text-white"
-          >
-            <X className="h-4 w-4" />
-          </button>
         </div>
 
         {/* Preview — click to pick image */}
