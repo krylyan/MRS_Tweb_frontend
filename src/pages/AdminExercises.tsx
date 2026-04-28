@@ -192,7 +192,7 @@ export default function AdminExercises() {
   return (
     <main className="min-h-screen text-slate-200">
       <div className="mx-auto w-full max-w-[1450px] px-4 py-6 sm:px-6 sm:py-8">
-        <section className="reveal-up mb-6 rounded-3xl border border-amber-300/20 bg-[linear-gradient(135deg,rgba(245,158,11,0.18),rgba(15,23,42,0.96))] p-6 shadow-[0_24px_60px_rgba(0,0,0,0.35)]">
+        <section className="reveal-up mb-6 rounded-3xl border border-amber-400/25 bg-amber-500/15 p-6 shadow-[0_24px_60px_rgba(0,0,0,0.35)]">
           <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
             <div>
               <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-amber-300/30 bg-amber-300/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-amber-100">
