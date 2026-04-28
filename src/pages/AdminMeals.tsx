@@ -298,11 +298,10 @@ export default function AdminMeals() {
               <button
                 type="button"
                 onClick={() => setActiveFilter("all")}
-                className={`rounded-full px-4 py-2 text-sm font-semibold transition-all ${
-                  activeFilter === "all"
+                className={`rounded-full px-4 py-2 text-sm font-semibold transition-all ${activeFilter === "all"
                     ? "bg-amber-400/20 text-amber-100 ring-1 ring-amber-300/40"
                     : "bg-white/[0.05] text-slate-300 hover:bg-white/[0.1] hover:text-white"
-                }`}
+                  }`}
               >
                 All
               </button>
@@ -311,11 +310,10 @@ export default function AdminMeals() {
                   key={category}
                   type="button"
                   onClick={() => setActiveFilter(category)}
-                  className={`rounded-full px-4 py-2 text-sm font-semibold transition-all ${
-                    activeFilter === category
+                  className={`rounded-full px-4 py-2 text-sm font-semibold transition-all ${activeFilter === category
                       ? "bg-amber-400/20 text-amber-100 ring-1 ring-amber-300/40"
                       : "bg-white/[0.05] text-slate-300 hover:bg-white/[0.1] hover:text-white"
-                  }`}
+                    }`}
                 >
                   {toCategoryLabel(category)}
                 </button>
@@ -520,22 +518,20 @@ export default function AdminMeals() {
                     <button
                       type="button"
                       onClick={() => setForm((prev) => ({ ...prev, itemType: "prepared" }))}
-                      className={`rounded-xl border px-4 py-2.5 text-sm font-semibold transition-colors ${
-                        form.itemType === "prepared"
+                      className={`rounded-xl border px-4 py-2.5 text-sm font-semibold transition-colors ${form.itemType === "prepared"
                           ? "border-amber-400/40 bg-amber-400/15 text-amber-100"
                           : "border-white/12 bg-white/[0.04] text-slate-300 hover:bg-white/[0.08]"
-                      }`}
+                        }`}
                     >
                       Recipe
                     </button>
                     <button
                       type="button"
                       onClick={() => setForm((prev) => ({ ...prev, itemType: "simple", preparationSteps: "" }))}
-                      className={`rounded-xl border px-4 py-2.5 text-sm font-semibold transition-colors ${
-                        form.itemType === "simple"
+                      className={`rounded-xl border px-4 py-2.5 text-sm font-semibold transition-colors ${form.itemType === "simple"
                           ? "border-amber-400/40 bg-amber-400/15 text-amber-100"
                           : "border-white/12 bg-white/[0.04] text-slate-300 hover:bg-white/[0.08]"
-                      }`}
+                        }`}
                     >
                       Product
                     </button>
@@ -635,11 +631,10 @@ export default function AdminMeals() {
         {statusMessage ? (
           <div className="pointer-events-none fixed bottom-4 right-4 z-[9999]">
             <div
-              className={`min-w-[260px] max-w-[360px] rounded-2xl border px-4 py-3 text-sm shadow-[0_18px_42px_rgba(0,0,0,0.35)] backdrop-blur-md ${
-                statusTone === "success"
+              className={`min-w-[260px] max-w-[360px] rounded-2xl border px-4 py-3 text-sm shadow-[0_18px_42px_rgba(0,0,0,0.35)] backdrop-blur-md ${statusTone === "success"
                   ? "border-emerald-500/30 bg-emerald-500/12 text-emerald-200"
                   : "border-rose-500/30 bg-rose-500/12 text-rose-200"
-              }`}
+                }`}
             >
               {statusMessage}
             </div>
@@ -648,12 +643,12 @@ export default function AdminMeals() {
 
         {mealToDelete
           ? ReactDOM.createPortal(
-              <DeleteMealModal
-                onCancel={() => setMealToDelete(null)}
-                onConfirm={() => handleDeleteMeal(mealToDelete)}
-              />,
-              document.body,
-            )
+            <DeleteMealModal
+              onCancel={() => setMealToDelete(null)}
+              onConfirm={() => handleDeleteMeal(mealToDelete)}
+            />,
+            document.body,
+          )
           : null}
       </div>
     </main>

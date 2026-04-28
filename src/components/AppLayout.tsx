@@ -97,7 +97,7 @@ export default function AppLayout() {
     <div
       className={`flex min-h-screen text-white ${
         isAdminMode
-          ? "bg-[linear-gradient(135deg,#1f2937_0%,#111827_45%,#2d1b05_100%)]"
+          ? "bg-[#111827]"
           : "bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900"
       }`}
     >

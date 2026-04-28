@@ -112,11 +112,10 @@ export default function AdminUsers() {
 
           {statusMessage ? (
             <p
-              className={`mt-4 rounded-xl border px-3 py-2 text-sm ${
-                statusTone === "success"
+              className={`mt-4 rounded-xl border px-3 py-2 text-sm ${statusTone === "success"
                   ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
                   : "border-rose-500/30 bg-rose-500/10 text-rose-300"
-              }`}
+                }`}
             >
               {statusMessage}
             </p>
@@ -140,11 +139,10 @@ export default function AdminUsers() {
                     <div className="flex flex-wrap items-center gap-2">
                       <h3 className="text-lg font-semibold text-white">{user.fullName}</h3>
                       <span
-                        className={`rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide ${
-                          user.role === "admin"
+                        className={`rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide ${user.role === "admin"
                             ? "bg-amber-400/20 text-amber-200"
                             : "bg-emerald-500/20 text-emerald-200"
-                        }`}
+                          }`}
                       >
                         {user.role}
                       </span>
@@ -175,11 +173,10 @@ export default function AdminUsers() {
                       <button
                         type="button"
                         onClick={() => handleToggleBlocked(user.username, user.blocked)}
-                        className={`inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold transition-colors ${
-                          user.blocked
+                        className={`inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold transition-colors ${user.blocked
                             ? "border border-emerald-400/25 bg-emerald-400/10 text-emerald-100 hover:bg-emerald-400/20"
                             : "border border-rose-400/25 bg-rose-400/10 text-rose-100 hover:bg-rose-400/20"
-                        }`}
+                          }`}
                       >
                         <Shield className="h-4 w-4" />
                         {user.blocked ? "Unblock account" : "Block account"}
