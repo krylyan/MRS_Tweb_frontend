@@ -269,7 +269,7 @@ export default function MyPlans() {
 
             {/* Dropdown */}
             {isMenuOpen && (
-              <div className="absolute right-0 top-10 z-50 min-w-[180px] overflow-hidden rounded-2xl border border-white/12 bg-slate-900/95 shadow-[0_20px_48px_rgba(0,0,0,0.6)] backdrop-blur-xl">
+              <div className="dropdown-menu absolute right-0 top-10 z-50 min-w-[180px] overflow-hidden rounded-2xl border border-white/12 bg-slate-900/95 shadow-[0_20px_48px_rgba(0,0,0,0.6)] backdrop-blur-xl">
                 {/* Add to Favorites */}
                 <button
                   type="button"

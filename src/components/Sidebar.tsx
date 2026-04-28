@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   CalendarCheck2,
   ChevronDown,
@@ -22,18 +22,10 @@ export default function Sidebar() {
   const currentUser = AuthUtils.getCurrentUser();
   const isAdminAccount = currentUser?.role === "admin";
 
-  const [isPlansOpen, setIsPlansOpen] = useState(isOnPlans);
+  const [isPlansOpen, setIsPlansOpen] = useState(true);
 
   const searchParams = new URLSearchParams(location.search);
   const currentTab = searchParams.get("tab") ?? "workout";
-
-  useEffect(() => {
-    if (!isOnPlans) {
-      setIsPlansOpen(false);
-    } else {
-      setIsPlansOpen(true);
-    }
-  }, [isOnPlans]);
 
   const handlePlansClick = () => {
     setIsPlansOpen((prev) => !prev);
