@@ -278,8 +278,10 @@ export default function MyPlans() {
               Active
             </span>
           )}
-          {/* ⋯ Menu button */}
-          <div className="absolute right-2 top-2" ref={isMenuOpen ? menuRef : null}>
+        </div>
+
+        {/* ⋯ Menu — sibling to image div, positioned on article (no overflow-hidden parent) */}
+        <div className="absolute right-2 top-2 z-10" ref={isMenuOpen ? menuRef : null}>
             <button
               type="button"
               aria-label="Plan options"
@@ -336,7 +338,6 @@ export default function MyPlans() {
                 </button>
               </div>
             )}
-          </div>
         </div>
 
         {/* Content */}
