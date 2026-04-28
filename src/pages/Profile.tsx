@@ -15,7 +15,7 @@ import {
   UtensilsCrossed,
 } from "lucide-react";
 import AuthUtils from "../utils/authUtils";
-import { getWorkoutPlans } from "../utils/planStorage";
+import { getActivePlan, getWorkoutPlans } from "../utils/planStorage";
 import type { StoredWorkoutPlan } from "../utils/planStorage";
 import { mealLibrary } from "../utils/mealLibrary";
 import type { FoodItem } from "../types/meal";
@@ -207,7 +207,7 @@ export default function Profile() {
   const plans = useMemo(() => getWorkoutPlans(), []);
   const tw = useMemo(() => totalWeight(plans), [plans]);
   const te = useMemo(() => uniqueExercises(plans), [plans]);
-  const activePlan = plans[0] ?? null;
+  const activePlan = useMemo(() => getActivePlan(), []);
 
   const catalogue = useMemo(() => mealLibrary.getVisibleMeals("priority"), []);
   const meal = useMemo(() => getMealSummary(catalogue), [catalogue]);

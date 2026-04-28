@@ -186,4 +186,29 @@ export const saveWorkoutPlan = (plan: StoredWorkoutPlan): StoredWorkoutPlan => {
 export const deleteWorkoutPlan = (planId: string): void => {
   const plans = readPlans().filter((plan) => plan.id !== planId);
   writePlans(plans);
+
+  if (getActivePlanId() === planId) {
+    setActivePlanId(null);
+  }
+};
+
+/* ── Active plan tracking ─────────────────────────────────────────────────── */
+
+const ACTIVE_PLAN_KEY = "fitlife_active_workout_plan";
+
+export const getActivePlanId = (): string | null =>
+  localStorage.getItem(ACTIVE_PLAN_KEY);
+
+export const setActivePlanId = (planId: string | null): void => {
+  if (planId) {
+    localStorage.setItem(ACTIVE_PLAN_KEY, planId);
+  } else {
+    localStorage.removeItem(ACTIVE_PLAN_KEY);
+  }
+};
+
+export const getActivePlan = (): StoredWorkoutPlan | null => {
+  const activeId = getActivePlanId();
+  if (!activeId) return null;
+  return getWorkoutPlanById(activeId);
 };

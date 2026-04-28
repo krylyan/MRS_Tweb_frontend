@@ -1,7 +1,7 @@
-import { CalendarDays, Clock, Dumbbell, Flame, Heart, Plus, Star, Trash2 } from "lucide-react";
+import { CalendarDays, Check, Clock, Dumbbell, Flame, Heart, Plus, Star, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { deleteWorkoutPlan, getWorkoutPlans } from "../utils/planStorage";
+import { deleteWorkoutPlan, getActivePlanId, getWorkoutPlans, setActivePlanId } from "../utils/planStorage";
 import type { StoredWorkoutPlan } from "../utils/planStorage";
 
 type PlanCategory = "workout" | "alimentation";
@@ -120,6 +120,13 @@ export default function MyPlans() {
   const menuAreaRef = useRef<HTMLDivElement | null>(null);
   const [workoutPlans, setWorkoutPlans] = useState<StoredWorkoutPlan[]>(() => getWorkoutPlans());
   const [favoriteIds, setFavoriteIds] = useState<string[]>(() => readFavoriteIds());
+  const [activePlanId, setActivePlanIdState] = useState<string | null>(() => getActivePlanId());
+
+  const handleSetActive = (planId: string) => {
+    const nextId = activePlanId === planId ? null : planId;
+    setActivePlanId(nextId);
+    setActivePlanIdState(nextId);
+  };
 
   useEffect(() => {
     localStorage.setItem(FAVORITES_KEY, JSON.stringify(favoriteIds));
@@ -161,6 +168,7 @@ export default function MyPlans() {
     deleteWorkoutPlan(planId);
     setWorkoutPlans(getWorkoutPlans());
     setFavoriteIds((prev) => prev.filter((id) => id !== planId));
+    if (activePlanId === planId) setActivePlanIdState(null);
   };
 
   const handleToggleFavorite = (planId: string, favoriteEnabled: boolean): void => {
@@ -213,6 +221,7 @@ export default function MyPlans() {
 
   const renderPlanCard = (plan: DisplayPlan, index: number, sectionKey: string) => {
     const isFavorite = favoriteIds.includes(plan.id);
+    const isActive = activePlanId === plan.id;
     const accent = getAccentClasses(index);
     const estMinutes = plan.statValue > 0 ? plan.statValue * 45 : 45;
 
@@ -221,7 +230,7 @@ export default function MyPlans() {
         key={`${sectionKey}-${plan.id}`}
         className={`reveal-up flex flex-col overflow-hidden rounded-2xl border shadow-[0_18px_36px_rgba(0,0,0,0.25)] backdrop-blur-[6px] transition-all duration-300 hover:-translate-y-1 hover:shadow-xl ${
           accent.card
-        }`}
+        } ${isActive ? "ring-2 ring-emerald-400/60" : ""}`}
       >
         {/* Image area */}
         <div className={`relative flex h-44 items-center justify-center bg-gradient-to-br ${accent.imgBg}`}>
@@ -230,6 +239,13 @@ export default function MyPlans() {
           <span className={`absolute bottom-3 left-3 rounded-lg ${accent.badge} px-2.5 py-1 text-xs font-bold text-white backdrop-blur-sm`}>
             {plan.statValue} {plan.statLabel === "Days" ? "days" : "meals"}
           </span>
+          {/* Active badge */}
+          {isActive && (
+            <span className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-lg bg-emerald-500/90 px-2.5 py-1 text-xs font-bold text-white backdrop-blur-sm">
+              <Check className="h-3 w-3" />
+              Active
+            </span>
+          )}
           {/* Action buttons */}
           <div className="absolute right-2 top-2 flex gap-1.5">
             {plan.favoriteEnabled && (
@@ -284,20 +300,33 @@ export default function MyPlans() {
             {plan.name}
           </h3>
 
-          {/* Open button */}
-          <button
-            type="button"
-            onClick={() => {
-              if (!plan.detailsEnabled) return;
-              navigate(`/gym-plan?planId=${plan.id}`);
-            }}
-            disabled={!plan.detailsEnabled}
-            className={`mt-auto w-full rounded-[10px] py-2.5 text-sm font-semibold text-white shadow-lg transition-all duration-200 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 ${
-              accent.btn
-            }`}
-          >
-            Open Plan
-          </button>
+          {/* Buttons */}
+          <div className="mt-auto flex flex-col gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                if (!plan.detailsEnabled) return;
+                navigate(`/gym-plan?planId=${plan.id}`);
+              }}
+              disabled={!plan.detailsEnabled}
+              className={`w-full rounded-[10px] py-2.5 text-sm font-semibold text-white shadow-lg transition-all duration-200 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 ${
+                accent.btn
+              }`}
+            >
+              Open Plan
+            </button>
+            <button
+              type="button"
+              onClick={() => handleSetActive(plan.id)}
+              className={`w-full rounded-[10px] border py-2 text-sm font-semibold transition-all duration-200 active:scale-95 ${
+                isActive
+                  ? "border-emerald-400/40 bg-emerald-500/20 text-emerald-200"
+                  : "border-white/15 bg-white/[0.04] text-slate-300 hover:border-emerald-400/30 hover:bg-emerald-500/10 hover:text-emerald-200"
+              }`}
+            >
+              {isActive ? "✓ Active Plan" : "Set as Active"}
+            </button>
+          </div>
         </div>
       </article>
     );
