@@ -473,8 +473,9 @@ export default function MyPlans() {
     const isMealFavorite = favoriteMealIds.includes(plan.id);
     const isMealActive = activeMealPlanId === plan.id;
     const isMealMenuOpen = openMealMenuId === plan.id;
-    const accent = getAccentClasses(plan.id, index);
-    const customImg = mealCustomizations[plan.id]?.imageUrl;
+    const mealCustom = mealCustomizations[plan.id];
+    const accent = mealCustom?.colorId ? getThemeById(mealCustom.colorId) : getThemeById(DEFAULT_THEME_IDS[index % 4]);
+    const customImg = mealCustom?.imageUrl;
     const displayImg = customImg || plan.imageUrl;
 
     return (
@@ -664,17 +665,7 @@ export default function MyPlans() {
               <section className="reveal-up reveal-delay-1 rounded-[14px] border border-white/12 bg-white/4 p-4 shadow-[0_14px_28px_rgba(0,0,0,0.25)] backdrop-blur-[6px]">
                 <div className="mb-4 flex items-center justify-between">
                   <h2 className="text-lg font-semibold text-slate-50">Meal Plans</h2>
-                  <div className="flex items-center gap-3">
-                    <span className="text-sm text-slate-400">{sortedMeals.length} plans</span>
-                    <button
-                      type="button"
-                      onClick={() => navigate("/meal-plan")}
-                      className="inline-flex items-center gap-2 rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-emerald-500/25 transition-all hover:bg-emerald-400"
-                    >
-                      <Plus className="h-4 w-4" />
-                      Create meal plan
-                    </button>
-                  </div>
+                  <span className="text-sm text-slate-400">{sortedMeals.length} plans</span>
                 </div>
                 <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
                   {sortedMeals.map((plan, index) => renderMealCard(plan, index))}
