@@ -256,12 +256,12 @@ export default function MyPlans() {
     return (
       <article
         key={`${sectionKey}-${plan.id}`}
-        className={`reveal-up flex flex-col overflow-hidden rounded-2xl border shadow-[0_18px_36px_rgba(0,0,0,0.25)] backdrop-blur-[6px] transition-all duration-300 hover:-translate-y-1 hover:shadow-xl ${
+        className={`reveal-up relative flex flex-col rounded-2xl border shadow-[0_18px_36px_rgba(0,0,0,0.25)] backdrop-blur-[6px] transition-all duration-300 hover:-translate-y-1 hover:shadow-xl ${
           accent.card
         } ${isActive ? "ring-2 ring-emerald-400/60" : ""}`}
       >
         {/* Image area */}
-        <div className={`relative flex h-44 items-center justify-center overflow-hidden bg-gradient-to-br ${accent.imgBg}`}>
+        <div className={`relative flex h-44 items-center justify-center overflow-hidden rounded-t-2xl bg-gradient-to-br ${accent.imgBg}`}>
           {customImg ? (
             <img src={customImg} alt={plan.name} className="h-full w-full object-cover" />
           ) : (
@@ -340,7 +340,7 @@ export default function MyPlans() {
         </div>
 
         {/* Content */}
-        <div className="flex flex-1 flex-col p-4">
+        <div className="flex flex-1 flex-col rounded-b-2xl p-4">
           {/* Stats row */}
           <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-400">
             <span className="flex items-center gap-1">
@@ -569,15 +569,24 @@ interface EditPlanModalProps {
 
 function EditPlanModal({ planName, currentColorId, currentImageUrl, onSave, onClose }: EditPlanModalProps) {
   const [selectedColor, setSelectedColor] = useState(currentColorId);
-  const [imageUrl, setImageUrl] = useState(currentImageUrl);
-  const [imgError, setImgError] = useState(false);
+  const [imageData, setImageData] = useState(currentImageUrl); // base64 or empty
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const preview = PLAN_THEMES.find((t) => t.id === selectedColor) ?? PLAN_THEMES[0];
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      setImageData(ev.target?.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
   return (
     <div
-      className="fixed inset-0 z-[200] flex items-center justify-center p-4"
-      style={{ backgroundColor: "rgba(0,0,0,0.75)", backdropFilter: "blur(8px)" }}
+      className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 p-4"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div
@@ -598,34 +607,31 @@ function EditPlanModal({ planName, currentColorId, currentImageUrl, onSave, onCl
           </button>
         </div>
 
-        {/* Preview */}
-        <div className={`mx-6 mt-5 flex h-32 items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br ${preview.imgBg}`}>
-          {imageUrl && !imgError ? (
-            <img
-              src={imageUrl}
-              alt="Preview"
-              className="h-full w-full object-cover"
-              onError={() => setImgError(true)}
-            />
+        {/* Preview — click to pick image */}
+        <div
+          className={`relative mx-6 mt-5 flex h-32 cursor-pointer items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br ${preview.imgBg} group`}
+          onClick={() => fileInputRef.current?.click()}
+          title="Click to change image"
+        >
+          {imageData ? (
+            <img src={imageData} alt="Preview" className="h-full w-full object-cover" />
           ) : (
             <Dumbbell className="h-12 w-12 text-white/20" />
           )}
+          {/* Hover overlay */}
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 bg-black/0 transition-all group-hover:bg-black/50">
+            <Image className="h-6 w-6 text-white opacity-0 transition-opacity group-hover:opacity-100" />
+            <span className="text-xs font-medium text-white opacity-0 transition-opacity group-hover:opacity-100">Click to change</span>
+          </div>
         </div>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={handleFileChange}
+        />
 
-        {/* Image URL */}
-        <div className="px-6 pt-5">
-          <label className="mb-1.5 flex items-center gap-2 text-sm font-medium text-slate-300">
-            <Image className="h-4 w-4 text-slate-400" />
-            Image URL
-          </label>
-          <input
-            type="text"
-            value={imageUrl}
-            onChange={(e) => { setImageUrl(e.target.value); setImgError(false); }}
-            placeholder="https://example.com/image.jpg"
-            className="w-full rounded-xl border border-white/15 bg-white/[0.04] px-4 py-2.5 text-sm text-white outline-none transition-all placeholder:text-slate-500 focus:border-emerald-500/60"
-          />
-        </div>
 
         {/* Color Picker */}
         <div className="px-6 pt-5">
@@ -666,7 +672,7 @@ function EditPlanModal({ planName, currentColorId, currentImageUrl, onSave, onCl
           </button>
           <button
             type="button"
-            onClick={() => onSave(selectedColor, imageUrl)}
+            onClick={() => onSave(selectedColor, imageData)}
             className="flex-1 rounded-xl bg-emerald-500 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-400"
           >
             Save
