@@ -1,4 +1,4 @@
-import { CalendarDays, Check, Clock, Dumbbell, Flame, Heart, Image, MoreHorizontal, Palette, Plus, Star, Trash2, X } from "lucide-react";
+import { CalendarDays, Check, Clock, Dumbbell, Flame, Image, MoreHorizontal, Palette, Plus, Star, Trash2, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { deleteWorkoutPlan, getActivePlanId, getWorkoutPlans, setActivePlanId } from "../utils/planStorage";
@@ -275,15 +275,17 @@ export default function MyPlans() {
     [workoutPlans],
   );
 
-  const favoritePlans = useMemo(
-    () => allWorkoutPlans.filter((plan) => favoriteIds.includes(plan.id)),
-    [allWorkoutPlans, favoriteIds],
-  );
-
-  const savedWorkoutPlans = useMemo(
-    () => allWorkoutPlans.filter((plan) => !favoriteIds.includes(plan.id)),
-    [allWorkoutPlans, favoriteIds],
-  );
+  const sortedWorkoutPlans = useMemo<DisplayPlan[]>(() => {
+    const active = allWorkoutPlans.filter((p) => p.id === activePlanId);
+    const favOrder = [...favoriteIds].reverse(); // newest favorite first
+    const favorites = favOrder
+      .map((id) => allWorkoutPlans.find((p) => p.id === id && p.id !== activePlanId))
+      .filter((p): p is DisplayPlan => p !== undefined);
+    const rest = allWorkoutPlans.filter(
+      (p) => p.id !== activePlanId && !favoriteIds.includes(p.id),
+    );
+    return [...active, ...favorites, ...rest];
+  }, [allWorkoutPlans, activePlanId, favoriteIds]);
 
   const handleDeletePlan = (planId: string, deleteEnabled: boolean): void => {
     if (!deleteEnabled) return;
@@ -352,6 +354,15 @@ export default function MyPlans() {
           )}
         </div>
 
+        {/* Star badge — only when favorite, non-clickable */}
+        {isFavorite && (
+          <div className="absolute right-12 top-2 z-10">
+            <span className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-amber-400/30 bg-black/40 backdrop-blur-sm text-amber-400">
+              <Star className="h-3.5 w-3.5 fill-amber-400" />
+            </span>
+          </div>
+        )}
+
         {/* ⋯ Menu — sibling to image div, positioned on article (no overflow-hidden parent) */}
         <div className="absolute right-2 top-2 z-10" ref={isMenuOpen ? menuRef : null}>
             <button
@@ -372,7 +383,7 @@ export default function MyPlans() {
                   onClick={() => handleToggleFavorite(plan.id, plan.favoriteEnabled)}
                   className="flex w-full items-center gap-3 px-4 py-3 text-sm font-medium text-slate-200 transition-colors hover:bg-white/[0.07]"
                 >
-                  <Heart className={`h-4 w-4 ${isFavorite ? "fill-rose-400 text-rose-400" : "text-slate-400"}`} />
+                  <Star className={`h-4 w-4 ${isFavorite ? "fill-amber-400 text-amber-400" : "text-slate-400"}`} />
                   {isFavorite ? "Remove from Favorites" : "Add to Favorites"}
                 </button>
 
@@ -489,6 +500,15 @@ export default function MyPlans() {
           )}
         </div>
 
+        {/* Star badge — only when favorite */}
+        {isMealFavorite && (
+          <div className="absolute right-12 top-2 z-10">
+            <span className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-amber-400/30 bg-black/40 backdrop-blur-sm text-amber-400">
+              <Star className="h-3.5 w-3.5 fill-amber-400" />
+            </span>
+          </div>
+        )}
+
         {/* ⋯ Menu — on article, no overflow-hidden parent */}
         <div className="absolute right-2 top-2 z-10" ref={isMealMenuOpen ? mealMenuRef : null}>
           <button
@@ -507,7 +527,7 @@ export default function MyPlans() {
                 onClick={() => handleToggleMealFavorite(plan.id)}
                 className="flex w-full items-center gap-3 px-4 py-3 text-sm font-medium text-slate-200 transition-colors hover:bg-white/[0.07]"
               >
-                <Heart className={`h-4 w-4 ${isMealFavorite ? "fill-rose-400 text-rose-400" : "text-slate-400"}`} />
+                <Star className={`h-4 w-4 ${isMealFavorite ? "fill-amber-400 text-amber-400" : "text-slate-400"}`} />
                 {isMealFavorite ? "Remove from Favorites" : "Add to Favorites"}
               </button>
               <button
@@ -630,35 +650,39 @@ export default function MyPlans() {
 
         <div ref={menuAreaRef} className="space-y-4">
           {activeCategory === "workout" ? (
-            <>
-              {favoritePlans.length > 0 && renderSection("Favorites", favoritePlans, "favorites")}
-              {renderSection("Saved workouts", savedWorkoutPlans, "saved-workouts", true)}
-            </>
-          ) : (
-            /* ── Alimentation grid (matches workout card style) ── */
-            <section className="reveal-up reveal-delay-1 rounded-[14px] border border-white/12 bg-white/4 p-4 shadow-[0_14px_28px_rgba(0,0,0,0.25)] backdrop-blur-[6px]">
-              <div className="mb-4 flex items-center justify-between">
-                <h2 className="text-lg font-semibold text-slate-50">Meal Plans</h2>
-                <div className="flex items-center gap-3">
-                  <span className="text-sm text-slate-400">{ALIMENTATION_PLANS.length} plans</span>
-                  <button
-                    type="button"
-                    onClick={() => navigate("/meal-plan")}
-                    className="inline-flex items-center gap-2 rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-emerald-500/25 transition-all hover:bg-emerald-400"
-                  >
-                    <Plus className="h-4 w-4" />
-                    Create meal plan
-                  </button>
+            renderSection("Saved Workouts", sortedWorkoutPlans, "all-workouts", true)
+          ) : (() => {
+            const visibleMeals = ALIMENTATION_PLANS.filter((p) => !hiddenMealIds.includes(p.id));
+            const sortedMeals = [
+              ...visibleMeals.filter((p) => p.id === activeMealPlanId),
+              ...[...favoriteMealIds].reverse()
+                .map((id) => visibleMeals.find((p) => p.id === id && p.id !== activeMealPlanId))
+                .filter((p): p is typeof ALIMENTATION_PLANS[number] => p !== undefined),
+              ...visibleMeals.filter((p) => p.id !== activeMealPlanId && !favoriteMealIds.includes(p.id)),
+            ];
+            return (
+              <section className="reveal-up reveal-delay-1 rounded-[14px] border border-white/12 bg-white/4 p-4 shadow-[0_14px_28px_rgba(0,0,0,0.25)] backdrop-blur-[6px]">
+                <div className="mb-4 flex items-center justify-between">
+                  <h2 className="text-lg font-semibold text-slate-50">Meal Plans</h2>
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm text-slate-400">{sortedMeals.length} plans</span>
+                    <button
+                      type="button"
+                      onClick={() => navigate("/meal-plan")}
+                      className="inline-flex items-center gap-2 rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-emerald-500/25 transition-all hover:bg-emerald-400"
+                    >
+                      <Plus className="h-4 w-4" />
+                      Create meal plan
+                    </button>
+                  </div>
                 </div>
-              </div>
-              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                {ALIMENTATION_PLANS
-                  .filter((p) => !hiddenMealIds.includes(p.id))
-                  .map((plan, index) => renderMealCard(plan, index))}
-                {renderAddMealCard("meal-add")}
-              </div>
-            </section>
-          )}
+                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                  {sortedMeals.map((plan, index) => renderMealCard(plan, index))}
+                  {renderAddMealCard("meal-add")}
+                </div>
+              </section>
+            );
+          })()}
         </div>
       </div>
 
