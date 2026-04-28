@@ -1,4 +1,4 @@
-import { CalendarDays, Check, Clock, Dumbbell, Flame, Heart, Plus, Star, Trash2 } from "lucide-react";
+import { CalendarDays, Check, Clock, Dumbbell, Flame, Heart, MoreHorizontal, Palette, Plus, Star, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { deleteWorkoutPlan, getActivePlanId, getWorkoutPlans, setActivePlanId } from "../utils/planStorage";
@@ -121,11 +121,24 @@ export default function MyPlans() {
   const [workoutPlans, setWorkoutPlans] = useState<StoredWorkoutPlan[]>(() => getWorkoutPlans());
   const [favoriteIds, setFavoriteIds] = useState<string[]>(() => readFavoriteIds());
   const [activePlanId, setActivePlanIdState] = useState<string | null>(() => getActivePlanId());
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setOpenMenuId(null);
+      }
+    };
+    if (openMenuId) document.addEventListener("mousedown", handleOutsideClick);
+    return () => document.removeEventListener("mousedown", handleOutsideClick);
+  }, [openMenuId]);
 
   const handleSetActive = (planId: string) => {
     const nextId = activePlanId === planId ? null : planId;
     setActivePlanId(nextId);
     setActivePlanIdState(nextId);
+    setOpenMenuId(null);
   };
 
   useEffect(() => {
@@ -161,24 +174,20 @@ export default function MyPlans() {
   );
 
   const handleDeletePlan = (planId: string, deleteEnabled: boolean): void => {
-    if (!deleteEnabled) {
-      return;
-    }
-
+    if (!deleteEnabled) return;
     deleteWorkoutPlan(planId);
     setWorkoutPlans(getWorkoutPlans());
     setFavoriteIds((prev) => prev.filter((id) => id !== planId));
     if (activePlanId === planId) setActivePlanIdState(null);
+    setOpenMenuId(null);
   };
 
   const handleToggleFavorite = (planId: string, favoriteEnabled: boolean): void => {
-    if (!favoriteEnabled) {
-      return;
-    }
-
+    if (!favoriteEnabled) return;
     setFavoriteIds((prev) =>
       prev.includes(planId) ? prev.filter((id) => id !== planId) : [...prev, planId],
     );
+    setOpenMenuId(null);
   };
 
   const getAccentClasses = (index: number) => {
@@ -222,6 +231,7 @@ export default function MyPlans() {
   const renderPlanCard = (plan: DisplayPlan, index: number, sectionKey: string) => {
     const isFavorite = favoriteIds.includes(plan.id);
     const isActive = activePlanId === plan.id;
+    const isMenuOpen = openMenuId === plan.id;
     const accent = getAccentClasses(index);
     const estMinutes = plan.statValue > 0 ? plan.statValue * 45 : 45;
 
@@ -246,29 +256,64 @@ export default function MyPlans() {
               Active
             </span>
           )}
-          {/* Action buttons */}
-          <div className="absolute right-2 top-2 flex gap-1.5">
-            {plan.favoriteEnabled && (
-              <button
-                type="button"
-                onClick={() => handleToggleFavorite(plan.id, plan.favoriteEnabled)}
-                aria-label={isFavorite ? "Remove from favorites" : "Add to favorites"}
-                className={`inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/20 bg-black/40 backdrop-blur-sm transition-all hover:bg-black/60 ${
-                  isFavorite ? "text-rose-400" : "text-white/70 hover:text-rose-400"
-                }`}
-              >
-                <Heart className={`h-3.5 w-3.5 ${isFavorite ? "fill-rose-400" : ""}`} />
-              </button>
-            )}
-            {plan.deleteEnabled && (
-              <button
-                type="button"
-                onClick={() => handleDeletePlan(plan.id, plan.deleteEnabled)}
-                aria-label={`Delete ${plan.name}`}
-                className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/20 bg-black/40 backdrop-blur-sm text-white/70 transition-all hover:bg-rose-500/50 hover:text-white"
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-              </button>
+          {/* ⋯ Menu button */}
+          <div className="absolute right-2 top-2" ref={isMenuOpen ? menuRef : null}>
+            <button
+              type="button"
+              aria-label="Plan options"
+              onClick={() => setOpenMenuId(isMenuOpen ? null : plan.id)}
+              className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/20 bg-black/40 backdrop-blur-sm text-white/70 transition-all hover:bg-black/60 hover:text-white"
+            >
+              <MoreHorizontal className="h-4 w-4" />
+            </button>
+
+            {/* Dropdown */}
+            {isMenuOpen && (
+              <div className="absolute right-0 top-10 z-50 min-w-[180px] overflow-hidden rounded-2xl border border-white/12 bg-slate-900/95 shadow-[0_20px_48px_rgba(0,0,0,0.6)] backdrop-blur-xl">
+                {/* Add to Favorites */}
+                <button
+                  type="button"
+                  onClick={() => handleToggleFavorite(plan.id, plan.favoriteEnabled)}
+                  className="flex w-full items-center gap-3 px-4 py-3 text-sm font-medium text-slate-200 transition-colors hover:bg-white/[0.07]"
+                >
+                  <Heart className={`h-4 w-4 ${isFavorite ? "fill-rose-400 text-rose-400" : "text-slate-400"}`} />
+                  {isFavorite ? "Remove from Favorites" : "Add to Favorites"}
+                </button>
+
+                {/* Set as Active */}
+                <button
+                  type="button"
+                  onClick={() => handleSetActive(plan.id)}
+                  className="flex w-full items-center gap-3 px-4 py-3 text-sm font-medium text-slate-200 transition-colors hover:bg-white/[0.07]"
+                >
+                  <Check className={`h-4 w-4 ${isActive ? "text-emerald-400" : "text-slate-400"}`} />
+                  {isActive ? "Unset Active" : "Set as Active"}
+                </button>
+
+                {/* Edit Color — placeholder */}
+                <button
+                  type="button"
+                  onClick={() => setOpenMenuId(null)}
+                  className="flex w-full items-center gap-3 px-4 py-3 text-sm font-medium text-slate-400 transition-colors hover:bg-white/[0.07]"
+                >
+                  <Palette className="h-4 w-4 text-slate-500" />
+                  Edit Color
+                  <span className="ml-auto rounded-md bg-white/8 px-1.5 py-0.5 text-[10px] text-slate-500">soon</span>
+                </button>
+
+                {/* Divider */}
+                <div className="mx-3 border-t border-white/8" />
+
+                {/* Delete */}
+                <button
+                  type="button"
+                  onClick={() => handleDeletePlan(plan.id, plan.deleteEnabled)}
+                  className="flex w-full items-center gap-3 px-4 py-3 text-sm font-medium text-rose-400 transition-colors hover:bg-rose-500/10"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Delete
+                </button>
+              </div>
             )}
           </div>
         </div>
@@ -300,33 +345,20 @@ export default function MyPlans() {
             {plan.name}
           </h3>
 
-          {/* Buttons */}
-          <div className="mt-auto flex flex-col gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                if (!plan.detailsEnabled) return;
-                navigate(`/gym-plan?planId=${plan.id}`);
-              }}
-              disabled={!plan.detailsEnabled}
-              className={`w-full rounded-[10px] py-2.5 text-sm font-semibold text-white shadow-lg transition-all duration-200 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 ${
-                accent.btn
-              }`}
-            >
-              Open Plan
-            </button>
-            <button
-              type="button"
-              onClick={() => handleSetActive(plan.id)}
-              className={`w-full rounded-[10px] border py-2 text-sm font-semibold transition-all duration-200 active:scale-95 ${
-                isActive
-                  ? "border-emerald-400/40 bg-emerald-500/20 text-emerald-200"
-                  : "border-white/15 bg-white/[0.04] text-slate-300 hover:border-emerald-400/30 hover:bg-emerald-500/10 hover:text-emerald-200"
-              }`}
-            >
-              {isActive ? "✓ Active Plan" : "Set as Active"}
-            </button>
-          </div>
+          {/* Open button */}
+          <button
+            type="button"
+            onClick={() => {
+              if (!plan.detailsEnabled) return;
+              navigate(`/gym-plan?planId=${plan.id}`);
+            }}
+            disabled={!plan.detailsEnabled}
+            className={`mt-auto w-full rounded-[10px] py-2.5 text-sm font-semibold text-white shadow-lg transition-all duration-200 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 ${
+              accent.btn
+            }`}
+          >
+            Open Plan
+          </button>
         </div>
       </article>
     );
