@@ -1,4 +1,4 @@
-import { CalendarDays, Check, Clock, Dumbbell, Flame, Heart, MoreHorizontal, Palette, Plus, Star, Trash2 } from "lucide-react";
+import { CalendarDays, Check, Clock, Dumbbell, Flame, Heart, Image, MoreHorizontal, Palette, Plus, Star, Trash2, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { deleteWorkoutPlan, getActivePlanId, getWorkoutPlans, setActivePlanId } from "../utils/planStorage";
@@ -34,6 +34,44 @@ interface DisplayPlan {
 }
 
 const FAVORITES_KEY = "fitlife_favorite_workout_plans";
+const CUSTOMIZATIONS_KEY = "fitlife_plan_customizations";
+
+interface PlanCustomization {
+  colorId: string;
+  imageUrl: string;
+}
+
+type PlanCustomizations = Record<string, PlanCustomization>;
+
+const PLAN_THEMES = [
+  { id: "emerald",  dot: "#10b981", card: "border-emerald-500/40 bg-gradient-to-br from-emerald-600/25 to-emerald-900/40 hover:border-emerald-400/60 hover:shadow-emerald-500/20",  btn: "bg-emerald-500 hover:bg-emerald-400 shadow-emerald-500/30",  badge: "bg-emerald-600/90",  imgBg: "from-emerald-800/50 to-emerald-950/80" },
+  { id: "blue",     dot: "#3b82f6", card: "border-blue-500/40 bg-gradient-to-br from-blue-600/25 to-blue-900/40 hover:border-blue-400/60 hover:shadow-blue-500/20",           btn: "bg-blue-500 hover:bg-blue-400 shadow-blue-500/30",           badge: "bg-blue-600/90",     imgBg: "from-blue-800/50 to-blue-950/80" },
+  { id: "purple",   dot: "#a855f7", card: "border-purple-500/40 bg-gradient-to-br from-purple-600/25 to-purple-900/40 hover:border-purple-400/60 hover:shadow-purple-500/20",   btn: "bg-purple-500 hover:bg-purple-400 shadow-purple-500/30",   badge: "bg-purple-600/90",   imgBg: "from-purple-800/50 to-purple-950/80" },
+  { id: "orange",   dot: "#f97316", card: "border-orange-500/40 bg-gradient-to-br from-orange-600/20 to-amber-900/40 hover:border-orange-400/60 hover:shadow-orange-500/20",   btn: "bg-orange-500 hover:bg-orange-400 shadow-orange-500/30",   badge: "bg-orange-600/90",   imgBg: "from-orange-800/50 to-amber-950/80" },
+  { id: "rose",     dot: "#e11d48", card: "border-rose-500/40 bg-gradient-to-br from-rose-600/25 to-rose-950/40 hover:border-rose-400/60 hover:shadow-rose-500/20",           btn: "bg-rose-500 hover:bg-rose-400 shadow-rose-500/30",           badge: "bg-rose-700/90",     imgBg: "from-rose-800/50 to-rose-950/80" },
+  { id: "teal",     dot: "#14b8a6", card: "border-teal-500/40 bg-gradient-to-br from-teal-600/25 to-teal-900/40 hover:border-teal-400/60 hover:shadow-teal-500/20",           btn: "bg-teal-500 hover:bg-teal-400 shadow-teal-500/30",           badge: "bg-teal-600/90",     imgBg: "from-teal-800/50 to-teal-950/80" },
+  { id: "cyan",     dot: "#06b6d4", card: "border-cyan-500/40 bg-gradient-to-br from-cyan-600/25 to-cyan-900/40 hover:border-cyan-400/60 hover:shadow-cyan-500/20",           btn: "bg-cyan-500 hover:bg-cyan-400 shadow-cyan-500/30",           badge: "bg-cyan-600/90",     imgBg: "from-cyan-800/50 to-cyan-950/80" },
+  { id: "indigo",   dot: "#6366f1", card: "border-indigo-500/40 bg-gradient-to-br from-indigo-600/25 to-indigo-900/40 hover:border-indigo-400/60 hover:shadow-indigo-500/20",   btn: "bg-indigo-500 hover:bg-indigo-400 shadow-indigo-500/30",   badge: "bg-indigo-600/90",   imgBg: "from-indigo-800/50 to-indigo-950/80" },
+  { id: "amber",    dot: "#f59e0b", card: "border-amber-500/40 bg-gradient-to-br from-amber-600/25 to-amber-900/40 hover:border-amber-400/60 hover:shadow-amber-500/20",       btn: "bg-amber-500 hover:bg-amber-400 shadow-amber-500/30",       badge: "bg-amber-600/90",    imgBg: "from-amber-800/50 to-amber-950/80" },
+  { id: "slate",    dot: "#64748b", card: "border-slate-500/40 bg-gradient-to-br from-slate-600/25 to-slate-900/40 hover:border-slate-400/60 hover:shadow-slate-500/20",       btn: "bg-slate-500 hover:bg-slate-400 shadow-slate-500/30",       badge: "bg-slate-600/90",    imgBg: "from-slate-700/50 to-slate-950/80" },
+] as const;
+
+const DEFAULT_THEME_IDS = ["emerald", "blue", "purple", "orange"] as const;
+
+const readCustomizations = (): PlanCustomizations => {
+  try {
+    const raw = localStorage.getItem(CUSTOMIZATIONS_KEY);
+    if (!raw) return {};
+    return JSON.parse(raw) as PlanCustomizations;
+  } catch { return {}; }
+};
+
+const writeCustomizations = (data: PlanCustomizations) =>
+  localStorage.setItem(CUSTOMIZATIONS_KEY, JSON.stringify(data));
+
+const getThemeById = (id: string) =>
+  PLAN_THEMES.find((t) => t.id === id) ?? PLAN_THEMES[0];
+
 
 const ALIMENTATION_PLANS: MockMealPlan[] = [
   {
@@ -122,6 +160,8 @@ export default function MyPlans() {
   const [favoriteIds, setFavoriteIds] = useState<string[]>(() => readFavoriteIds());
   const [activePlanId, setActivePlanIdState] = useState<string | null>(() => getActivePlanId());
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [editingPlanId, setEditingPlanId] = useState<string | null>(null);
+  const [customizations, setCustomizations] = useState<PlanCustomizations>(() => readCustomizations());
   const menuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -190,49 +230,27 @@ export default function MyPlans() {
     setOpenMenuId(null);
   };
 
-  const getAccentClasses = (index: number) => {
-    if (index % 4 === 0)
-      return {
-        card: "border-emerald-500/40 bg-gradient-to-br from-emerald-600/25 to-emerald-900/40 hover:border-emerald-400/60 hover:shadow-emerald-500/20",
-        icon: "bg-emerald-500/20 border-emerald-400/30 text-emerald-300",
-        btn: "bg-emerald-500 hover:bg-emerald-400 shadow-emerald-500/30",
-        heart: "hover:text-rose-400",
-        badge: "bg-emerald-600/90",
-        imgBg: "from-emerald-800/50 to-emerald-950/80",
-      };
-    if (index % 4 === 1)
-      return {
-        card: "border-blue-500/40 bg-gradient-to-br from-blue-600/25 to-blue-900/40 hover:border-blue-400/60 hover:shadow-blue-500/20",
-        icon: "bg-blue-500/20 border-blue-400/30 text-blue-300",
-        btn: "bg-blue-500 hover:bg-blue-400 shadow-blue-500/30",
-        heart: "hover:text-rose-400",
-        badge: "bg-blue-600/90",
-        imgBg: "from-blue-800/50 to-blue-950/80",
-      };
-    if (index % 4 === 2)
-      return {
-        card: "border-purple-500/40 bg-gradient-to-br from-purple-600/25 to-purple-900/40 hover:border-purple-400/60 hover:shadow-purple-500/20",
-        icon: "bg-purple-500/20 border-purple-400/30 text-purple-300",
-        btn: "bg-purple-500 hover:bg-purple-400 shadow-purple-500/30",
-        heart: "hover:text-rose-400",
-        badge: "bg-purple-600/90",
-        imgBg: "from-purple-800/50 to-purple-950/80",
-      };
-    return {
-      card: "border-orange-500/40 bg-gradient-to-br from-orange-600/20 to-amber-900/40 hover:border-orange-400/60 hover:shadow-orange-500/20",
-      icon: "bg-orange-500/20 border-orange-400/30 text-orange-300",
-      btn: "bg-orange-500 hover:bg-orange-400 shadow-orange-500/30",
-      heart: "hover:text-rose-400",
-      badge: "bg-orange-600/90",
-      imgBg: "from-orange-800/50 to-amber-950/80",
-    };
+  const handleSaveCustomization = (planId: string, colorId: string, imageUrl: string) => {
+    const next = { ...customizations, [planId]: { colorId, imageUrl } };
+    setCustomizations(next);
+    writeCustomizations(next);
+    setEditingPlanId(null);
   };
+
+  const getAccentClasses = (planId: string, index: number) => {
+    const custom = customizations[planId];
+    if (custom?.colorId) return getThemeById(custom.colorId);
+    const defaultId = DEFAULT_THEME_IDS[index % 4];
+    return getThemeById(defaultId);
+  };
+
 
   const renderPlanCard = (plan: DisplayPlan, index: number, sectionKey: string) => {
     const isFavorite = favoriteIds.includes(plan.id);
     const isActive = activePlanId === plan.id;
     const isMenuOpen = openMenuId === plan.id;
-    const accent = getAccentClasses(index);
+    const accent = getAccentClasses(plan.id, index);
+    const customImg = customizations[plan.id]?.imageUrl;
     const estMinutes = plan.statValue > 0 ? plan.statValue * 45 : 45;
 
     return (
@@ -243,8 +261,12 @@ export default function MyPlans() {
         } ${isActive ? "ring-2 ring-emerald-400/60" : ""}`}
       >
         {/* Image area */}
-        <div className={`relative flex h-44 items-center justify-center bg-gradient-to-br ${accent.imgBg}`}>
-          <Dumbbell className="h-16 w-16 text-white/20" />
+        <div className={`relative flex h-44 items-center justify-center overflow-hidden bg-gradient-to-br ${accent.imgBg}`}>
+          {customImg ? (
+            <img src={customImg} alt={plan.name} className="h-full w-full object-cover" />
+          ) : (
+            <Dumbbell className="h-16 w-16 text-white/20" />
+          )}
           {/* Days badge */}
           <span className={`absolute bottom-3 left-3 rounded-lg ${accent.badge} px-2.5 py-1 text-xs font-bold text-white backdrop-blur-sm`}>
             {plan.statValue} {plan.statLabel === "Days" ? "days" : "meals"}
@@ -290,15 +312,14 @@ export default function MyPlans() {
                   {isActive ? "Unset Active" : "Set as Active"}
                 </button>
 
-                {/* Edit Color — placeholder */}
+                {/* Edit */}
                 <button
                   type="button"
-                  onClick={() => setOpenMenuId(null)}
-                  className="flex w-full items-center gap-3 px-4 py-3 text-sm font-medium text-slate-400 transition-colors hover:bg-white/[0.07]"
+                  onClick={() => { setOpenMenuId(null); setEditingPlanId(plan.id); }}
+                  className="flex w-full items-center gap-3 px-4 py-3 text-sm font-medium text-slate-200 transition-colors hover:bg-white/[0.07]"
                 >
-                  <Palette className="h-4 w-4 text-slate-500" />
-                  Edit Color
-                  <span className="ml-auto rounded-md bg-white/8 px-1.5 py-0.5 text-[10px] text-slate-500">soon</span>
+                  <Palette className="h-4 w-4 text-slate-400" />
+                  Edit
                 </button>
 
                 {/* Divider */}
@@ -365,7 +386,7 @@ export default function MyPlans() {
   };
 
   const renderMealCard = (plan: MockMealPlan, index: number) => {
-    const accent = getAccentClasses(index);
+    const accent = getAccentClasses(plan.id, index);
     return (
       <article
         key={plan.id}
@@ -515,6 +536,143 @@ export default function MyPlans() {
           )}
         </div>
       </div>
+
+      {/* Edit Plan Modal */}
+      {editingPlanId && (() => {
+        const editPlan = workoutPlans.find((p) => p.id === editingPlanId);
+        if (!editPlan) return null;
+        const planIndex = workoutPlans.findIndex((p) => p.id === editingPlanId);
+        const currentCustom = customizations[editingPlanId];
+        const currentColorId = currentCustom?.colorId ?? DEFAULT_THEME_IDS[planIndex % 4];
+        const currentImageUrl = currentCustom?.imageUrl ?? "";
+        return (
+          <EditPlanModal
+            planName={editPlan.name}
+            currentColorId={currentColorId}
+            currentImageUrl={currentImageUrl}
+            onSave={(colorId, imageUrl) => handleSaveCustomization(editingPlanId, colorId, imageUrl)}
+            onClose={() => setEditingPlanId(null)}
+          />
+        );
+      })()}
     </main>
+  );
+}
+
+interface EditPlanModalProps {
+  planName: string;
+  currentColorId: string;
+  currentImageUrl: string;
+  onSave: (colorId: string, imageUrl: string) => void;
+  onClose: () => void;
+}
+
+function EditPlanModal({ planName, currentColorId, currentImageUrl, onSave, onClose }: EditPlanModalProps) {
+  const [selectedColor, setSelectedColor] = useState(currentColorId);
+  const [imageUrl, setImageUrl] = useState(currentImageUrl);
+  const [imgError, setImgError] = useState(false);
+
+  const preview = PLAN_THEMES.find((t) => t.id === selectedColor) ?? PLAN_THEMES[0];
+
+  return (
+    <div
+      className="fixed inset-0 z-[200] flex items-center justify-center p-4"
+      style={{ backgroundColor: "rgba(0,0,0,0.75)", backdropFilter: "blur(8px)" }}
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div
+        className="dropdown-menu relative flex w-full max-w-md flex-col overflow-hidden rounded-3xl border border-white/12 bg-slate-900/98 shadow-[0_32px_80px_rgba(0,0,0,0.7)] backdrop-blur-2xl"
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between border-b border-white/8 px-6 py-5">
+          <div>
+            <h2 className="text-lg font-bold text-white">Edit Plan</h2>
+            <p className="text-sm text-slate-400">{planName}</p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/[0.05] text-slate-400 transition-colors hover:bg-white/10 hover:text-white"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        {/* Preview */}
+        <div className={`mx-6 mt-5 flex h-32 items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br ${preview.imgBg}`}>
+          {imageUrl && !imgError ? (
+            <img
+              src={imageUrl}
+              alt="Preview"
+              className="h-full w-full object-cover"
+              onError={() => setImgError(true)}
+            />
+          ) : (
+            <Dumbbell className="h-12 w-12 text-white/20" />
+          )}
+        </div>
+
+        {/* Image URL */}
+        <div className="px-6 pt-5">
+          <label className="mb-1.5 flex items-center gap-2 text-sm font-medium text-slate-300">
+            <Image className="h-4 w-4 text-slate-400" />
+            Image URL
+          </label>
+          <input
+            type="text"
+            value={imageUrl}
+            onChange={(e) => { setImageUrl(e.target.value); setImgError(false); }}
+            placeholder="https://example.com/image.jpg"
+            className="w-full rounded-xl border border-white/15 bg-white/[0.04] px-4 py-2.5 text-sm text-white outline-none transition-all placeholder:text-slate-500 focus:border-emerald-500/60"
+          />
+        </div>
+
+        {/* Color Picker */}
+        <div className="px-6 pt-5">
+          <p className="mb-3 text-sm font-medium text-slate-300">Color Theme</p>
+          <div className="flex flex-wrap gap-3">
+            {PLAN_THEMES.map((theme) => {
+              const isSelected = selectedColor === theme.id;
+              return (
+                <button
+                  key={theme.id}
+                  type="button"
+                  aria-label={theme.id}
+                  onClick={() => setSelectedColor(theme.id)}
+                  className={`relative h-9 w-9 rounded-full transition-all duration-150 ${
+                    isSelected ? "scale-110 ring-2 ring-white ring-offset-2 ring-offset-slate-900" : "hover:scale-105"
+                  }`}
+                  style={{ backgroundColor: theme.dot }}
+                >
+                  {isSelected && (
+                    <span className="absolute inset-0 flex items-center justify-center">
+                      <Check className="h-4 w-4 text-white drop-shadow" />
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Actions */}
+        <div className="flex gap-3 px-6 pb-6 pt-5">
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex-1 rounded-xl border border-white/15 bg-white/[0.04] py-2.5 text-sm font-semibold text-slate-300 transition-colors hover:bg-white/[0.08]"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={() => onSave(selectedColor, imageUrl)}
+            className="flex-1 rounded-xl bg-emerald-500 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-400"
+          >
+            Save
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
