@@ -19,7 +19,7 @@ import {
   readCustomizations,
   readMealCustomizations,
 } from "./MyPlans";
-import { getDateKey, isPlanCompleted } from "../utils/planCompletion";
+import { getDateKey, hasCompletedPlanDay } from "../utils/planCompletion";
 import { getActivePlan, getWorkoutPlans } from "../utils/planStorage";
 
 const ACTIVE_MEAL_KEY = "fitlife_active_meal_plan";
@@ -75,7 +75,6 @@ function StatusBadge({ completed }: StatusBadgeProps) {
 
 interface ActivePlanCardProps {
   type: "workout" | "meal";
-  title: string;
   name: string;
   href: string;
   completed: boolean;
@@ -92,7 +91,7 @@ const statIcons = {
   target: Target,
 };
 
-function ActivePlanCard({ type, title, name, href, completed, imageUrl, accent, stats }: ActivePlanCardProps) {
+function ActivePlanCard({ type, name, href, completed, imageUrl, accent, stats }: ActivePlanCardProps) {
   const Icon = type === "workout" ? Dumbbell : UtensilsCrossed;
 
   return (
@@ -106,14 +105,6 @@ function ActivePlanCard({ type, title, name, href, completed, imageUrl, accent, 
           <Icon className="h-20 w-20 text-white/14" />
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-slate-950/10" />
-        <div className="absolute left-4 top-4 flex items-center gap-2">
-          <span className={`inline-flex h-10 w-10 items-center justify-center rounded-xl ${accent.badge} text-white shadow-lg`}>
-            <Icon className="h-5 w-5" />
-          </span>
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-300">{title}</p>
-          </div>
-        </div>
         <div className="absolute bottom-4 left-4 right-4">
           <StatusBadge completed={completed} />
         </div>
@@ -142,6 +133,20 @@ function ActivePlanCard({ type, title, name, href, completed, imageUrl, accent, 
         </Link>
       </div>
     </article>
+  );
+}
+
+function ActivePlanHeading({ type }: { type: "workout" | "meal" }) {
+  const isWorkout = type === "workout";
+  const Icon = isWorkout ? Dumbbell : UtensilsCrossed;
+
+  return (
+    <div className="mb-4 flex items-center gap-2">
+      <Icon className={`h-5 w-5 ${isWorkout ? "text-emerald-400" : "text-orange-400"}`} />
+      <h2 className="text-2xl font-bold text-white">
+        {isWorkout ? "Active Workout Plan" : "Active Alimentation Plan"}
+      </h2>
+    </div>
   );
 }
 
@@ -221,8 +226,8 @@ export default function Home() {
   const workoutPlans = getWorkoutPlans();
   const customizations = readCustomizations();
   const mealCustomizations = readMealCustomizations();
-  const workoutCompleted = isPlanCompleted("workout", activeWorkoutPlan?.id, selectedDateKey);
-  const mealCompleted = isPlanCompleted("meal", activeMealPlan?.id, selectedDateKey);
+  const workoutCompleted = hasCompletedPlanDay("workout", activeWorkoutPlan?.id, selectedDateKey);
+  const mealCompleted = hasCompletedPlanDay("meal", activeMealPlan?.id, selectedDateKey);
   const totalWorkoutExercises =
     activeWorkoutPlan?.days.reduce((sum, day) => sum + day.exerciseIds.length, 0) ?? 0;
   const totalCalories = activeMealPlan?.kcal ?? 0;
@@ -308,39 +313,43 @@ export default function Home() {
 
         <section className="grid gap-5 xl:grid-cols-2">
           {activeWorkoutPlan ? (
-            <ActivePlanCard
-              type="workout"
-              title="Active Workout Plan"
-              name={activeWorkoutPlan.name}
-              href={`/gym-plan?planId=${activeWorkoutPlan.id}&date=${selectedDateKey}`}
-              completed={workoutCompleted}
-              imageUrl={workoutImageUrl}
-              accent={workoutAccent}
-              stats={[
-                { icon: "calendar", label: `${activeWorkoutPlan.days.length} training days` },
-                { icon: "dumbbell", label: `${totalWorkoutExercises} exercises` },
-                { icon: "clock", label: `~${Math.max(1, activeWorkoutPlan.days.length) * 45} min` },
-              ]}
-            />
+            <div>
+              <ActivePlanHeading type="workout" />
+              <ActivePlanCard
+                type="workout"
+                name={activeWorkoutPlan.name}
+                href={`/gym-plan?planId=${activeWorkoutPlan.id}&date=${selectedDateKey}`}
+                completed={workoutCompleted}
+                imageUrl={workoutImageUrl}
+                accent={workoutAccent}
+                stats={[
+                  { icon: "calendar", label: `${activeWorkoutPlan.days.length} training days` },
+                  { icon: "dumbbell", label: `${totalWorkoutExercises} exercises` },
+                  { icon: "clock", label: `~${Math.max(1, activeWorkoutPlan.days.length) * 45} min` },
+                ]}
+              />
+            </div>
           ) : (
             <EmptyPlanCard type="workout" />
           )}
 
           {activeMealPlan ? (
-            <ActivePlanCard
-              type="meal"
-              title="Active Alimentation Plan"
-              name={activeMealPlan.name}
-              href={`/meal-plan?planId=${activeMealPlan.id}&date=${selectedDateKey}`}
-              completed={mealCompleted}
-              imageUrl={mealImageUrl}
-              accent={mealAccent}
-              stats={[
-                { icon: "flame", label: `${activeMealPlan.kcal.toLocaleString()} kcal / day` },
-                { icon: "calendar", label: `${activeMealPlan.meals} meals` },
-                { icon: "target", label: `${activeMealPlan.proteins}% protein` },
-              ]}
-            />
+            <div>
+              <ActivePlanHeading type="meal" />
+              <ActivePlanCard
+                type="meal"
+                name={activeMealPlan.name}
+                href={`/meal-plan?planId=${activeMealPlan.id}&date=${selectedDateKey}`}
+                completed={mealCompleted}
+                imageUrl={mealImageUrl}
+                accent={mealAccent}
+                stats={[
+                  { icon: "flame", label: `${activeMealPlan.kcal.toLocaleString()} kcal / day` },
+                  { icon: "calendar", label: `${activeMealPlan.meals} meals` },
+                  { icon: "target", label: `${activeMealPlan.proteins}% protein` },
+                ]}
+              />
+            </div>
           ) : (
             <EmptyPlanCard type="meal" />
           )}

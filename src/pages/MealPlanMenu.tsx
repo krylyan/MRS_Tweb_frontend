@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import ReactDOM from "react-dom";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import type { FoodItem } from "../types/meal";
-import { getDateKey, isPlanCompleted, markPlanCompleted } from "../utils/planCompletion";
+import { getDateKey, isPlanDayCompleted, markPlanDayCompleted } from "../utils/planCompletion";
 import { mealLibrary } from "../utils/mealLibrary";
 
 type MealSlot = "breakfast" | "lunch" | "snacks" | "dinner";
@@ -411,9 +411,21 @@ export default function MealPlanMenu() {
   const proteinPct = totalKcal > 0 ? Math.round((totalP * 4 / totalKcal) * 100) : 0;
   const fatsPct = totalKcal > 0 ? Math.round((totalF * 9 / totalKcal) * 100) : 0;
   const carbsPct = totalKcal > 0 ? Math.round((totalC * 4 / totalKcal) * 100) : 0;
+  const completedDayIds = useMemo(
+    () =>
+      activeMealPlanId
+        ? DAYS
+            .filter((day) => isPlanDayCompleted("meal", activeMealPlanId, day.id, completionDateKey))
+            .map((day) => day.id)
+        : [],
+    [activeMealPlanId, completionDateKey, completionVersion],
+  );
   const isCompletedForDate = useMemo(
-    () => (canMarkCompleted && activeMealPlanId ? isPlanCompleted("meal", activeMealPlanId, completionDateKey) : false),
-    [activeMealPlanId, canMarkCompleted, completionDateKey, completionVersion],
+    () =>
+      canMarkCompleted && activeMealPlanId
+        ? isPlanDayCompleted("meal", activeMealPlanId, activeDayId, completionDateKey)
+        : false,
+    [activeDayId, activeMealPlanId, canMarkCompleted, completionDateKey, completionVersion],
   );
 
   const markDirty = () => {
@@ -452,7 +464,7 @@ export default function MealPlanMenu() {
 
   const handleMarkCompleted = () => {
     if (!activeMealPlanId || !canMarkCompleted) return;
-    markPlanCompleted("meal", activeMealPlanId, completionDateKey);
+    markPlanDayCompleted("meal", activeMealPlanId, activeDayId, completionDateKey);
     setCompletionVersion((current) => current + 1);
   };
 
@@ -487,7 +499,7 @@ export default function MealPlanMenu() {
                 }`}
               >
                 {isCompletedForDate ? <Check className="h-4 w-4" /> : null}
-                {isCompletedForDate ? "Completed" : "Mark completed"}
+                {isCompletedForDate ? "Day completed" : "Mark day completed"}
               </button>
             ) : null}
             <button
@@ -511,6 +523,7 @@ export default function MealPlanMenu() {
           <div className="flex flex-wrap items-center gap-2.5">
             {DAYS.map((day) => {
               const isActive = day.id === activeDayId;
+              const isCompleted = completedDayIds.includes(day.id);
 
               return (
                 <button
@@ -518,7 +531,9 @@ export default function MealPlanMenu() {
                   type="button"
                   onClick={() => setActiveDayId(day.id)}
                   className={`rounded-[10px] border px-4 py-2 text-sm font-semibold transition-colors ${
-                    isActive
+                    isCompleted
+                      ? "border-blue-300/45 bg-blue-500/25 text-blue-100 shadow-[0_0_16px_rgba(59,130,246,0.18)]"
+                      : isActive
                       ? "border-emerald-400/40 bg-emerald-500/20 text-emerald-200"
                       : "border-white/10 bg-white/[0.02] text-slate-200 hover:bg-white/[0.08]"
                   }`}

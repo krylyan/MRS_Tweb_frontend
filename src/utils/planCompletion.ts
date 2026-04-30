@@ -3,6 +3,8 @@ export type PlanCompletionType = "workout" | "meal";
 export interface DayPlanCompletion {
   workoutPlanIds: string[];
   mealPlanIds: string[];
+  workoutDayIds: string[];
+  mealDayIds: string[];
 }
 
 export type PlanCompletions = Record<string, DayPlanCompletion>;
@@ -12,6 +14,8 @@ const COMPLETIONS_KEY = "fitlife_plan_completions";
 const emptyDayCompletion = (): DayPlanCompletion => ({
   workoutPlanIds: [],
   mealPlanIds: [],
+  workoutDayIds: [],
+  mealDayIds: [],
 });
 
 const padDatePart = (value: number): string => String(value).padStart(2, "0");
@@ -49,6 +53,11 @@ const writeCompletions = (data: PlanCompletions): void => {
 const getListKey = (type: PlanCompletionType): keyof DayPlanCompletion =>
   type === "workout" ? "workoutPlanIds" : "mealPlanIds";
 
+const getDayListKey = (type: PlanCompletionType): keyof DayPlanCompletion =>
+  type === "workout" ? "workoutDayIds" : "mealDayIds";
+
+const getDayToken = (planId: string, dayId: string): string => `${planId}:${dayId}`;
+
 export const getDayCompletion = (dateKey: string): DayPlanCompletion => {
   const completions = readCompletions();
   const completion = completions[dateKey] ?? emptyDayCompletion();
@@ -56,6 +65,8 @@ export const getDayCompletion = (dateKey: string): DayPlanCompletion => {
   return {
     workoutPlanIds: Array.isArray(completion.workoutPlanIds) ? completion.workoutPlanIds : [],
     mealPlanIds: Array.isArray(completion.mealPlanIds) ? completion.mealPlanIds : [],
+    workoutDayIds: Array.isArray(completion.workoutDayIds) ? completion.workoutDayIds : [],
+    mealDayIds: Array.isArray(completion.mealDayIds) ? completion.mealDayIds : [],
   };
 };
 
@@ -67,6 +78,27 @@ export const isPlanCompleted = (
   if (!planId) return false;
   const completion = getDayCompletion(dateKey);
   return completion[getListKey(type)].includes(planId);
+};
+
+export const isPlanDayCompleted = (
+  type: PlanCompletionType,
+  planId: string | null | undefined,
+  dayId: string | null | undefined,
+  dateKey: string,
+): boolean => {
+  if (!planId || !dayId) return false;
+  const completion = getDayCompletion(dateKey);
+  return completion[getDayListKey(type)].includes(getDayToken(planId, dayId));
+};
+
+export const hasCompletedPlanDay = (
+  type: PlanCompletionType,
+  planId: string | null | undefined,
+  dateKey: string,
+): boolean => {
+  if (!planId) return false;
+  const completion = getDayCompletion(dateKey);
+  return completion[getDayListKey(type)].some((token) => token.startsWith(`${planId}:`));
 };
 
 export const markPlanCompleted = (
@@ -82,7 +114,32 @@ export const markPlanCompleted = (
   completions[dateKey] = {
     workoutPlanIds: Array.isArray(completion.workoutPlanIds) ? completion.workoutPlanIds : [],
     mealPlanIds: Array.isArray(completion.mealPlanIds) ? completion.mealPlanIds : [],
+    workoutDayIds: Array.isArray(completion.workoutDayIds) ? completion.workoutDayIds : [],
+    mealDayIds: Array.isArray(completion.mealDayIds) ? completion.mealDayIds : [],
     [listKey]: currentList.includes(planId) ? currentList : [...currentList, planId],
+  };
+
+  writeCompletions(completions);
+};
+
+export const markPlanDayCompleted = (
+  type: PlanCompletionType,
+  planId: string,
+  dayId: string,
+  dateKey: string,
+): void => {
+  const completions = readCompletions();
+  const completion = completions[dateKey] ?? emptyDayCompletion();
+  const listKey = getDayListKey(type);
+  const currentList = Array.isArray(completion[listKey]) ? completion[listKey] : [];
+  const token = getDayToken(planId, dayId);
+
+  completions[dateKey] = {
+    workoutPlanIds: Array.isArray(completion.workoutPlanIds) ? completion.workoutPlanIds : [],
+    mealPlanIds: Array.isArray(completion.mealPlanIds) ? completion.mealPlanIds : [],
+    workoutDayIds: Array.isArray(completion.workoutDayIds) ? completion.workoutDayIds : [],
+    mealDayIds: Array.isArray(completion.mealDayIds) ? completion.mealDayIds : [],
+    [listKey]: currentList.includes(token) ? currentList : [...currentList, token],
   };
 
   writeCompletions(completions);
@@ -100,6 +157,8 @@ export const unmarkPlanCompleted = (
   completions[dateKey] = {
     workoutPlanIds: Array.isArray(completion.workoutPlanIds) ? completion.workoutPlanIds : [],
     mealPlanIds: Array.isArray(completion.mealPlanIds) ? completion.mealPlanIds : [],
+    workoutDayIds: Array.isArray(completion.workoutDayIds) ? completion.workoutDayIds : [],
+    mealDayIds: Array.isArray(completion.mealDayIds) ? completion.mealDayIds : [],
     [listKey]: (completion[listKey] ?? []).filter((id) => id !== planId),
   };
 
