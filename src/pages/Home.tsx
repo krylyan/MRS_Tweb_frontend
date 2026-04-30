@@ -97,7 +97,7 @@ function ActivePlanCard({ type, title, name, href, completed, imageUrl, accent, 
 
   return (
     <article
-      className={`relative flex flex-col overflow-hidden rounded-2xl border shadow-[0_18px_36px_rgba(0,0,0,0.25)] backdrop-blur-[6px] transition-all duration-300 hover:-translate-y-1 hover:shadow-xl ${accent.card} ring-2 ring-emerald-400/60`}
+      className={`relative flex flex-col overflow-hidden rounded-2xl border shadow-[0_18px_36px_rgba(0,0,0,0.25)] backdrop-blur-[6px] transition-all duration-300 hover:-translate-y-1 hover:shadow-xl ${accent.card}`}
     >
       <div className={`relative flex h-44 items-center justify-center bg-gradient-to-br ${accent.imgBg}`}>
         {imageUrl ? (
@@ -182,53 +182,33 @@ function CalorieProgressCard({
   consumedCalories: number;
   totalCalories: number;
 }) {
-  const radius = 46;
-  const circumference = 2 * Math.PI * radius;
   const progress = totalCalories > 0 ? Math.min(1, consumedCalories / totalCalories) : 0;
-  const strokeOffset = circumference - progress * circumference;
+  const caloriesLeft = Math.max(0, totalCalories - consumedCalories);
+  const totalLabel = totalCalories > 0 ? totalCalories.toLocaleString() : "-";
 
   return (
-    <div className="grid min-h-[168px] grid-cols-[minmax(0,1fr)_128px] items-center gap-4 rounded-2xl border border-white/10 bg-white/[0.04] p-5 shadow-[0_18px_42px_rgba(0,0,0,0.22)]">
-      <div className="min-w-0">
-        <Flame className="mb-3 h-5 w-5 text-orange-300" />
-        <p className="text-3xl font-bold text-white">{consumedCalories.toLocaleString()}</p>
-        <p className="mt-1 text-sm text-slate-400">
-          calories consumed from {totalCalories > 0 ? totalCalories.toLocaleString() : "-"}
-        </p>
+    <div className="flex min-h-[168px] flex-col justify-between rounded-2xl border border-white/10 bg-white/[0.04] p-5 shadow-[0_18px_42px_rgba(0,0,0,0.22)]">
+      <div>
+        <p className="text-base font-semibold text-slate-300">Calories</p>
+        <div className="mt-4 flex items-baseline justify-between gap-4">
+          <p className="min-w-0 text-3xl font-bold leading-none text-white">
+            {consumedCalories.toLocaleString()} cal
+            <span className="text-xl font-bold text-slate-500"> / {totalLabel}</span>
+          </p>
+          <p className="shrink-0 text-sm font-semibold text-slate-400">
+            {totalCalories > 0 ? caloriesLeft.toLocaleString() : "-"} left
+          </p>
+        </div>
       </div>
 
-      <div className="relative h-28 w-28 justify-self-end">
-        <svg viewBox="0 0 120 120" className="h-full w-full -rotate-90">
-          <circle
-            cx="60"
-            cy="60"
-            r={radius}
-            fill="none"
-            stroke="rgba(255,255,255,0.14)"
-            strokeWidth="10"
+      <div>
+        <div className="h-3 overflow-hidden rounded-full bg-slate-950/60 shadow-inner shadow-black/25">
+          <div
+            className="h-full rounded-full bg-gradient-to-r from-orange-400 to-amber-300 transition-[width] duration-500"
+            style={{ width: `${progress * 100}%` }}
           />
-          <circle
-            cx="60"
-            cy="60"
-            r={radius}
-            fill="none"
-            stroke="url(#calorie-progress)"
-            strokeLinecap="round"
-            strokeWidth="10"
-            strokeDasharray={circumference}
-            strokeDashoffset={strokeOffset}
-          />
-          <defs>
-            <linearGradient id="calorie-progress" x1="0" x2="1" y1="0" y2="1">
-              <stop stopColor="#fb923c" />
-              <stop offset="1" stopColor="#f43f5e" />
-            </linearGradient>
-          </defs>
-        </svg>
-        <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-          <span className="text-lg font-bold text-white">{Math.round(progress * 100)}%</span>
-          <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">kcal</span>
         </div>
+        <p className="mt-3 text-sm text-slate-400">calories consumed from daily plan</p>
       </div>
     </div>
   );

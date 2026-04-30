@@ -50,16 +50,16 @@ export interface PlanCustomization {
 export type PlanCustomizations = Record<string, PlanCustomization>;
 
 export const PLAN_THEMES = [
-  { id: "emerald",  dot: "#10b981", card: "border-emerald-500/40 bg-gradient-to-br from-emerald-600/25 to-emerald-900/40 hover:border-emerald-400/60 hover:shadow-emerald-500/20",  btn: "bg-emerald-500 hover:bg-emerald-400 shadow-emerald-500/30",  badge: "bg-emerald-600/90",  imgBg: "from-emerald-800/50 to-emerald-950/80" },
-  { id: "blue",     dot: "#3b82f6", card: "border-blue-500/40 bg-gradient-to-br from-blue-600/25 to-blue-900/40 hover:border-blue-400/60 hover:shadow-blue-500/20",           btn: "bg-blue-500 hover:bg-blue-400 shadow-blue-500/30",           badge: "bg-blue-600/90",     imgBg: "from-blue-800/50 to-blue-950/80" },
-  { id: "purple",   dot: "#a855f7", card: "border-purple-500/40 bg-gradient-to-br from-purple-600/25 to-purple-900/40 hover:border-purple-400/60 hover:shadow-purple-500/20",   btn: "bg-purple-500 hover:bg-purple-400 shadow-purple-500/30",   badge: "bg-purple-600/90",   imgBg: "from-purple-800/50 to-purple-950/80" },
-  { id: "orange",   dot: "#f97316", card: "border-orange-500/40 bg-gradient-to-br from-orange-600/20 to-amber-900/40 hover:border-orange-400/60 hover:shadow-orange-500/20",   btn: "bg-orange-500 hover:bg-orange-400 shadow-orange-500/30",   badge: "bg-orange-600/90",   imgBg: "from-orange-800/50 to-amber-950/80" },
-  { id: "rose",     dot: "#e11d48", card: "border-rose-500/40 bg-gradient-to-br from-rose-600/25 to-rose-950/40 hover:border-rose-400/60 hover:shadow-rose-500/20",           btn: "bg-rose-500 hover:bg-rose-400 shadow-rose-500/30",           badge: "bg-rose-700/90",     imgBg: "from-rose-800/50 to-rose-950/80" },
-  { id: "teal",     dot: "#14b8a6", card: "border-teal-500/40 bg-gradient-to-br from-teal-600/25 to-teal-900/40 hover:border-teal-400/60 hover:shadow-teal-500/20",           btn: "bg-teal-500 hover:bg-teal-400 shadow-teal-500/30",           badge: "bg-teal-600/90",     imgBg: "from-teal-800/50 to-teal-950/80" },
-  { id: "cyan",     dot: "#06b6d4", card: "border-cyan-500/40 bg-gradient-to-br from-cyan-600/25 to-cyan-900/40 hover:border-cyan-400/60 hover:shadow-cyan-500/20",           btn: "bg-cyan-500 hover:bg-cyan-400 shadow-cyan-500/30",           badge: "bg-cyan-600/90",     imgBg: "from-cyan-800/50 to-cyan-950/80" },
-  { id: "indigo",   dot: "#6366f1", card: "border-indigo-500/40 bg-gradient-to-br from-indigo-600/25 to-indigo-900/40 hover:border-indigo-400/60 hover:shadow-indigo-500/20",   btn: "bg-indigo-500 hover:bg-indigo-400 shadow-indigo-500/30",   badge: "bg-indigo-600/90",   imgBg: "from-indigo-800/50 to-indigo-950/80" },
-  { id: "amber",    dot: "#f59e0b", card: "border-amber-500/40 bg-gradient-to-br from-amber-600/25 to-amber-900/40 hover:border-amber-400/60 hover:shadow-amber-500/20",       btn: "bg-amber-500 hover:bg-amber-400 shadow-amber-500/30",       badge: "bg-amber-600/90",    imgBg: "from-amber-800/50 to-amber-950/80" },
-  { id: "slate",    dot: "#64748b", card: "border-slate-500/40 bg-gradient-to-br from-slate-600/25 to-slate-900/40 hover:border-slate-400/60 hover:shadow-slate-500/20",       btn: "bg-slate-500 hover:bg-slate-400 shadow-slate-500/30",       badge: "bg-slate-600/90",    imgBg: "from-slate-700/50 to-slate-950/80" },
+  { id: "emerald", dot: "#10b981", card: "border-emerald-500/40 bg-gradient-to-br from-emerald-600/25 to-emerald-900/40 hover:border-emerald-400/60 hover:shadow-emerald-500/20", btn: "bg-emerald-500 hover:bg-emerald-400 shadow-emerald-500/30", badge: "bg-emerald-600/90", imgBg: "from-emerald-800/50 to-emerald-950/80" },
+  { id: "blue", dot: "#3b82f6", card: "border-blue-500/40 bg-gradient-to-br from-blue-600/25 to-blue-900/40 hover:border-blue-400/60 hover:shadow-blue-500/20", btn: "bg-blue-500 hover:bg-blue-400 shadow-blue-500/30", badge: "bg-blue-600/90", imgBg: "from-blue-800/50 to-blue-950/80" },
+  { id: "purple", dot: "#a855f7", card: "border-purple-500/40 bg-gradient-to-br from-purple-600/25 to-purple-900/40 hover:border-purple-400/60 hover:shadow-purple-500/20", btn: "bg-purple-500 hover:bg-purple-400 shadow-purple-500/30", badge: "bg-purple-600/90", imgBg: "from-purple-800/50 to-purple-950/80" },
+  { id: "orange", dot: "#f97316", card: "border-orange-500/40 bg-gradient-to-br from-orange-600/20 to-amber-900/40 hover:border-orange-400/60 hover:shadow-orange-500/20", btn: "bg-orange-500 hover:bg-orange-400 shadow-orange-500/30", badge: "bg-orange-600/90", imgBg: "from-orange-800/50 to-amber-950/80" },
+  { id: "rose", dot: "#e11d48", card: "border-rose-500/40 bg-gradient-to-br from-rose-600/25 to-rose-950/40 hover:border-rose-400/60 hover:shadow-rose-500/20", btn: "bg-rose-500 hover:bg-rose-400 shadow-rose-500/30", badge: "bg-rose-700/90", imgBg: "from-rose-800/50 to-rose-950/80" },
+  { id: "teal", dot: "#14b8a6", card: "border-teal-500/40 bg-gradient-to-br from-teal-600/25 to-teal-900/40 hover:border-teal-400/60 hover:shadow-teal-500/20", btn: "bg-teal-500 hover:bg-teal-400 shadow-teal-500/30", badge: "bg-teal-600/90", imgBg: "from-teal-800/50 to-teal-950/80" },
+  { id: "cyan", dot: "#06b6d4", card: "border-cyan-500/40 bg-gradient-to-br from-cyan-600/25 to-cyan-900/40 hover:border-cyan-400/60 hover:shadow-cyan-500/20", btn: "bg-cyan-500 hover:bg-cyan-400 shadow-cyan-500/30", badge: "bg-cyan-600/90", imgBg: "from-cyan-800/50 to-cyan-950/80" },
+  { id: "indigo", dot: "#6366f1", card: "border-indigo-500/40 bg-gradient-to-br from-indigo-600/25 to-indigo-900/40 hover:border-indigo-400/60 hover:shadow-indigo-500/20", btn: "bg-indigo-500 hover:bg-indigo-400 shadow-indigo-500/30", badge: "bg-indigo-600/90", imgBg: "from-indigo-800/50 to-indigo-950/80" },
+  { id: "amber", dot: "#f59e0b", card: "border-amber-500/40 bg-gradient-to-br from-amber-600/25 to-amber-900/40 hover:border-amber-400/60 hover:shadow-amber-500/20", btn: "bg-amber-500 hover:bg-amber-400 shadow-amber-500/30", badge: "bg-amber-600/90", imgBg: "from-amber-800/50 to-amber-950/80" },
+  { id: "slate", dot: "#64748b", card: "border-slate-500/40 bg-gradient-to-br from-slate-600/25 to-slate-900/40 hover:border-slate-400/60 hover:shadow-slate-500/20", btn: "bg-slate-500 hover:bg-slate-400 shadow-slate-500/30", badge: "bg-slate-600/90", imgBg: "from-slate-700/50 to-slate-950/80" },
 ] as const;
 
 export const DEFAULT_THEME_IDS = ["emerald", "blue", "purple", "orange"] as const;
@@ -354,9 +354,8 @@ export default function MyPlans() {
     return (
       <article
         key={`${sectionKey}-${plan.id}`}
-        className={`reveal-up relative flex flex-col rounded-2xl border shadow-[0_18px_36px_rgba(0,0,0,0.25)] backdrop-blur-[6px] transition-all duration-300 hover:-translate-y-1 hover:shadow-xl ${
-          accent.card
-        } ${isActive ? "ring-2 ring-emerald-400/60" : ""}`}
+        className={`reveal-up relative flex flex-col rounded-2xl border shadow-[0_18px_36px_rgba(0,0,0,0.25)] backdrop-blur-[6px] transition-all duration-300 hover:-translate-y-1 hover:shadow-xl ${accent.card
+          } ${isActive ? "ring-2 ring-emerald-400/60" : ""}`}
       >
         {/* Image area */}
         <div className={`relative flex h-44 items-center justify-center overflow-hidden rounded-t-2xl bg-gradient-to-br ${accent.imgBg}`}>
@@ -389,62 +388,62 @@ export default function MyPlans() {
 
         {/* ⋯ Menu — sibling to image div, positioned on article (no overflow-hidden parent) */}
         <div className="absolute right-2 top-2 z-10" ref={isMenuOpen ? menuRef : null}>
-            <button
-              type="button"
-              aria-label="Plan options"
-              onClick={() => setOpenMenuId(isMenuOpen ? null : plan.id)}
-              className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/20 bg-black/40 backdrop-blur-sm text-white/70 transition-all hover:bg-black/60 hover:text-white"
-            >
-              <MoreHorizontal className="h-4 w-4" />
-            </button>
+          <button
+            type="button"
+            aria-label="Plan options"
+            onClick={() => setOpenMenuId(isMenuOpen ? null : plan.id)}
+            className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/20 bg-black/40 backdrop-blur-sm text-white/70 transition-all hover:bg-black/60 hover:text-white"
+          >
+            <MoreHorizontal className="h-4 w-4" />
+          </button>
 
-            {/* Dropdown */}
-            {isMenuOpen && (
-              <div className="dropdown-menu absolute right-0 top-10 z-50 min-w-[180px] overflow-hidden rounded-2xl border border-white/12 bg-slate-900/95 shadow-[0_20px_48px_rgba(0,0,0,0.6)] backdrop-blur-xl">
-                {/* Add to Favorites */}
-                <button
-                  type="button"
-                  onClick={() => handleToggleFavorite(plan.id, plan.favoriteEnabled)}
-                  className="flex w-full items-center gap-3 px-4 py-3 text-sm font-medium text-slate-200 transition-colors hover:bg-white/[0.07]"
-                >
-                  <Star className={`h-4 w-4 ${isFavorite ? "fill-amber-400 text-amber-400" : "text-slate-400"}`} />
-                  {isFavorite ? "Remove from Favorites" : "Add to Favorites"}
-                </button>
+          {/* Dropdown */}
+          {isMenuOpen && (
+            <div className="dropdown-menu absolute right-0 top-10 z-50 min-w-[180px] overflow-hidden rounded-2xl border border-white/12 bg-slate-900/95 shadow-[0_20px_48px_rgba(0,0,0,0.6)] backdrop-blur-xl">
+              {/* Add to Favorites */}
+              <button
+                type="button"
+                onClick={() => handleToggleFavorite(plan.id, plan.favoriteEnabled)}
+                className="flex w-full items-center gap-3 px-4 py-3 text-sm font-medium text-slate-200 transition-colors hover:bg-white/[0.07]"
+              >
+                <Star className={`h-4 w-4 ${isFavorite ? "fill-amber-400 text-amber-400" : "text-slate-400"}`} />
+                {isFavorite ? "Remove from Favorites" : "Add to Favorites"}
+              </button>
 
-                {/* Set as Active */}
-                <button
-                  type="button"
-                  onClick={() => handleSetActive(plan.id)}
-                  className="flex w-full items-center gap-3 px-4 py-3 text-sm font-medium text-slate-200 transition-colors hover:bg-white/[0.07]"
-                >
-                  <Check className={`h-4 w-4 ${isActive ? "text-emerald-400" : "text-slate-400"}`} />
-                  {isActive ? "Unset Active" : "Set as Active"}
-                </button>
+              {/* Set as Active */}
+              <button
+                type="button"
+                onClick={() => handleSetActive(plan.id)}
+                className="flex w-full items-center gap-3 px-4 py-3 text-sm font-medium text-slate-200 transition-colors hover:bg-white/[0.07]"
+              >
+                <Check className={`h-4 w-4 ${isActive ? "text-emerald-400" : "text-slate-400"}`} />
+                {isActive ? "Unset Active" : "Set as Active"}
+              </button>
 
-                {/* Edit */}
-                <button
-                  type="button"
-                  onClick={() => { setOpenMenuId(null); setEditingPlanId(plan.id); }}
-                  className="flex w-full items-center gap-3 px-4 py-3 text-sm font-medium text-slate-200 transition-colors hover:bg-white/[0.07]"
-                >
-                  <Palette className="h-4 w-4 text-slate-400" />
-                  Edit
-                </button>
+              {/* Edit */}
+              <button
+                type="button"
+                onClick={() => { setOpenMenuId(null); setEditingPlanId(plan.id); }}
+                className="flex w-full items-center gap-3 px-4 py-3 text-sm font-medium text-slate-200 transition-colors hover:bg-white/[0.07]"
+              >
+                <Palette className="h-4 w-4 text-slate-400" />
+                Edit
+              </button>
 
-                {/* Divider */}
-                <div className="mx-3 border-t border-white/8" />
+              {/* Divider */}
+              <div className="mx-3 border-t border-white/8" />
 
-                {/* Delete */}
-                <button
-                  type="button"
-                  onClick={() => requestDeletePlan(plan, plan.deleteEnabled)}
-                  className="flex w-full items-center gap-3 px-4 py-3 text-sm font-medium text-rose-400 transition-colors hover:bg-rose-500/10"
-                >
-                  <Trash2 className="h-4 w-4" />
-                  Delete
-                </button>
-              </div>
-            )}
+              {/* Delete */}
+              <button
+                type="button"
+                onClick={() => requestDeletePlan(plan, plan.deleteEnabled)}
+                className="flex w-full items-center gap-3 px-4 py-3 text-sm font-medium text-rose-400 transition-colors hover:bg-rose-500/10"
+              >
+                <Trash2 className="h-4 w-4" />
+                Delete
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Content */}
@@ -482,9 +481,8 @@ export default function MyPlans() {
               navigate(`/gym-plan?planId=${plan.id}`);
             }}
             disabled={!plan.detailsEnabled}
-            className={`mt-auto w-full rounded-[10px] py-2.5 text-sm font-semibold text-white shadow-lg transition-all duration-200 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 ${
-              accent.btn
-            }`}
+            className={`mt-auto w-full rounded-[10px] py-2.5 text-sm font-semibold text-white shadow-lg transition-all duration-200 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 ${accent.btn
+              }`}
           >
             Open Plan
           </button>
@@ -505,9 +503,8 @@ export default function MyPlans() {
     return (
       <article
         key={plan.id}
-        className={`reveal-up relative flex flex-col rounded-2xl border shadow-[0_18px_36px_rgba(0,0,0,0.25)] backdrop-blur-[6px] transition-all duration-300 hover:-translate-y-1 hover:shadow-xl ${
-          accent.card
-        } ${isMealActive ? "ring-2 ring-emerald-400/60" : ""}`}
+        className={`reveal-up relative flex flex-col rounded-2xl border shadow-[0_18px_36px_rgba(0,0,0,0.25)] backdrop-blur-[6px] transition-all duration-300 hover:-translate-y-1 hover:shadow-xl ${accent.card
+          } ${isMealActive ? "ring-2 ring-emerald-400/60" : ""}`}
       >
         {/* Image area */}
         <div className="relative h-44 overflow-hidden rounded-t-2xl">
@@ -610,9 +607,8 @@ export default function MyPlans() {
           <button
             type="button"
             onClick={() => navigate("/meal-plan")}
-            className={`mt-auto w-full rounded-[10px] py-2.5 text-sm font-semibold text-white shadow-lg transition-all duration-200 active:scale-95 ${
-              accent.btn
-            }`}
+            className={`mt-auto w-full rounded-[10px] py-2.5 text-sm font-semibold text-white shadow-lg transition-all duration-200 active:scale-95 ${accent.btn
+              }`}
           >
             Open Plan
           </button>
@@ -877,9 +873,8 @@ function EditPlanModal({ planName, currentColorId, currentImageUrl, onSave, onCl
                   type="button"
                   aria-label={theme.id}
                   onClick={() => setSelectedColor(theme.id)}
-                  className={`relative h-9 w-9 rounded-full transition-all duration-150 ${
-                    isSelected ? "scale-110 ring-2 ring-white ring-offset-2 ring-offset-slate-900" : "hover:scale-105"
-                  }`}
+                  className={`relative h-9 w-9 rounded-full transition-all duration-150 ${isSelected ? "scale-110 ring-2 ring-white ring-offset-2 ring-offset-slate-900" : "hover:scale-105"
+                    }`}
                   style={{ backgroundColor: theme.dot }}
                 >
                   {isSelected && (
