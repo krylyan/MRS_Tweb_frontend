@@ -6,14 +6,19 @@ import {
   Clock,
   Dumbbell,
   Flame,
-  ListChecks,
   Plus,
   Target,
   UtensilsCrossed,
 } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { ALIMENTATION_PLANS } from "./MyPlans";
+import {
+  ALIMENTATION_PLANS,
+  DEFAULT_THEME_IDS,
+  getThemeById,
+  readCustomizations,
+  readMealCustomizations,
+} from "./MyPlans";
 import { getDateKey, isPlanCompleted } from "../utils/planCompletion";
 import { getActivePlan, getWorkoutPlans } from "../utils/planStorage";
 
@@ -30,17 +35,6 @@ const addDays = (dateKey: string, days: number): string => {
   return getDateKey(nextDate);
 };
 
-const getWeekNumber = (date: Date): number => {
-  const start = new Date(date.getFullYear(), 0, 1);
-  const dayOffset = Math.floor((date.getTime() - start.getTime()) / 86400000);
-  return Math.floor((dayOffset + start.getDay()) / 7) + 1;
-};
-
-const getTrainingDayNumber = (date: Date): number => {
-  const day = date.getDay();
-  return day === 0 ? 7 : day;
-};
-
 const getOrdinal = (day: number): string => {
   if (day > 10 && day < 20) return `${day}th`;
   const suffix = day % 10 === 1 ? "st" : day % 10 === 2 ? "nd" : day % 10 === 3 ? "rd" : "th";
@@ -50,11 +44,14 @@ const getOrdinal = (day: number): string => {
 const formatDateLabel = (dateKey: string): string => {
   const date = parseDateKey(dateKey);
   const todayKey = getDateKey();
+  const tomorrowKey = addDays(todayKey, 1);
   const month = date.toLocaleDateString("en-GB", { month: "long" });
   const year = date.getFullYear();
   const formatted = `${getOrdinal(date.getDate())} ${month}, ${year}`;
 
-  return dateKey === todayKey ? `Today, ${formatted}` : formatted;
+  if (dateKey === todayKey) return `Today, ${formatted}`;
+  if (dateKey === tomorrowKey) return `Tomorrow, ${formatted}`;
+  return formatted;
 };
 
 interface StatusBadgeProps {
@@ -83,6 +80,7 @@ interface ActivePlanCardProps {
   href: string;
   completed: boolean;
   imageUrl?: string;
+  accent: ReturnType<typeof getThemeById>;
   stats: Array<{ icon: "calendar" | "clock" | "dumbbell" | "flame" | "target"; label: string }>;
 }
 
@@ -94,30 +92,14 @@ const statIcons = {
   target: Target,
 };
 
-function ActivePlanCard({ type, title, name, href, completed, imageUrl, stats }: ActivePlanCardProps) {
+function ActivePlanCard({ type, title, name, href, completed, imageUrl, accent, stats }: ActivePlanCardProps) {
   const Icon = type === "workout" ? Dumbbell : UtensilsCrossed;
-  const accent =
-    type === "workout"
-      ? {
-          border: "border-emerald-400/25",
-          glow: "shadow-emerald-500/10",
-          iconBg: "bg-emerald-500/18 text-emerald-200",
-          button: "bg-emerald-500 hover:bg-emerald-400 shadow-emerald-500/25",
-          image: "from-emerald-500/25 via-slate-900 to-slate-950",
-        }
-      : {
-          border: "border-orange-300/25",
-          glow: "shadow-orange-500/10",
-          iconBg: "bg-orange-500/18 text-orange-100",
-          button: "bg-orange-500 hover:bg-orange-400 shadow-orange-500/25",
-          image: "from-orange-500/25 via-slate-900 to-slate-950",
-        };
 
   return (
     <article
-      className={`group overflow-hidden rounded-2xl border ${accent.border} bg-white/[0.045] shadow-[0_18px_42px_rgba(0,0,0,0.32)] backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl ${accent.glow}`}
+      className={`group overflow-hidden rounded-2xl border shadow-[0_18px_36px_rgba(0,0,0,0.25)] backdrop-blur-[6px] transition-all duration-300 hover:-translate-y-1 hover:shadow-xl ${accent.card}`}
     >
-      <div className={`relative flex h-44 items-center justify-center bg-gradient-to-br ${accent.image}`}>
+      <div className={`relative flex h-44 items-center justify-center bg-gradient-to-br ${accent.imgBg}`}>
         {imageUrl ? (
           <img src={imageUrl} alt={name} className="h-full w-full object-cover opacity-90 transition-transform duration-500 group-hover:scale-105" />
         ) : (
@@ -125,7 +107,7 @@ function ActivePlanCard({ type, title, name, href, completed, imageUrl, stats }:
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-slate-950/10" />
         <div className="absolute left-4 top-4 flex items-center gap-2">
-          <span className={`inline-flex h-10 w-10 items-center justify-center rounded-xl ${accent.iconBg}`}>
+          <span className={`inline-flex h-10 w-10 items-center justify-center rounded-xl ${accent.badge} text-white shadow-lg`}>
             <Icon className="h-5 w-5" />
           </span>
           <div>
@@ -154,7 +136,7 @@ function ActivePlanCard({ type, title, name, href, completed, imageUrl, stats }:
 
         <Link
           to={href}
-          className={`mt-auto inline-flex w-full items-center justify-center rounded-xl px-5 py-3 text-sm font-bold text-white shadow-lg transition-all active:scale-[0.98] ${accent.button}`}
+          className={`mt-auto inline-flex w-full items-center justify-center rounded-xl px-5 py-3 text-sm font-bold text-white shadow-lg transition-all active:scale-[0.98] ${accent.btn}`}
         >
           Open Plan
         </Link>
@@ -193,18 +175,97 @@ function EmptyPlanCard({ type }: { type: "workout" | "meal" }) {
   );
 }
 
+function CalorieProgressCard({
+  consumedCalories,
+  totalCalories,
+}: {
+  consumedCalories: number;
+  totalCalories: number;
+}) {
+  const radius = 46;
+  const circumference = 2 * Math.PI * radius;
+  const progress = totalCalories > 0 ? Math.min(1, consumedCalories / totalCalories) : 0;
+  const strokeOffset = circumference - progress * circumference;
+
+  return (
+    <div className="grid min-h-[168px] grid-cols-[minmax(0,1fr)_128px] items-center gap-4 rounded-2xl border border-white/10 bg-white/[0.04] p-5 shadow-[0_18px_42px_rgba(0,0,0,0.22)] transition-all duration-300 hover:-translate-y-1 hover:border-white/20 hover:bg-white/[0.06] hover:shadow-xl">
+      <div className="min-w-0">
+        <Flame className="mb-3 h-5 w-5 text-orange-300" />
+        <p className="text-3xl font-bold text-white">{consumedCalories.toLocaleString()}</p>
+        <p className="mt-1 text-sm text-slate-400">
+          calories consumed from {totalCalories > 0 ? totalCalories.toLocaleString() : "-"}
+        </p>
+      </div>
+
+      <div className="relative h-28 w-28 justify-self-end">
+        <svg viewBox="0 0 120 120" className="h-full w-full -rotate-90">
+          <circle
+            cx="60"
+            cy="60"
+            r={radius}
+            fill="none"
+            stroke="rgba(255,255,255,0.14)"
+            strokeWidth="10"
+          />
+          <circle
+            cx="60"
+            cy="60"
+            r={radius}
+            fill="none"
+            stroke="url(#calorie-progress)"
+            strokeLinecap="round"
+            strokeWidth="10"
+            strokeDasharray={circumference}
+            strokeDashoffset={strokeOffset}
+          />
+          <defs>
+            <linearGradient id="calorie-progress" x1="0" x2="1" y1="0" y2="1">
+              <stop stopColor="#fb923c" />
+              <stop offset="1" stopColor="#f43f5e" />
+            </linearGradient>
+          </defs>
+        </svg>
+        <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+          <span className="text-lg font-bold text-white">{Math.round(progress * 100)}%</span>
+          <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">kcal</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function Home() {
   const [selectedDateKey, setSelectedDateKey] = useState(() => getDateKey());
-  const selectedDate = parseDateKey(selectedDateKey);
   const activeWorkoutPlan = getActivePlan();
   const activeMealPlanId = localStorage.getItem(ACTIVE_MEAL_KEY);
   const activeMealPlan = ALIMENTATION_PLANS.find((plan) => plan.id === activeMealPlanId) ?? null;
   const workoutPlans = getWorkoutPlans();
+  const customizations = readCustomizations();
+  const mealCustomizations = readMealCustomizations();
   const workoutCompleted = isPlanCompleted("workout", activeWorkoutPlan?.id, selectedDateKey);
   const mealCompleted = isPlanCompleted("meal", activeMealPlan?.id, selectedDateKey);
-  const completedCount = Number(workoutCompleted) + Number(mealCompleted);
   const totalWorkoutExercises =
     activeWorkoutPlan?.days.reduce((sum, day) => sum + day.exerciseIds.length, 0) ?? 0;
+  const totalCalories = activeMealPlan?.kcal ?? 0;
+  const consumedCalories = mealCompleted ? totalCalories : 0;
+  const tomorrowKey = addDays(getDateKey(), 1);
+  const isNextDisabled = selectedDateKey >= tomorrowKey;
+  const activeWorkoutIndex = activeWorkoutPlan
+    ? Math.max(0, workoutPlans.findIndex((plan) => plan.id === activeWorkoutPlan.id))
+    : 0;
+  const workoutCustomization = activeWorkoutPlan ? customizations[activeWorkoutPlan.id] : undefined;
+  const workoutAccent = getThemeById(
+    workoutCustomization?.colorId ?? DEFAULT_THEME_IDS[activeWorkoutIndex % DEFAULT_THEME_IDS.length],
+  );
+  const workoutImageUrl = workoutCustomization?.imageUrl;
+  const activeMealIndex = activeMealPlan
+    ? Math.max(0, ALIMENTATION_PLANS.findIndex((plan) => plan.id === activeMealPlan.id))
+    : 0;
+  const mealCustomization = activeMealPlan ? mealCustomizations[activeMealPlan.id] : undefined;
+  const mealAccent = getThemeById(
+    mealCustomization?.colorId ?? DEFAULT_THEME_IDS[activeMealIndex % DEFAULT_THEME_IDS.length],
+  );
+  const mealImageUrl = mealCustomization?.imageUrl || activeMealPlan?.imageUrl;
 
   return (
     <main className="min-h-screen text-slate-200">
@@ -216,12 +277,10 @@ export default function Home() {
                 <CalendarDays className="h-6 w-6" />
               </span>
               <div className="min-w-0">
-                <p className="text-sm font-bold uppercase tracking-[0.18em] text-cyan-300">
-                  Day {getTrainingDayNumber(selectedDate)}, Week {getWeekNumber(selectedDate)}
-                </p>
-                <h1 className="mt-1 break-words text-2xl font-bold leading-tight text-white sm:text-3xl">
+                <h1 className="break-words text-2xl font-bold leading-tight text-white sm:text-3xl">
                   {formatDateLabel(selectedDateKey)}
                 </h1>
+                <p className="mt-1 text-sm text-slate-400">Active plans for the selected date</p>
               </div>
             </div>
 
@@ -243,9 +302,15 @@ export default function Home() {
               </button>
               <button
                 type="button"
-                onClick={() => setSelectedDateKey((current) => addDays(current, 1))}
+                onClick={() => {
+                  setSelectedDateKey((current) => {
+                    const next = addDays(current, 1);
+                    return next > tomorrowKey ? tomorrowKey : next;
+                  });
+                }}
+                disabled={isNextDisabled}
                 aria-label="Next day"
-                className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-white/12 bg-white/[0.04] text-slate-200 transition-all hover:bg-white/[0.09] hover:text-white"
+                className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-white/12 bg-white/[0.04] text-slate-200 transition-all hover:bg-white/[0.09] hover:text-white disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white/[0.04] disabled:hover:text-slate-200"
               >
                 <ChevronRight className="h-5 w-5" />
               </button>
@@ -253,22 +318,13 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="reveal-up reveal-delay-1 mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-5">
-            <ListChecks className="mb-3 h-5 w-5 text-emerald-300" />
-            <p className="text-3xl font-bold text-white">{completedCount}/2</p>
-            <p className="mt-1 text-sm text-slate-400">Plans completed this day</p>
-          </div>
-          <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-5">
+        <section className="reveal-up reveal-delay-1 mb-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <div className="min-h-[168px] rounded-2xl border border-white/10 bg-white/[0.04] p-5 shadow-[0_18px_42px_rgba(0,0,0,0.22)] transition-all duration-300 hover:-translate-y-1 hover:border-white/20 hover:bg-white/[0.06] hover:shadow-xl">
             <Dumbbell className="mb-3 h-5 w-5 text-cyan-300" />
-            <p className="text-3xl font-bold text-white">{workoutPlans.length}</p>
-            <p className="mt-1 text-sm text-slate-400">Saved workout plans</p>
+            <p className="text-3xl font-bold text-white">{totalWorkoutExercises}</p>
+            <p className="mt-1 text-sm text-slate-400">exercises in active workout plan</p>
           </div>
-          <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-5">
-            <Flame className="mb-3 h-5 w-5 text-orange-300" />
-            <p className="text-3xl font-bold text-white">{activeMealPlan?.kcal.toLocaleString() ?? "-"}</p>
-            <p className="mt-1 text-sm text-slate-400">Active daily calories</p>
-          </div>
+          <CalorieProgressCard consumedCalories={consumedCalories} totalCalories={totalCalories} />
         </section>
 
         <section className="grid gap-5 xl:grid-cols-2">
@@ -279,6 +335,8 @@ export default function Home() {
               name={activeWorkoutPlan.name}
               href={`/gym-plan?planId=${activeWorkoutPlan.id}&date=${selectedDateKey}`}
               completed={workoutCompleted}
+              imageUrl={workoutImageUrl}
+              accent={workoutAccent}
               stats={[
                 { icon: "calendar", label: `${activeWorkoutPlan.days.length} training days` },
                 { icon: "dumbbell", label: `${totalWorkoutExercises} exercises` },
@@ -296,7 +354,8 @@ export default function Home() {
               name={activeMealPlan.name}
               href={`/meal-plan?planId=${activeMealPlan.id}&date=${selectedDateKey}`}
               completed={mealCompleted}
-              imageUrl={activeMealPlan.imageUrl}
+              imageUrl={mealImageUrl}
+              accent={mealAccent}
               stats={[
                 { icon: "flame", label: `${activeMealPlan.kcal.toLocaleString()} kcal / day` },
                 { icon: "calendar", label: `${activeMealPlan.meals} meals` },

@@ -21,6 +21,7 @@ import { exerciseService } from "../services/exerciseService";
 import type { Exercise, MuscleGroup } from "../types/exercise";
 import {
   createEmptyWorkoutPlan,
+  getActivePlanId,
   getWorkoutPlanById,
   getWorkoutPlans,
   saveWorkoutPlan,
@@ -419,6 +420,7 @@ export default function GymPlanMenu() {
   const [searchParams] = useSearchParams();
   const allExercises = useMemo(() => exerciseService.getAllExercises(), []);
   const planId = searchParams.get("planId");
+  const activeWorkoutPlanId = getActivePlanId();
   const completionDateKey = getDateKey(searchParams.get("date"));
   const isNewDraft = searchParams.get("new") === "1";
   const [planName, setPlanName] = useState<string>("");
@@ -495,9 +497,10 @@ export default function GymPlanMenu() {
   const selectedExerciseId = selectedExerciseByDay[activeDayId] ?? null;
   const selectedExercise =
     activeDayExercises.find((exercise) => exercise.id === selectedExerciseId) ?? null;
+  const canMarkCompleted = Boolean(planId && planId === activeWorkoutPlanId);
   const isCompletedForDate = useMemo(
-    () => (planId ? isPlanCompleted("workout", planId, completionDateKey) : false),
-    [completionDateKey, completionVersion, planId],
+    () => (canMarkCompleted && planId ? isPlanCompleted("workout", planId, completionDateKey) : false),
+    [canMarkCompleted, completionDateKey, completionVersion, planId],
   );
 
   // Track unsaved changes — skip the first run after the plan loads
@@ -528,7 +531,7 @@ export default function GymPlanMenu() {
   };
 
   const handleMarkCompleted = (): void => {
-    if (!planId) return;
+    if (!planId || !canMarkCompleted) return;
     markPlanCompleted("workout", planId, completionDateKey);
     setCompletionVersion((current) => current + 1);
   };
@@ -704,7 +707,7 @@ export default function GymPlanMenu() {
                     </button>
                   ) : (
                     <>
-                      {planId ? (
+                      {canMarkCompleted ? (
                         <button
                           type="button"
                           onClick={handleMarkCompleted}

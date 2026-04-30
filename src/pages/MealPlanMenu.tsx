@@ -381,7 +381,9 @@ export default function MealPlanMenu() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const titleRef = useRef<HTMLInputElement | null>(null);
-  const activeMealPlanId = searchParams.get("planId") ?? localStorage.getItem(ACTIVE_MEAL_KEY);
+  const storedActiveMealPlanId = localStorage.getItem(ACTIVE_MEAL_KEY);
+  const activeMealPlanId = searchParams.get("planId") ?? storedActiveMealPlanId;
+  const canMarkCompleted = Boolean(activeMealPlanId && activeMealPlanId === storedActiveMealPlanId);
   const completionDateKey = getDateKey(searchParams.get("date"));
   const availableMeals = useMemo(() => mealLibrary.getVisibleMeals("priority"), []);
   const [title, setTitle] = useState("New Meal Plan");
@@ -410,8 +412,8 @@ export default function MealPlanMenu() {
   const fatsPct = totalKcal > 0 ? Math.round((totalF * 9 / totalKcal) * 100) : 0;
   const carbsPct = totalKcal > 0 ? Math.round((totalC * 4 / totalKcal) * 100) : 0;
   const isCompletedForDate = useMemo(
-    () => (activeMealPlanId ? isPlanCompleted("meal", activeMealPlanId, completionDateKey) : false),
-    [activeMealPlanId, completionDateKey, completionVersion],
+    () => (canMarkCompleted && activeMealPlanId ? isPlanCompleted("meal", activeMealPlanId, completionDateKey) : false),
+    [activeMealPlanId, canMarkCompleted, completionDateKey, completionVersion],
   );
 
   const markDirty = () => {
@@ -449,7 +451,7 @@ export default function MealPlanMenu() {
   };
 
   const handleMarkCompleted = () => {
-    if (!activeMealPlanId) return;
+    if (!activeMealPlanId || !canMarkCompleted) return;
     markPlanCompleted("meal", activeMealPlanId, completionDateKey);
     setCompletionVersion((current) => current + 1);
   };
@@ -473,7 +475,7 @@ export default function MealPlanMenu() {
             }`}
           />
           <div className="flex shrink-0 flex-wrap items-center gap-3">
-            {activeMealPlanId ? (
+            {canMarkCompleted ? (
               <button
                 type="button"
                 onClick={handleMarkCompleted}
