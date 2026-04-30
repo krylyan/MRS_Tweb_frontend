@@ -1,5 +1,6 @@
 import {
   CalendarCheck2,
+  Check,
   ChevronDown,
   ChevronUp,
   Dumbbell,
@@ -24,6 +25,7 @@ import {
   getWorkoutPlans,
   saveWorkoutPlan,
 } from "../utils/planStorage";
+import { getDateKey, isPlanCompleted, markPlanCompleted } from "../utils/planCompletion";
 import type {
   PauseTime,
   StoredWorkoutPlan,
@@ -417,6 +419,7 @@ export default function GymPlanMenu() {
   const [searchParams] = useSearchParams();
   const allExercises = useMemo(() => exerciseService.getAllExercises(), []);
   const planId = searchParams.get("planId");
+  const completionDateKey = getDateKey(searchParams.get("date"));
   const isNewDraft = searchParams.get("new") === "1";
   const [planName, setPlanName] = useState<string>("");
   const [, setStatusMessage] = useState<string>("");
@@ -431,6 +434,7 @@ export default function GymPlanMenu() {
   const [isEditorReady, setIsEditorReady] = useState<boolean>(false);
   const [hasLoadedPlan, setHasLoadedPlan] = useState<boolean>(false);
   const [isDirty, setIsDirty] = useState<boolean>(false);
+  const [completionVersion, setCompletionVersion] = useState(0);
   const loadSettledRef = useRef<boolean>(false);
 
   useEffect(() => {
@@ -491,6 +495,10 @@ export default function GymPlanMenu() {
   const selectedExerciseId = selectedExerciseByDay[activeDayId] ?? null;
   const selectedExercise =
     activeDayExercises.find((exercise) => exercise.id === selectedExerciseId) ?? null;
+  const isCompletedForDate = useMemo(
+    () => (planId ? isPlanCompleted("workout", planId, completionDateKey) : false),
+    [completionDateKey, completionVersion, planId],
+  );
 
   // Track unsaved changes — skip the first run after the plan loads
   useEffect(() => {
@@ -517,6 +525,12 @@ export default function GymPlanMenu() {
       createStoredPlanPayload(planId, planName, days, selectedExerciseByDay, workoutTracking, existingPlan),
     );
     setIsDirty(false);
+  };
+
+  const handleMarkCompleted = (): void => {
+    if (!planId) return;
+    markPlanCompleted("workout", planId, completionDateKey);
+    setCompletionVersion((current) => current + 1);
   };
 
   const handleActivatePlan = (): void => {
@@ -679,7 +693,7 @@ export default function GymPlanMenu() {
                   />
                 </div>
 
-                <div className="flex shrink-0 items-center gap-3">
+                <div className="flex shrink-0 flex-wrap items-center gap-3">
                   {!isEditorReady ? (
                     <button
                       type="button"
@@ -689,18 +703,35 @@ export default function GymPlanMenu() {
                       Unlock editor
                     </button>
                   ) : (
-                    <button
-                      type="button"
-                      onClick={handleSavePlan}
-                      disabled={!isDirty}
-                      className={`rounded-xl border px-4 py-2 text-sm font-semibold transition-all duration-300 ${
-                        isDirty
-                          ? "scale-100 border-emerald-400/50 bg-emerald-500/20 text-emerald-100 shadow-[0_0_18px_rgba(16,185,129,0.25)] hover:bg-emerald-500/30 hover:shadow-[0_0_24px_rgba(16,185,129,0.35)]"
-                          : "scale-95 cursor-not-allowed border-white/10 bg-white/[0.03] text-slate-500"
-                      }`}
-                    >
-                      Save Changes
-                    </button>
+                    <>
+                      {planId ? (
+                        <button
+                          type="button"
+                          onClick={handleMarkCompleted}
+                          disabled={isCompletedForDate}
+                          className={`inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-semibold transition-all duration-200 ${
+                            isCompletedForDate
+                              ? "cursor-default border-emerald-300/30 bg-emerald-500/15 text-emerald-200"
+                              : "border-cyan-300/25 bg-cyan-400/10 text-cyan-100 hover:bg-cyan-400/20"
+                          }`}
+                        >
+                          {isCompletedForDate ? <Check className="h-4 w-4" /> : null}
+                          {isCompletedForDate ? "Completed" : "Mark completed"}
+                        </button>
+                      ) : null}
+                      <button
+                        type="button"
+                        onClick={handleSavePlan}
+                        disabled={!isDirty}
+                        className={`rounded-xl border px-4 py-2 text-sm font-semibold transition-all duration-300 ${
+                          isDirty
+                            ? "scale-100 border-emerald-400/50 bg-emerald-500/20 text-emerald-100 shadow-[0_0_18px_rgba(16,185,129,0.25)] hover:bg-emerald-500/30 hover:shadow-[0_0_24px_rgba(16,185,129,0.35)]"
+                            : "scale-95 cursor-not-allowed border-white/10 bg-white/[0.03] text-slate-500"
+                        }`}
+                      >
+                        Save Changes
+                      </button>
+                    </>
                   )}
                 </div>
               </div>

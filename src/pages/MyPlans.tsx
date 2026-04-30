@@ -1,4 +1,4 @@
-import { CalendarDays, Check, Clock, Dumbbell, Flame, Image, MoreHorizontal, Palette, Plus, Star, Trash2 } from "lucide-react";
+import { AlertTriangle, CalendarDays, Check, Clock, Dumbbell, Flame, Image, MoreHorizontal, Palette, Plus, Star, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { deleteWorkoutPlan, getActivePlanId, getWorkoutPlans, setActivePlanId } from "../utils/planStorage";
@@ -31,6 +31,12 @@ interface DisplayPlan {
   detailsEnabled: boolean;
   favoriteEnabled: boolean;
   deleteEnabled: boolean;
+}
+
+interface PendingDelete {
+  type: "workout" | "meal";
+  id: string;
+  name: string;
 }
 
 const FAVORITES_KEY = "fitlife_favorite_workout_plans";
@@ -197,6 +203,7 @@ export default function MyPlans() {
   const [editingMealPlanId, setEditingMealPlanId] = useState<string | null>(null);
   const [mealCustomizations, setMealCustomizations] = useState<PlanCustomizations>(() => readMealCustomizations());
   const mealMenuRef = useRef<HTMLDivElement | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null);
 
   useEffect(() => {
     const handleOutsideClick = (e: MouseEvent) => {
@@ -236,12 +243,8 @@ export default function MyPlans() {
     setOpenMealMenuId(null);
   };
 
-  const handleDeleteMealPlan = (planId: string) => {
-    const next = [...hiddenMealIds, planId];
-    setHiddenMealIds(next);
-    localStorage.setItem(HIDDEN_MEAL_KEY, JSON.stringify(next));
-    setFavoriteMealIds((prev) => prev.filter((id) => id !== planId));
-    if (activeMealPlanId === planId) { localStorage.removeItem(ACTIVE_MEAL_KEY); setActiveMealPlanId(null); }
+  const requestDeleteMealPlan = (plan: MockMealPlan) => {
+    setPendingDelete({ type: "meal", id: plan.id, name: plan.name });
     setOpenMealMenuId(null);
   };
 
@@ -287,13 +290,34 @@ export default function MyPlans() {
     return [...active, ...favorites, ...rest];
   }, [allWorkoutPlans, activePlanId, favoriteIds]);
 
-  const handleDeletePlan = (planId: string, deleteEnabled: boolean): void => {
+  const requestDeletePlan = (plan: DisplayPlan, deleteEnabled: boolean): void => {
     if (!deleteEnabled) return;
-    deleteWorkoutPlan(planId);
-    setWorkoutPlans(getWorkoutPlans());
-    setFavoriteIds((prev) => prev.filter((id) => id !== planId));
-    if (activePlanId === planId) setActivePlanIdState(null);
+    setPendingDelete({ type: "workout", id: plan.id, name: plan.name });
     setOpenMenuId(null);
+  };
+
+  const handleConfirmDelete = (): void => {
+    if (!pendingDelete) return;
+
+    if (pendingDelete.type === "workout") {
+      deleteWorkoutPlan(pendingDelete.id);
+      setWorkoutPlans(getWorkoutPlans());
+      setFavoriteIds((prev) => prev.filter((id) => id !== pendingDelete.id));
+      if (activePlanId === pendingDelete.id) setActivePlanIdState(null);
+    } else {
+      setHiddenMealIds((prev) => {
+        const next = prev.includes(pendingDelete.id) ? prev : [...prev, pendingDelete.id];
+        localStorage.setItem(HIDDEN_MEAL_KEY, JSON.stringify(next));
+        return next;
+      });
+      setFavoriteMealIds((prev) => prev.filter((id) => id !== pendingDelete.id));
+      if (activeMealPlanId === pendingDelete.id) {
+        localStorage.removeItem(ACTIVE_MEAL_KEY);
+        setActiveMealPlanId(null);
+      }
+    }
+
+    setPendingDelete(null);
   };
 
   const handleToggleFavorite = (planId: string, favoriteEnabled: boolean): void => {
@@ -413,7 +437,7 @@ export default function MyPlans() {
                 {/* Delete */}
                 <button
                   type="button"
-                  onClick={() => handleDeletePlan(plan.id, plan.deleteEnabled)}
+                  onClick={() => requestDeletePlan(plan, plan.deleteEnabled)}
                   className="flex w-full items-center gap-3 px-4 py-3 text-sm font-medium text-rose-400 transition-colors hover:bg-rose-500/10"
                 >
                   <Trash2 className="h-4 w-4" />
@@ -550,7 +574,7 @@ export default function MyPlans() {
               <div className="mx-3 border-t border-white/8" />
               <button
                 type="button"
-                onClick={() => handleDeleteMealPlan(plan.id)}
+                onClick={() => requestDeleteMealPlan(plan)}
                 className="flex w-full items-center gap-3 px-4 py-3 text-sm font-medium text-rose-400 transition-colors hover:bg-rose-500/10"
               >
                 <Trash2 className="h-4 w-4" />
@@ -714,7 +738,63 @@ export default function MyPlans() {
           />
         );
       })()}
+
+      {pendingDelete ? (
+        <ConfirmDeleteModal
+          planName={pendingDelete.name}
+          planType={pendingDelete.type}
+          onCancel={() => setPendingDelete(null)}
+          onConfirm={handleConfirmDelete}
+        />
+      ) : null}
     </main>
+  );
+}
+
+interface ConfirmDeleteModalProps {
+  planName: string;
+  planType: "workout" | "meal";
+  onCancel: () => void;
+  onConfirm: () => void;
+}
+
+function ConfirmDeleteModal({ planName, planType, onCancel, onConfirm }: ConfirmDeleteModalProps) {
+  return (
+    <div
+      className="fixed inset-0 z-[220] flex items-center justify-center bg-black/70 p-4"
+      onClick={(event) => {
+        if (event.target === event.currentTarget) onCancel();
+      }}
+    >
+      <div className="w-full max-w-md overflow-hidden rounded-3xl border border-white/12 bg-slate-900/98 shadow-[0_32px_80px_rgba(0,0,0,0.7)] backdrop-blur-2xl">
+        <div className="border-b border-white/8 px-6 py-5">
+          <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-rose-300/25 bg-rose-500/12 text-rose-200">
+            <AlertTriangle className="h-6 w-6" />
+          </div>
+          <h2 className="text-xl font-bold text-white">Delete plan?</h2>
+          <p className="mt-2 text-sm leading-6 text-slate-400">
+            Are you sure you want to delete the {planType === "workout" ? "workout" : "alimentation"} plan
+            <span className="font-semibold text-slate-200"> {planName}</span>? This action cannot be undone.
+          </p>
+        </div>
+        <div className="flex gap-3 px-6 py-5">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="flex-1 rounded-xl border border-white/15 bg-white/[0.04] py-2.5 text-sm font-semibold text-slate-300 transition-colors hover:bg-white/[0.08]"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            className="flex-1 rounded-xl bg-rose-500 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-rose-400"
+          >
+            Delete plan
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 

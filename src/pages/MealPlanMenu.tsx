@@ -1,8 +1,9 @@
 import { Check, ChevronDown, ChevronUp, Flame, Plus, Search, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import ReactDOM from "react-dom";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import type { FoodItem } from "../types/meal";
+import { getDateKey, isPlanCompleted, markPlanCompleted } from "../utils/planCompletion";
 import { mealLibrary } from "../utils/mealLibrary";
 
 type MealSlot = "breakfast" | "lunch" | "snacks" | "dinner";
@@ -22,6 +23,8 @@ const DAYS = Array.from({ length: 7 }, (_, i) => ({
   id: `day-${i + 1}`,
   label: `Day ${i + 1}`,
 }));
+
+const ACTIVE_MEAL_KEY = "fitlife_active_meal_plan";
 
 const DEFAULT_DAY_ONE_IDS: Record<MealSlot, string[]> = {
   breakfast: ["bread", "egg", "yogurt"],
@@ -374,69 +377,12 @@ function MealSection({
   );
 }
 
-function DailyTotals({ meals }: { meals: DayMeals }) {
-  const all = Object.values(meals).flat();
-  const kcal = all.reduce((sum, food) => sum + food.kcal, 0);
-  const protein = all.reduce((sum, food) => sum + food.protein, 0);
-  const carbs = all.reduce((sum, food) => sum + food.carbs, 0);
-  const fats = all.reduce((sum, food) => sum + food.fats, 0);
-
-  return (
-    <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
-      <h3 className="mb-4 text-sm font-bold uppercase tracking-widest text-slate-300">
-        Daily totals
-      </h3>
-      <div className="space-y-3.5">
-        <div className="flex items-center justify-between">
-          <span className="text-sm text-slate-400">Calories</span>
-          <span className="text-sm font-semibold text-orange-400">
-            {kcal.toLocaleString()} kcal
-          </span>
-        </div>
-        <div className="flex items-center justify-between">
-          <span className="text-sm text-slate-400">Protein</span>
-          <span className="text-sm font-semibold text-emerald-400">{protein}g</span>
-        </div>
-        <div className="flex items-center justify-between">
-          <span className="text-sm text-slate-400">Fats</span>
-          <span className="text-sm font-semibold text-amber-400">{fats}g</span>
-        </div>
-        <div className="flex items-center justify-between">
-          <span className="text-sm text-slate-400">Carbs</span>
-          <span className="text-sm font-semibold text-blue-400">{carbs}g</span>
-        </div>
-      </div>
-
-      {kcal > 0 ? (
-        <div className="mt-5">
-          <div className="flex h-2.5 overflow-hidden rounded-full">
-            <div
-              className="bg-emerald-500 transition-all"
-              style={{ width: `${Math.round((protein * 4 / kcal) * 100)}%` }}
-            />
-            <div
-              className="bg-amber-400 transition-all"
-              style={{ width: `${Math.round((fats * 9 / kcal) * 100)}%` }}
-            />
-            <div
-              className="bg-blue-400 transition-all"
-              style={{ width: `${Math.round((carbs * 4 / kcal) * 100)}%` }}
-            />
-          </div>
-          <div className="mt-2 flex justify-between text-[10px] text-slate-500">
-            <span className="text-emerald-400">Protein</span>
-            <span className="text-amber-400">Fats</span>
-            <span className="text-blue-400">Carbs</span>
-          </div>
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
 export default function MealPlanMenu() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const titleRef = useRef<HTMLInputElement | null>(null);
+  const activeMealPlanId = searchParams.get("planId") ?? localStorage.getItem(ACTIVE_MEAL_KEY);
+  const completionDateKey = getDateKey(searchParams.get("date"));
   const availableMeals = useMemo(() => mealLibrary.getVisibleMeals("priority"), []);
   const [title, setTitle] = useState("New Meal Plan");
   const [titleFocused, setTitleFocused] = useState(false);
@@ -450,6 +396,7 @@ export default function MealPlanMenu() {
   });
   const [saved, setSaved] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
+  const [completionVersion, setCompletionVersion] = useState(0);
 
   const currentMeals = allMeals[activeDayId];
 
@@ -462,6 +409,10 @@ export default function MealPlanMenu() {
   const proteinPct = totalKcal > 0 ? Math.round((totalP * 4 / totalKcal) * 100) : 0;
   const fatsPct = totalKcal > 0 ? Math.round((totalF * 9 / totalKcal) * 100) : 0;
   const carbsPct = totalKcal > 0 ? Math.round((totalC * 4 / totalKcal) * 100) : 0;
+  const isCompletedForDate = useMemo(
+    () => (activeMealPlanId ? isPlanCompleted("meal", activeMealPlanId, completionDateKey) : false),
+    [activeMealPlanId, completionDateKey, completionVersion],
+  );
 
   const markDirty = () => {
     setIsDirty(true);
@@ -497,6 +448,12 @@ export default function MealPlanMenu() {
     setTimeout(() => setSaved(false), 2000);
   };
 
+  const handleMarkCompleted = () => {
+    if (!activeMealPlanId) return;
+    markPlanCompleted("meal", activeMealPlanId, completionDateKey);
+    setCompletionVersion((current) => current + 1);
+  };
+
   return (
     <main className="min-h-screen text-slate-200">
       <div className="mx-auto w-full max-w-[1400px] px-4 py-6 sm:px-6 sm:py-8">
@@ -515,20 +472,37 @@ export default function MealPlanMenu() {
               titleFocused ? "border-emerald-400/60" : "border-transparent"
             }`}
           />
-          <button
-            type="button"
-            onClick={handleSave}
-            className={`inline-flex w-fit shrink-0 items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold text-white shadow-lg transition-all duration-200 active:scale-95 ${
-              saved
-                ? "bg-emerald-600 shadow-emerald-600/30"
-                : isDirty
-                  ? "animate-pulse bg-emerald-500 shadow-emerald-500/30 hover:bg-emerald-400"
-                  : "bg-white/8 shadow-none hover:bg-white/12"
-            }`}
-          >
-            {saved ? <Check className="h-4 w-4" /> : null}
-            {saved ? "Saved!" : "Save Changes"}
-          </button>
+          <div className="flex shrink-0 flex-wrap items-center gap-3">
+            {activeMealPlanId ? (
+              <button
+                type="button"
+                onClick={handleMarkCompleted}
+                disabled={isCompletedForDate}
+                className={`inline-flex w-fit items-center gap-2 rounded-xl border px-5 py-2.5 text-sm font-semibold transition-all duration-200 active:scale-95 ${
+                  isCompletedForDate
+                    ? "cursor-default border-emerald-300/30 bg-emerald-500/15 text-emerald-200"
+                    : "border-cyan-300/25 bg-cyan-400/10 text-cyan-100 hover:bg-cyan-400/20"
+                }`}
+              >
+                {isCompletedForDate ? <Check className="h-4 w-4" /> : null}
+                {isCompletedForDate ? "Completed" : "Mark completed"}
+              </button>
+            ) : null}
+            <button
+              type="button"
+              onClick={handleSave}
+              className={`inline-flex w-fit items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold text-white shadow-lg transition-all duration-200 active:scale-95 ${
+                saved
+                  ? "bg-emerald-600 shadow-emerald-600/30"
+                  : isDirty
+                    ? "animate-pulse bg-emerald-500 shadow-emerald-500/30 hover:bg-emerald-400"
+                    : "bg-white/8 shadow-none hover:bg-white/12"
+              }`}
+            >
+              {saved ? <Check className="h-4 w-4" /> : null}
+              {saved ? "Saved!" : "Save Changes"}
+            </button>
+          </div>
         </div>
 
         <section className="reveal-up mb-4 rounded-[14px] border border-white/12 bg-white/4 px-4 py-3 shadow-[0_14px_28px_rgba(0,0,0,0.25)] backdrop-blur-[6px]">
