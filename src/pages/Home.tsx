@@ -193,9 +193,9 @@ function CalorieProgressCard({
         <div className="mt-4 flex items-baseline justify-between gap-4">
           <p className="min-w-0 text-3xl font-bold leading-none text-white">
             {consumedCalories.toLocaleString()} cal
-            <span className="text-xl font-bold text-slate-500"> / {totalLabel}</span>
+            <span className="text-xl font-bold leading-none text-slate-400"> / {totalLabel}</span>
           </p>
-          <p className="shrink-0 text-sm font-semibold text-slate-400">
+          <p className="shrink-0 text-xl font-bold leading-none text-slate-400">
             {totalCalories > 0 ? caloriesLeft.toLocaleString() : "-"} left
           </p>
         </div>
@@ -208,7 +208,6 @@ function CalorieProgressCard({
             style={{ width: `${progress * 100}%` }}
           />
         </div>
-        <p className="mt-3 text-sm text-slate-400">calories consumed from daily plan</p>
       </div>
     </div>
   );
