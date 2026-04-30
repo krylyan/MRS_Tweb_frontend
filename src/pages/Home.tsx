@@ -97,11 +97,11 @@ function ActivePlanCard({ type, title, name, href, completed, imageUrl, accent, 
 
   return (
     <article
-      className={`group overflow-hidden rounded-2xl border shadow-[0_18px_36px_rgba(0,0,0,0.25)] backdrop-blur-[6px] transition-all duration-300 hover:-translate-y-1 hover:shadow-xl ${accent.card}`}
+      className={`relative flex flex-col overflow-hidden rounded-2xl border shadow-[0_18px_36px_rgba(0,0,0,0.25)] backdrop-blur-[6px] transition-all duration-300 hover:-translate-y-1 hover:shadow-xl ${accent.card} ring-2 ring-emerald-400/60`}
     >
       <div className={`relative flex h-44 items-center justify-center bg-gradient-to-br ${accent.imgBg}`}>
         {imageUrl ? (
-          <img src={imageUrl} alt={name} className="h-full w-full object-cover opacity-90 transition-transform duration-500 group-hover:scale-105" />
+          <img src={imageUrl} alt={name} className="h-full w-full object-cover opacity-90" />
         ) : (
           <Icon className="h-20 w-20 text-white/14" />
         )}
@@ -188,7 +188,7 @@ function CalorieProgressCard({
   const strokeOffset = circumference - progress * circumference;
 
   return (
-    <div className="grid min-h-[168px] grid-cols-[minmax(0,1fr)_128px] items-center gap-4 rounded-2xl border border-white/10 bg-white/[0.04] p-5 shadow-[0_18px_42px_rgba(0,0,0,0.22)] transition-all duration-300 hover:-translate-y-1 hover:border-white/20 hover:bg-white/[0.06] hover:shadow-xl">
+    <div className="grid min-h-[168px] grid-cols-[minmax(0,1fr)_128px] items-center gap-4 rounded-2xl border border-white/10 bg-white/[0.04] p-5 shadow-[0_18px_42px_rgba(0,0,0,0.22)]">
       <div className="min-w-0">
         <Flame className="mb-3 h-5 w-5 text-orange-300" />
         <p className="text-3xl font-bold text-white">{consumedCalories.toLocaleString()}</p>
@@ -319,7 +319,7 @@ export default function Home() {
         </section>
 
         <section className="reveal-up reveal-delay-1 mb-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
-          <div className="min-h-[168px] rounded-2xl border border-white/10 bg-white/[0.04] p-5 shadow-[0_18px_42px_rgba(0,0,0,0.22)] transition-all duration-300 hover:-translate-y-1 hover:border-white/20 hover:bg-white/[0.06] hover:shadow-xl">
+          <div className="min-h-[168px] rounded-2xl border border-white/10 bg-white/[0.04] p-5 shadow-[0_18px_42px_rgba(0,0,0,0.22)]">
             <Dumbbell className="mb-3 h-5 w-5 text-cyan-300" />
             <p className="text-3xl font-bold text-white">{totalWorkoutExercises}</p>
             <p className="mt-1 text-sm text-slate-400">exercises in active workout plan</p>
