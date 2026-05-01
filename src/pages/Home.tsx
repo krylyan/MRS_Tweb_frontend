@@ -26,6 +26,7 @@ import {
   getActiveDayForDate,
   checkAndResetCycle,
   isDateInRange,
+  getHistoryDays,
   type ActiveDayInfo,
 } from "../utils/planCycleTracker";
 
@@ -285,6 +286,217 @@ function CalorieProgressCard({
   );
 }
 
+/* ── Weekly Activity Chart ────────────────────────────────────────────────── */
+
+const C_W = 760;
+const C_H = 200;
+const C_PAD = { t: 20, r: 28, b: 38, l: 24 };
+const C_IW = C_W - C_PAD.l - C_PAD.r;
+const C_IH = C_H - C_PAD.t - C_PAD.b;
+
+function spline(pts: { x: number; y: number }[]): string {
+  if (pts.length < 2) return "";
+  const k = 0.38;
+  let d = `M${pts[0].x.toFixed(1)},${pts[0].y.toFixed(1)}`;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const p0 = pts[Math.max(0, i - 1)];
+    const p1 = pts[i];
+    const p2 = pts[i + 1];
+    const p3 = pts[Math.min(pts.length - 1, i + 2)];
+    const c1x = p1.x + (p2.x - p0.x) * k;
+    const c1y = p1.y + (p2.y - p0.y) * k;
+    const c2x = p2.x - (p3.x - p1.x) * k;
+    const c2y = p2.y - (p3.y - p1.y) * k;
+    d += ` C${c1x.toFixed(1)},${c1y.toFixed(1)} ${c2x.toFixed(1)},${c2y.toFixed(1)} ${p2.x.toFixed(1)},${p2.y.toFixed(1)}`;
+  }
+  return d;
+}
+
+function splineArea(pts: { x: number; y: number }[], baseY: number): string {
+  if (pts.length < 2) return "";
+  return `${spline(pts)} L${pts[pts.length - 1].x.toFixed(1)},${baseY} L${pts[0].x.toFixed(1)},${baseY} Z`;
+}
+
+function toY(value: number): number {
+  // value 0→1: map to pixel Y with padding so line never hits edges
+  return C_PAD.t + C_IH * (0.88 - value * 0.76);
+}
+
+interface WeeklyActivityChartProps {
+  workoutPlanId?: string;
+  mealPlanId?: string;
+  workoutActivatedAt?: string;
+  mealActivatedAt?: string;
+}
+
+function WeeklyActivityChart({
+  workoutPlanId,
+  mealPlanId,
+  workoutActivatedAt,
+  mealActivatedAt,
+}: WeeklyActivityChartProps) {
+  const days = getHistoryDays(7).reverse();
+
+  const data = days.map((dk) => {
+    const date = parseDateKey(dk);
+    const label = date.toLocaleDateString("en-GB", { weekday: "short" });
+    const wActive = workoutPlanId && (!workoutActivatedAt || dk >= workoutActivatedAt);
+    const mActive = mealPlanId && (!mealActivatedAt || dk >= mealActivatedAt);
+    const wDone = wActive ? hasCompletedPlanDay("workout", workoutPlanId, dk) : false;
+    const mDone = mActive ? hasCompletedPlanDay("meal", mealPlanId, dk) : false;
+    return { dk, label, w: wDone ? 1 : wActive ? 0.08 : 0.04, m: mDone ? 1 : mActive ? 0.08 : 0.04, wDone, mDone };
+  });
+
+  const stepX = C_IW / (data.length - 1);
+  const wPts = data.map((d, i) => ({ x: C_PAD.l + i * stepX, y: toY(d.w) }));
+  const mPts = data.map((d, i) => ({ x: C_PAD.l + i * stepX, y: toY(d.m) }));
+  const baseY = C_PAD.t + C_IH * 0.88 + 4;
+
+  const totalW = data.filter((d) => d.wDone).length;
+  const totalM = data.filter((d) => d.mDone).length;
+
+  return (
+    <section className="reveal-up mb-6 overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04] shadow-[0_18px_42px_rgba(0,0,0,0.28)] backdrop-blur-sm">
+      <style>{`
+        @keyframes chartSlide { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+        @keyframes lineIn { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0% 0 0); } }
+        .chart-wrap { animation: chartSlide .6s ease both; }
+        .chart-line { animation: lineIn 1.4s cubic-bezier(0.4,0,0.2,1) both; }
+        .chart-dot  { animation: chartSlide .4s ease both; }
+      `}</style>
+
+      {/* Header */}
+      <div className="flex items-center justify-between border-b border-white/[0.07] px-6 py-4">
+        <div>
+          <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">Statistics</p>
+          <h2 className="mt-0.5 text-lg font-bold text-white">Weekly Activity</h2>
+        </div>
+        <div className="flex items-center gap-5">
+          <div className="flex items-center gap-2">
+            <span className="h-3 w-3 rounded-full bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.7)]" />
+            <span className="text-xs font-semibold text-slate-300">Workout</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="h-3 w-3 rounded-full bg-orange-400 shadow-[0_0_8px_rgba(251,146,60,0.7)]" />
+            <span className="text-xs font-semibold text-slate-300">Meals</span>
+          </div>
+        </div>
+      </div>
+
+      {/* SVG Chart */}
+      <div className="chart-wrap px-2 pt-2">
+        <svg viewBox={`0 0 ${C_W} ${C_H}`} className="w-full" style={{ height: 200 }} aria-hidden="true">
+          <defs>
+            <linearGradient id="wg" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#22d3ee" stopOpacity="0.38" />
+              <stop offset="100%" stopColor="#22d3ee" stopOpacity="0.02" />
+            </linearGradient>
+            <linearGradient id="mg" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#fb923c" stopOpacity="0.38" />
+              <stop offset="100%" stopColor="#fb923c" stopOpacity="0.02" />
+            </linearGradient>
+          </defs>
+
+          {/* Horizontal grid lines */}
+          {[0.04, 0.25, 0.5, 0.75, 1].map((v) => (
+            <line
+              key={v}
+              x1={C_PAD.l}
+              x2={C_W - C_PAD.r}
+              y1={toY(v)}
+              y2={toY(v)}
+              stroke="rgba(255,255,255,0.055)"
+              strokeWidth="1"
+            />
+          ))}
+
+          {/* Vertical day grid lines */}
+          {data.map((_, i) => (
+            <line
+              key={i}
+              x1={C_PAD.l + i * stepX}
+              x2={C_PAD.l + i * stepX}
+              y1={C_PAD.t}
+              y2={baseY}
+              stroke="rgba(255,255,255,0.04)"
+              strokeWidth="1"
+              strokeDasharray="3 3"
+            />
+          ))}
+
+          {/* Workout area + line */}
+          <path d={splineArea(wPts, baseY)} fill="url(#wg)" className="chart-line" />
+          <path d={spline(wPts)} fill="none" stroke="#22d3ee" strokeWidth="2.5" strokeLinecap="round" className="chart-line" />
+
+          {/* Meal area + line */}
+          <path d={splineArea(mPts, baseY)} fill="url(#mg)" className="chart-line" />
+          <path d={spline(mPts)} fill="none" stroke="#fb923c" strokeWidth="2.5" strokeLinecap="round" className="chart-line" />
+
+          {/* Workout dots */}
+          {wPts.map((pt, i) => (
+            <g key={`wd${i}`} className="chart-dot" style={{ animationDelay: `${0.6 + i * 0.1}s` }}>
+              <circle cx={pt.x} cy={pt.y} r="5" fill="#0f172a" stroke="#22d3ee" strokeWidth="2" />
+              {data[i].wDone && <circle cx={pt.x} cy={pt.y} r="2.5" fill="#22d3ee" />}
+            </g>
+          ))}
+
+          {/* Meal dots */}
+          {mPts.map((pt, i) => (
+            <g key={`md${i}`} className="chart-dot" style={{ animationDelay: `${0.65 + i * 0.1}s` }}>
+              <circle cx={pt.x} cy={pt.y} r="5" fill="#0f172a" stroke="#fb923c" strokeWidth="2" />
+              {data[i].mDone && <circle cx={pt.x} cy={pt.y} r="2.5" fill="#fb923c" />}
+            </g>
+          ))}
+
+          {/* X-axis day labels */}
+          {data.map((d, i) => (
+            <text
+              key={d.dk}
+              x={C_PAD.l + i * stepX}
+              y={C_H - 6}
+              textAnchor="middle"
+              fontSize="11"
+              fill="rgba(148,163,184,0.75)"
+              fontFamily="ui-sans-serif, system-ui, sans-serif"
+              fontWeight="600"
+            >
+              {d.label}
+            </text>
+          ))}
+        </svg>
+      </div>
+
+      {/* Bottom summary stats */}
+      <div className="grid grid-cols-2 gap-px border-t border-white/[0.07]">
+        <div className="flex items-center gap-3 px-6 py-4">
+          <span className="flex h-9 w-9 items-center justify-center rounded-lg border border-cyan-400/25 bg-cyan-500/10">
+            <Dumbbell className="h-4 w-4 text-cyan-400" />
+          </span>
+          <div>
+            <p className="text-xl font-bold leading-none text-white">
+              {totalW}
+              <span className="ml-0.5 text-sm font-medium text-slate-500">/7</span>
+            </p>
+            <p className="mt-0.5 text-xs text-slate-500">Workout days done</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-3 border-l border-white/[0.07] px-6 py-4">
+          <span className="flex h-9 w-9 items-center justify-center rounded-lg border border-orange-400/25 bg-orange-500/10">
+            <Flame className="h-4 w-4 text-orange-400" />
+          </span>
+          <div>
+            <p className="text-xl font-bold leading-none text-white">
+              {totalM}
+              <span className="ml-0.5 text-sm font-medium text-slate-500">/7</span>
+            </p>
+            <p className="mt-0.5 text-xs text-slate-500">Meal days done</p>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 /* ── Main component ────────────────────────────────────────────────────────── */
 
 export default function Home() {
@@ -451,6 +663,14 @@ export default function Home() {
           </div>
           <CalorieProgressCard consumedCalories={consumedCalories} totalCalories={totalCalories} />
         </section>
+
+        {/* ── Weekly Activity Chart ── */}
+        <WeeklyActivityChart
+          workoutPlanId={activeWorkoutPlan?.id}
+          mealPlanId={activeMealPlan?.id}
+          workoutActivatedAt={workoutActivation?.activatedAt}
+          mealActivatedAt={mealActivation?.activatedAt}
+        />
 
         {/* ── Active plan cards ── */}
         <section className="grid gap-5 xl:grid-cols-2">
