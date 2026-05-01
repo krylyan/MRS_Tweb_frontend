@@ -385,10 +385,13 @@ export default function MealPlanMenu() {
   const activeMealPlanId = searchParams.get("planId") ?? storedActiveMealPlanId;
   const canMarkCompleted = Boolean(activeMealPlanId && activeMealPlanId === storedActiveMealPlanId);
   const completionDateKey = getDateKey(searchParams.get("date"));
+  const urlDayId = searchParams.get("dayId");
   const availableMeals = useMemo(() => mealLibrary.getVisibleMeals("priority"), []);
   const [title, setTitle] = useState("New Meal Plan");
   const [titleFocused, setTitleFocused] = useState(false);
-  const [activeDayId, setActiveDayId] = useState("day-1");
+  // If dayId is passed from dashboard, open that specific day
+  const initialDayId = urlDayId && DAYS.some((d) => d.id === urlDayId) ? urlDayId : "day-1";
+  const [activeDayId, setActiveDayId] = useState(initialDayId);
   const [allMeals, setAllMeals] = useState<AllDayMeals>(() => createInitialMeals(availableMeals));
   const [collapsed, setCollapsed] = useState<Record<MealSlot, boolean>>({
     breakfast: false,

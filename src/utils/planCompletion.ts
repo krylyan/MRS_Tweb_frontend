@@ -164,3 +164,49 @@ export const unmarkPlanCompleted = (
 
   writeCompletions(completions);
 };
+
+/**
+ * Remove all day-level completions for a specific plan across ALL stored dates.
+ * Used when a cycle resets so that everything starts fresh.
+ */
+export const clearAllDayCompletionsForPlan = (
+  type: PlanCompletionType,
+  planId: string,
+): void => {
+  const completions = readCompletions();
+  const dayListKey = getDayListKey(type);
+  const prefix = `${planId}:`;
+
+  for (const dateKey of Object.keys(completions)) {
+    const completion = completions[dateKey];
+    if (!completion) continue;
+    const dayList = Array.isArray(completion[dayListKey]) ? completion[dayListKey] : [];
+    const filtered = dayList.filter((token) => !token.startsWith(prefix));
+    if (filtered.length !== dayList.length) {
+      completions[dateKey] = { ...completion, [dayListKey]: filtered };
+    }
+  }
+
+  writeCompletions(completions);
+};
+
+/**
+ * Remove completions older than `keepDays` days to prevent localStorage bloat.
+ */
+export const cleanupOldCompletions = (keepDays = 8): void => {
+  const completions = readCompletions();
+  const today = new Date();
+  const cutoff = new Date(today);
+  cutoff.setDate(cutoff.getDate() - keepDays);
+  const cutoffKey = getDateKey(cutoff);
+
+  let changed = false;
+  for (const dateKey of Object.keys(completions)) {
+    if (dateKey < cutoffKey) {
+      delete completions[dateKey];
+      changed = true;
+    }
+  }
+
+  if (changed) writeCompletions(completions);
+};

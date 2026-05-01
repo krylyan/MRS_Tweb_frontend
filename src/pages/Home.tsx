@@ -10,7 +10,7 @@ import {
   Target,
   UtensilsCrossed,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   ALIMENTATION_PLANS,
@@ -19,8 +19,15 @@ import {
   readCustomizations,
   readMealCustomizations,
 } from "./MyPlans";
-import { getDateKey, hasCompletedPlanDay } from "../utils/planCompletion";
+import { getDateKey, hasCompletedPlanDay, isPlanDayCompleted, cleanupOldCompletions } from "../utils/planCompletion";
 import { getActivePlan, getWorkoutPlans } from "../utils/planStorage";
+import {
+  getPlanActivation,
+  getActiveDayForDate,
+  checkAndResetCycle,
+  isDateInRange,
+  type ActiveDayInfo,
+} from "../utils/planCycleTracker";
 
 const ACTIVE_MEAL_KEY = "fitlife_active_meal_plan";
 
@@ -44,32 +51,42 @@ const getOrdinal = (day: number): string => {
 const formatDateLabel = (dateKey: string): string => {
   const date = parseDateKey(dateKey);
   const todayKey = getDateKey();
-  const tomorrowKey = addDays(todayKey, 1);
+  const yesterdayKey = addDays(todayKey, -1);
   const month = date.toLocaleDateString("en-GB", { month: "long" });
   const year = date.getFullYear();
   const formatted = `${getOrdinal(date.getDate())} ${month}, ${year}`;
 
   if (dateKey === todayKey) return `Today, ${formatted}`;
-  if (dateKey === tomorrowKey) return `Tomorrow, ${formatted}`;
+  if (dateKey === yesterdayKey) return `Yesterday, ${formatted}`;
   return formatted;
 };
 
 interface StatusBadgeProps {
   completed: boolean;
+  dayInfo?: ActiveDayInfo | null;
+  totalDays?: number;
 }
 
-function StatusBadge({ completed }: StatusBadgeProps) {
+function StatusBadge({ completed, dayInfo, totalDays }: StatusBadgeProps) {
   return (
-    <span
-      className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold ${
-        completed
-          ? "border-emerald-300/30 bg-emerald-500/15 text-emerald-200"
-          : "border-amber-300/25 bg-amber-400/10 text-amber-100"
-      }`}
-    >
-      {completed ? <Check className="h-3.5 w-3.5" /> : <Clock className="h-3.5 w-3.5" />}
-      {completed ? "Completed" : "Not completed"}
-    </span>
+    <div className="flex flex-wrap items-center gap-2">
+      {dayInfo && totalDays ? (
+        <span className="inline-flex items-center gap-1.5 rounded-full border border-blue-300/30 bg-blue-500/15 px-3 py-1 text-xs font-semibold text-blue-200">
+          <CalendarDays className="h-3.5 w-3.5" />
+          {dayInfo.dayLabel} of {totalDays}
+        </span>
+      ) : null}
+      <span
+        className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold ${
+          completed
+            ? "border-emerald-300/30 bg-emerald-500/15 text-emerald-200"
+            : "border-amber-300/25 bg-amber-400/10 text-amber-100"
+        }`}
+      >
+        {completed ? <Check className="h-3.5 w-3.5" /> : <Clock className="h-3.5 w-3.5" />}
+        {completed ? "Completed" : "Not completed"}
+      </span>
+    </div>
   );
 }
 
@@ -81,6 +98,8 @@ interface ActivePlanCardProps {
   imageUrl?: string;
   accent: ReturnType<typeof getThemeById>;
   stats: Array<{ icon: "calendar" | "clock" | "dumbbell" | "flame" | "target"; label: string }>;
+  dayInfo?: ActiveDayInfo | null;
+  totalDays?: number;
 }
 
 const statIcons = {
@@ -91,7 +110,7 @@ const statIcons = {
   target: Target,
 };
 
-function ActivePlanCard({ type, name, href, completed, imageUrl, accent, stats }: ActivePlanCardProps) {
+function ActivePlanCard({ type, name, href, completed, imageUrl, accent, stats, dayInfo, totalDays }: ActivePlanCardProps) {
   const Icon = type === "workout" ? Dumbbell : UtensilsCrossed;
 
   return (
@@ -106,7 +125,7 @@ function ActivePlanCard({ type, name, href, completed, imageUrl, accent, stats }
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-slate-950/10" />
         <div className="absolute bottom-4 left-4 right-4">
-          <StatusBadge completed={completed} />
+          <StatusBadge completed={completed} dayInfo={dayInfo} totalDays={totalDays} />
         </div>
       </div>
 
@@ -226,14 +245,56 @@ export default function Home() {
   const workoutPlans = getWorkoutPlans();
   const customizations = readCustomizations();
   const mealCustomizations = readMealCustomizations();
-  const workoutCompleted = hasCompletedPlanDay("workout", activeWorkoutPlan?.id, selectedDateKey);
-  const mealCompleted = hasCompletedPlanDay("meal", activeMealPlan?.id, selectedDateKey);
+
+  // ── Cycle tracking ──────────────────────────────────────────────────────
+  const workoutActivation = getPlanActivation("workout");
+  const mealActivation = getPlanActivation("meal");
+
+  // Auto-reset cycles on mount & cleanup old completions
+  useEffect(() => {
+    cleanupOldCompletions(8);
+
+    if (workoutActivation && activeWorkoutPlan) {
+      checkAndResetCycle("workout", (dayId, dateKey) =>
+        isPlanDayCompleted("workout", activeWorkoutPlan.id, dayId, dateKey),
+      );
+    }
+    if (mealActivation && activeMealPlan) {
+      checkAndResetCycle("meal", (dayId, dateKey) =>
+        isPlanDayCompleted("meal", activeMealPlan.id, dayId, dateKey),
+      );
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Compute which Day is active for the selected date
+  const workoutDayInfo: ActiveDayInfo | null =
+    workoutActivation && activeWorkoutPlan
+      ? getActiveDayForDate(workoutActivation, selectedDateKey)
+      : null;
+
+  const mealDayInfo: ActiveDayInfo | null =
+    mealActivation && activeMealPlan
+      ? getActiveDayForDate(mealActivation, selectedDateKey)
+      : null;
+
+  // Completion check uses the specific day mapped to the selected date
+  const workoutCompleted = workoutDayInfo
+    ? isPlanDayCompleted("workout", activeWorkoutPlan!.id, workoutDayInfo.dayId, selectedDateKey)
+    : hasCompletedPlanDay("workout", activeWorkoutPlan?.id, selectedDateKey);
+
+  const mealCompleted = mealDayInfo
+    ? isPlanDayCompleted("meal", activeMealPlan!.id, mealDayInfo.dayId, selectedDateKey)
+    : hasCompletedPlanDay("meal", activeMealPlan?.id, selectedDateKey);
+
   const totalWorkoutExercises =
     activeWorkoutPlan?.days.reduce((sum, day) => sum + day.exerciseIds.length, 0) ?? 0;
   const totalCalories = activeMealPlan?.kcal ?? 0;
   const consumedCalories = mealCompleted ? totalCalories : 0;
-  const tomorrowKey = addDays(getDateKey(), 1);
-  const isNextDisabled = selectedDateKey >= tomorrowKey;
+
+  // ── Navigation limits: max Today, min 6 days back ───────────────────────
+  const { canGoPrev, canGoNext } = isDateInRange(selectedDateKey);
+
   const activeWorkoutIndex = activeWorkoutPlan
     ? Math.max(0, workoutPlans.findIndex((plan) => plan.id === activeWorkoutPlan.id))
     : 0;
@@ -250,6 +311,15 @@ export default function Home() {
     mealCustomization?.colorId ?? DEFAULT_THEME_IDS[activeMealIndex % DEFAULT_THEME_IDS.length],
   );
   const mealImageUrl = mealCustomization?.imageUrl || activeMealPlan?.imageUrl;
+
+  // ── Build "Open Plan" hrefs with dayId ──────────────────────────────────
+  const workoutHref = activeWorkoutPlan
+    ? `/gym-plan?planId=${activeWorkoutPlan.id}&date=${selectedDateKey}${workoutDayInfo ? `&dayId=${workoutDayInfo.dayId}` : ""}`
+    : "#";
+
+  const mealHref = activeMealPlan
+    ? `/meal-plan?planId=${activeMealPlan.id}&date=${selectedDateKey}${mealDayInfo ? `&dayId=${mealDayInfo.dayId}` : ""}`
+    : "#";
 
   return (
     <main className="min-h-screen text-slate-200">
@@ -272,8 +342,9 @@ export default function Home() {
               <button
                 type="button"
                 onClick={() => setSelectedDateKey((current) => addDays(current, -1))}
+                disabled={!canGoPrev}
                 aria-label="Previous day"
-                className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-white/12 bg-white/[0.04] text-slate-200 transition-all hover:bg-white/[0.09] hover:text-white"
+                className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-white/12 bg-white/[0.04] text-slate-200 transition-all hover:bg-white/[0.09] hover:text-white disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white/[0.04] disabled:hover:text-slate-200"
               >
                 <ChevronLeft className="h-5 w-5" />
               </button>
@@ -288,11 +359,12 @@ export default function Home() {
                 type="button"
                 onClick={() => {
                   setSelectedDateKey((current) => {
+                    const todayKey = getDateKey();
                     const next = addDays(current, 1);
-                    return next > tomorrowKey ? tomorrowKey : next;
+                    return next > todayKey ? todayKey : next;
                   });
                 }}
-                disabled={isNextDisabled}
+                disabled={!canGoNext}
                 aria-label="Next day"
                 className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-white/12 bg-white/[0.04] text-slate-200 transition-all hover:bg-white/[0.09] hover:text-white disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white/[0.04] disabled:hover:text-slate-200"
               >
@@ -318,10 +390,12 @@ export default function Home() {
               <ActivePlanCard
                 type="workout"
                 name={activeWorkoutPlan.name}
-                href={`/gym-plan?planId=${activeWorkoutPlan.id}&date=${selectedDateKey}`}
+                href={workoutHref}
                 completed={workoutCompleted}
                 imageUrl={workoutImageUrl}
                 accent={workoutAccent}
+                dayInfo={workoutDayInfo}
+                totalDays={activeWorkoutPlan.days.length}
                 stats={[
                   { icon: "calendar", label: `${activeWorkoutPlan.days.length} training days` },
                   { icon: "dumbbell", label: `${totalWorkoutExercises} exercises` },
@@ -339,10 +413,12 @@ export default function Home() {
               <ActivePlanCard
                 type="meal"
                 name={activeMealPlan.name}
-                href={`/meal-plan?planId=${activeMealPlan.id}&date=${selectedDateKey}`}
+                href={mealHref}
                 completed={mealCompleted}
                 imageUrl={mealImageUrl}
                 accent={mealAccent}
+                dayInfo={mealDayInfo}
+                totalDays={7}
                 stats={[
                   { icon: "flame", label: `${activeMealPlan.kcal.toLocaleString()} kcal / day` },
                   { icon: "calendar", label: `${activeMealPlan.meals} meals` },

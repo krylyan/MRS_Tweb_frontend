@@ -424,6 +424,7 @@ export default function GymPlanMenu() {
   const [searchParams] = useSearchParams();
   const allExercises = useMemo(() => exerciseService.getAllExercises(), []);
   const planId = searchParams.get("planId");
+  const urlDayId = searchParams.get("dayId");
   const activeWorkoutPlanId = getActivePlanId();
   const completionDateKey = getDateKey(searchParams.get("date"));
   const isNewDraft = searchParams.get("new") === "1";
@@ -468,7 +469,11 @@ export default function GymPlanMenu() {
       const hydratedDays = hydrateDaysFromPlan(storedPlan, allExercises);
       setPlanName(storedPlan.name);
       setDays(hydratedDays);
-      setActiveDayId(hydratedDays[0]?.id ?? "day-1");
+      // If dayId is passed from dashboard, open that specific day
+      const targetDayId = urlDayId && hydratedDays.some((d) => d.id === urlDayId)
+        ? urlDayId
+        : hydratedDays[0]?.id ?? "day-1";
+      setActiveDayId(targetDayId);
       setSelectedExerciseByDay({
         ...createEmptySelectedExerciseMap(),
         ...storedPlan.selectedExerciseByDay,

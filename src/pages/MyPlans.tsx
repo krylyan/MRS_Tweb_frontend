@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { deleteWorkoutPlan, getActivePlanId, getWorkoutPlans, setActivePlanId } from "../utils/planStorage";
 import type { StoredWorkoutPlan } from "../utils/planStorage";
+import { savePlanActivation, removePlanActivation } from "../utils/planCycleTracker";
 
 type PlanCategory = "workout" | "alimentation";
 
@@ -230,8 +231,13 @@ export default function MyPlans() {
 
   const handleSetMealActive = (planId: string) => {
     const nextId = activeMealPlanId === planId ? null : planId;
-    if (nextId) localStorage.setItem(ACTIVE_MEAL_KEY, nextId);
-    else localStorage.removeItem(ACTIVE_MEAL_KEY);
+    if (nextId) {
+      localStorage.setItem(ACTIVE_MEAL_KEY, nextId);
+      savePlanActivation("meal", nextId, 7); // Meal plans have 7 days
+    } else {
+      localStorage.removeItem(ACTIVE_MEAL_KEY);
+      removePlanActivation("meal");
+    }
     setActiveMealPlanId(nextId);
     setOpenMealMenuId(null);
   };

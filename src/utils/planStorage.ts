@@ -194,6 +194,8 @@ export const deleteWorkoutPlan = (planId: string): void => {
 
 /* ── Active plan tracking ─────────────────────────────────────────────────── */
 
+import { savePlanActivation, removePlanActivation } from "./planCycleTracker";
+
 const ACTIVE_PLAN_KEY = "fitlife_active_workout_plan";
 
 export const getActivePlanId = (): string | null =>
@@ -202,8 +204,14 @@ export const getActivePlanId = (): string | null =>
 export const setActivePlanId = (planId: string | null): void => {
   if (planId) {
     localStorage.setItem(ACTIVE_PLAN_KEY, planId);
+    // Save plan activation for cycle tracking
+    const plan = getWorkoutPlanById(planId);
+    if (plan) {
+      savePlanActivation("workout", planId, plan.days.length);
+    }
   } else {
     localStorage.removeItem(ACTIVE_PLAN_KEY);
+    removePlanActivation("workout");
   }
 };
 
