@@ -4,7 +4,7 @@ import ReactDOM from "react-dom";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import type { FoodItem } from "../types/meal";
 import { getDateKey, isPlanDayCompleted, markPlanDayCompleted } from "../utils/planCompletion";
-import { getPlanActivation, getActiveDayForDate } from "../utils/planCycleTracker";
+import { getPlanActivation, getActiveDayForDate, addDaysToKey } from "../utils/planCycleTracker";
 import { mealLibrary } from "../utils/mealLibrary";
 
 type MealSlot = "breakfast" | "lunch" | "snacks" | "dinner";
@@ -384,8 +384,12 @@ export default function MealPlanMenu() {
   const titleRef = useRef<HTMLInputElement | null>(null);
   const storedActiveMealPlanId = localStorage.getItem(ACTIVE_MEAL_KEY);
   const activeMealPlanId = searchParams.get("planId") ?? storedActiveMealPlanId;
-  const canMarkCompleted = Boolean(activeMealPlanId && activeMealPlanId === storedActiveMealPlanId);
   const completionDateKey = getDateKey(searchParams.get("date"));
+  const canMarkCompleted = Boolean(
+    activeMealPlanId &&
+    activeMealPlanId === storedActiveMealPlanId &&
+    completionDateKey <= getDateKey(), // no future marking
+  );
   const urlDayId = searchParams.get("dayId");
   const availableMeals = useMemo(() => mealLibrary.getVisibleMeals("priority"), []);
   const [title, setTitle] = useState("New Meal Plan");
@@ -415,15 +419,22 @@ export default function MealPlanMenu() {
   const proteinPct = totalKcal > 0 ? Math.round((totalP * 4 / totalKcal) * 100) : 0;
   const fatsPct = totalKcal > 0 ? Math.round((totalF * 9 / totalKcal) * 100) : 0;
   const carbsPct = totalKcal > 0 ? Math.round((totalC * 4 / totalKcal) * 100) : 0;
-  const completedDayIds = useMemo(
-    () =>
-      activeMealPlanId
-        ? DAYS
-            .filter((day) => isPlanDayCompleted("meal", activeMealPlanId, day.id, completionDateKey))
-            .map((day) => day.id)
-        : [],
-    [activeMealPlanId, completionDateKey, completionVersion],
-  );
+  const completedDayIds = useMemo(() => {
+    if (!activeMealPlanId) return [];
+    const activation = getPlanActivation("meal");
+    const startKey = activation?.lastCycleResetAt ?? activation?.activatedAt;
+    return DAYS
+      .filter((day) => {
+        if (!startKey) {
+          return isPlanDayCompleted("meal", activeMealPlanId, day.id, completionDateKey);
+        }
+        // Each day has its own calendar date
+        const dayNumber = parseInt(day.id.replace("day-", ""), 10);
+        const dayDate = addDaysToKey(startKey, dayNumber - 1);
+        return isPlanDayCompleted("meal", activeMealPlanId, day.id, dayDate);
+      })
+      .map((day) => day.id);
+  }, [activeMealPlanId, completionDateKey, completionVersion]);
 
   // Compute which meal plan day maps to TODAY (for blue highlight)
   const todayPlanDayId = useMemo(() => {

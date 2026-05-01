@@ -27,7 +27,7 @@ import {
   saveWorkoutPlan,
 } from "../utils/planStorage";
 import { getDateKey, isPlanDayCompleted, markPlanDayCompleted } from "../utils/planCompletion";
-import { getPlanActivation, getActiveDayForDate } from "../utils/planCycleTracker";
+import { getPlanActivation, getActiveDayForDate, addDaysToKey } from "../utils/planCycleTracker";
 import type {
   PauseTime,
   StoredWorkoutPlan,
@@ -521,7 +521,11 @@ export default function GymPlanMenu() {
   const selectedExerciseId = selectedExerciseByDay[activeDayId] ?? null;
   const selectedExercise =
     activeDayExercises.find((exercise) => exercise.id === selectedExerciseId) ?? null;
-  const canMarkCompleted = Boolean(planId && planId === activeWorkoutPlanId);
+  const canMarkCompleted = Boolean(
+    planId &&
+    planId === activeWorkoutPlanId &&
+    completionDateKey <= getDateKey(), // no future marking
+  );
 
   // Compute which plan day maps to TODAY (for blue highlight)
   const todayPlanDayId = useMemo(() => {
@@ -531,15 +535,23 @@ export default function GymPlanMenu() {
     return getActiveDayForDate(activation, getDateKey()).dayId;
   }, [planId, activeWorkoutPlanId]);
 
-  const completedDayIds = useMemo(
-    () =>
-      planId
-        ? days
-            .filter((day) => isPlanDayCompleted("workout", planId, day.id, completionDateKey))
-            .map((day) => day.id)
-        : [],
-    [completionDateKey, completionVersion, days, planId],
-  );
+  const completedDayIds = useMemo(() => {
+    if (!planId) return [];
+    const activation = getPlanActivation("workout");
+    const startKey = activation?.lastCycleResetAt ?? activation?.activatedAt;
+    return days
+      .filter((day) => {
+        if (!startKey) {
+          // No activation record: fallback to completionDateKey
+          return isPlanDayCompleted("workout", planId, day.id, completionDateKey);
+        }
+        // Each day has its own calendar date
+        const dayNumber = parseInt(day.id.replace("day-", ""), 10);
+        const dayDate = addDaysToKey(startKey, dayNumber - 1);
+        return isPlanDayCompleted("workout", planId, day.id, dayDate);
+      })
+      .map((day) => day.id);
+  }, [completionVersion, days, planId, completionDateKey]);
   const isCompletedForDate = useMemo(
     () =>
       canMarkCompleted && planId

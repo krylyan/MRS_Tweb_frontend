@@ -49,7 +49,7 @@ const daysBetween = (a: string, b: string): number => {
   return Math.round((msB - msA) / (1000 * 60 * 60 * 24));
 };
 
-const addDaysToKey = (dateKey: string, days: number): string => {
+export const addDaysToKey = (dateKey: string, days: number): string => {
   const d = parseDateKey(dateKey);
   d.setDate(d.getDate() + days);
   return getDateKey(d);
