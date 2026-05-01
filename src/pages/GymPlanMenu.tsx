@@ -27,6 +27,7 @@ import {
   saveWorkoutPlan,
 } from "../utils/planStorage";
 import { getDateKey, isPlanDayCompleted, markPlanDayCompleted } from "../utils/planCompletion";
+import { getPlanActivation, getActiveDayForDate } from "../utils/planCycleTracker";
 import type {
   PauseTime,
   StoredWorkoutPlan,
@@ -42,7 +43,8 @@ interface DayPlan {
 
 interface DaysSelectorProps {
   days: DayPlan[];
-  activeDayId: string;
+  activeDayId: string;       // currently selected/viewed day (tab)
+  todayPlanDayId: string;    // the day that maps to TODAY in the cycle
   completedDayIds: string[];
   onSelectDay: (day: DayPlan) => void;
   onAddDay: () => void;
@@ -170,25 +172,38 @@ const createStoredPlanPayload = (
   };
 };
 
-function DaysSelector({ days, activeDayId, completedDayIds, onSelectDay, onAddDay }: DaysSelectorProps) {
+function DaysSelector({ days, activeDayId, todayPlanDayId, completedDayIds, onSelectDay, onAddDay }: DaysSelectorProps) {
   return (
     <section className="reveal-up reveal-delay-2 mb-4 rounded-[14px] border border-white/12 bg-white/4 px-4 py-3 shadow-[0_14px_28px_rgba(0,0,0,0.25)] backdrop-blur-[6px]">
       <div className="flex flex-wrap items-center gap-2.5">
         {days.map((day) => {
-          const isActive = day.id === activeDayId;
-          const isCompleted = completedDayIds.includes(day.id);
+          const isSelected = day.id === activeDayId;      // currently viewed tab
+          const isToday = day.id === todayPlanDayId;      // today's plan day → blue
+          const isCompleted = completedDayIds.includes(day.id); // completed → red border
+
+          let className = "rounded-[10px] border px-4 py-2 text-sm font-semibold transition-colors ";
+          if (isCompleted && isToday) {
+            // completed AND today: red border + blue background
+            className += "border-rose-400/70 bg-blue-500/25 text-blue-100 shadow-[0_0_14px_rgba(244,63,94,0.25)]";
+          } else if (isCompleted) {
+            // completed but not today: red border, dim bg
+            className += "border-rose-400/60 bg-rose-500/10 text-rose-200 shadow-[0_0_10px_rgba(244,63,94,0.15)]";
+          } else if (isToday) {
+            // today's day (active in plan) → blue
+            className += "border-blue-400/50 bg-blue-500/25 text-blue-100 shadow-[0_0_16px_rgba(59,130,246,0.22)]";
+          } else if (isSelected) {
+            // just selected/viewed tab (not today, not completed)
+            className += "border-emerald-400/40 bg-emerald-500/20 text-emerald-200";
+          } else {
+            className += "border-white/10 bg-white/[0.02] text-slate-200 hover:bg-white/[0.08]";
+          }
+
           return (
             <button
               key={day.id}
               type="button"
               onClick={() => onSelectDay(day)}
-              className={`rounded-[10px] border px-4 py-2 text-sm font-semibold transition-colors ${
-                isCompleted
-                  ? "border-blue-300/45 bg-blue-500/25 text-blue-100 shadow-[0_0_16px_rgba(59,130,246,0.18)]"
-                  : isActive
-                  ? "border-emerald-400/40 bg-emerald-500/20 text-emerald-200"
-                  : "border-white/10 bg-white/[0.02] text-slate-200 hover:bg-white/[0.08]"
-              }`}
+              className={className}
             >
               {day.label}
             </button>
@@ -507,6 +522,15 @@ export default function GymPlanMenu() {
   const selectedExercise =
     activeDayExercises.find((exercise) => exercise.id === selectedExerciseId) ?? null;
   const canMarkCompleted = Boolean(planId && planId === activeWorkoutPlanId);
+
+  // Compute which plan day maps to TODAY (for blue highlight)
+  const todayPlanDayId = useMemo(() => {
+    if (!planId || planId !== activeWorkoutPlanId) return "day-1";
+    const activation = getPlanActivation("workout");
+    if (!activation) return "day-1";
+    return getActiveDayForDate(activation, getDateKey()).dayId;
+  }, [planId, activeWorkoutPlanId]);
+
   const completedDayIds = useMemo(
     () =>
       planId
@@ -771,6 +795,7 @@ export default function GymPlanMenu() {
               <DaysSelector
                 days={days}
                 activeDayId={activeDayId}
+                todayPlanDayId={todayPlanDayId}
                 completedDayIds={completedDayIds}
                 onSelectDay={handleSelectDay}
                 onAddDay={handleAddDay}

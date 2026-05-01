@@ -4,6 +4,7 @@ import ReactDOM from "react-dom";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import type { FoodItem } from "../types/meal";
 import { getDateKey, isPlanDayCompleted, markPlanDayCompleted } from "../utils/planCompletion";
+import { getPlanActivation, getActiveDayForDate } from "../utils/planCycleTracker";
 import { mealLibrary } from "../utils/mealLibrary";
 
 type MealSlot = "breakfast" | "lunch" | "snacks" | "dinner";
@@ -423,6 +424,14 @@ export default function MealPlanMenu() {
         : [],
     [activeMealPlanId, completionDateKey, completionVersion],
   );
+
+  // Compute which meal plan day maps to TODAY (for blue highlight)
+  const todayPlanDayId = useMemo(() => {
+    if (!canMarkCompleted || !activeMealPlanId) return "day-1";
+    const activation = getPlanActivation("meal");
+    if (!activation) return "day-1";
+    return getActiveDayForDate(activation, getDateKey()).dayId;
+  }, [activeMealPlanId, canMarkCompleted]);
   const isCompletedForDate = useMemo(
     () =>
       canMarkCompleted && activeMealPlanId
@@ -525,21 +534,29 @@ export default function MealPlanMenu() {
         <section className="reveal-up mb-4 rounded-[14px] border border-white/12 bg-white/4 px-4 py-3 shadow-[0_14px_28px_rgba(0,0,0,0.25)] backdrop-blur-[6px]">
           <div className="flex flex-wrap items-center gap-2.5">
             {DAYS.map((day) => {
-              const isActive = day.id === activeDayId;
+              const isSelected = day.id === activeDayId;
+              const isToday = day.id === todayPlanDayId;
               const isCompleted = completedDayIds.includes(day.id);
+
+              let dayClass = "rounded-[10px] border px-4 py-2 text-sm font-semibold transition-colors ";
+              if (isCompleted && isToday) {
+                dayClass += "border-rose-400/70 bg-blue-500/25 text-blue-100 shadow-[0_0_14px_rgba(244,63,94,0.25)]";
+              } else if (isCompleted) {
+                dayClass += "border-rose-400/60 bg-rose-500/10 text-rose-200 shadow-[0_0_10px_rgba(244,63,94,0.15)]";
+              } else if (isToday) {
+                dayClass += "border-blue-400/50 bg-blue-500/25 text-blue-100 shadow-[0_0_16px_rgba(59,130,246,0.22)]";
+              } else if (isSelected) {
+                dayClass += "border-emerald-400/40 bg-emerald-500/20 text-emerald-200";
+              } else {
+                dayClass += "border-white/10 bg-white/[0.02] text-slate-200 hover:bg-white/[0.08]";
+              }
 
               return (
                 <button
                   key={day.id}
                   type="button"
                   onClick={() => setActiveDayId(day.id)}
-                  className={`rounded-[10px] border px-4 py-2 text-sm font-semibold transition-colors ${
-                    isCompleted
-                      ? "border-blue-300/45 bg-blue-500/25 text-blue-100 shadow-[0_0_16px_rgba(59,130,246,0.18)]"
-                      : isActive
-                      ? "border-emerald-400/40 bg-emerald-500/20 text-emerald-200"
-                      : "border-white/10 bg-white/[0.02] text-slate-200 hover:bg-white/[0.08]"
-                  }`}
+                  className={dayClass}
                 >
                   {day.label}
                 </button>
