@@ -1,12 +1,16 @@
-﻿import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import AuthButton from "../../components/auth/AuthButton";
 import AuthInput from "../../components/auth/AuthInput";
 import AuthUtils from "../../utils/authUtils";
+import { authService } from "../../services/authService";
 
 interface SignInLocationState {
   message?: string;
 }
+
+// Cheie pentru token JWT in sessionStorage
+const JWT_TOKEN_KEY = "fitlife_jwt_token";
 
 export default function SignIn() {
   const navigate = useNavigate();
@@ -30,22 +34,24 @@ export default function SignIn() {
     setError("");
     setLoading(true);
 
-    await new Promise((resolve) => setTimeout(resolve, 300));
+    const result = await authService.loginUser({
+      username: email.trim(),
+      password,
+    });
 
-    const result = AuthUtils.login(email, password);
+    setLoading(false);
 
-    if (result.ok) {
-      setLoading(false);
-      if (AuthUtils.isQuestionnaireRequired()) {
-        navigate("/questionnaire", { replace: true });
-        return;
-      }
-      navigate("/home", { replace: true });
+    if (!result.ok) {
+      setError(result.message ?? "Login failed");
       return;
     }
 
-    setLoading(false);
-    setError(result.message ?? "Login failed");
+    // Salveaza token-ul JWT pentru requesturi viitoare
+    sessionStorage.setItem(JWT_TOKEN_KEY, result.data.token);
+    // Mentine sesiunea existenta AuthUtils pentru compatibilitate cu restul aplicatiei
+    AuthUtils.setLoginInfo(result.data.fullName);
+
+    navigate("/home", { replace: true });
   };
 
   return (
@@ -88,17 +94,10 @@ export default function SignIn() {
                 </p>
               ) : null}
 
-              <p className="text-xs leading-[1.5] text-gray-400">
-                Default accounts:{" "}
-                <span className="font-semibold text-emerald-300">max / max</span>
-                {" "}and{" "}
-                <span className="font-semibold text-emerald-300">admin / admin</span>
-              </p>
-
               <AuthInput
-                label="Email or Username"
-                type="text"
-                placeholder="max"
+                label="Email"
+                type="email"
+                placeholder="you@example.com"
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
                 required
