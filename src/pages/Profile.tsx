@@ -18,7 +18,7 @@ import {
 import AuthUtils from "../utils/authUtils";
 import { getActivePlan, getWorkoutPlans } from "../utils/planStorage";
 import type { StoredWorkoutPlan } from "../utils/planStorage";
-import { ALIMENTATION_PLANS, readCustomizations, readMealCustomizations, getThemeById, DEFAULT_THEME_IDS } from "./MyPlans";
+import { readCustomizations, getThemeById, DEFAULT_THEME_IDS } from "./MyPlans";
 
 /* ── Profile persistence ─────────────────────────────────────────────────── */
 
@@ -173,12 +173,9 @@ export default function Profile() {
   const te = useMemo(() => uniqueExercises(plans), [plans]);
   const activePlan = useMemo(() => getActivePlan(), []);
 
-  // New logic for active plans styling
-  const ACTIVE_MEAL_KEY = "fitlife_active_meal_plan";
-  const activeMealPlanId = localStorage.getItem(ACTIVE_MEAL_KEY);
-  const activeMealPlan = useMemo(() => ALIMENTATION_PLANS.find(p => p.id === activeMealPlanId), [activeMealPlanId]);
+  // Meal plans now load from API — no static lookup here
+  const activeMealPlan = null;
   const customizations = useMemo(() => readCustomizations(), []);
-  const mealCustomizations = useMemo(() => readMealCustomizations(), []);
 
   const displayName = formName || currentUser?.fullName || "User";
   const displayEmail = formEmail || currentUser?.username || "user@example.com";
@@ -348,45 +345,7 @@ export default function Profile() {
               <UtensilsCrossed className="h-5 w-5 text-orange-400" />
               <h2 className="text-lg font-bold text-white">Active Alimentation Plan</h2>
             </div>
-            {activeMealPlan ? (() => {
-              const planIndex = ALIMENTATION_PLANS.findIndex(p => p.id === activeMealPlan.id);
-              const custom = mealCustomizations[activeMealPlan.id];
-              const accent = custom?.colorId ? getThemeById(custom.colorId) : getThemeById(DEFAULT_THEME_IDS[Math.max(0, planIndex) % 4]);
-              const displayImg = custom?.imageUrl || activeMealPlan.imageUrl;
-
-              return (
-                <article className={`flex flex-1 flex-col overflow-hidden rounded-2xl border shadow-[0_18px_36px_rgba(0,0,0,0.25)] backdrop-blur-[6px] transition-all duration-300 hover:-translate-y-1 hover:shadow-xl ${accent.card}`}>
-                  {/* Image Area */}
-                  <div className="relative h-48">
-                    <img src={displayImg} alt={activeMealPlan.name} className="h-full w-full object-cover" loading="lazy" />
-                    <span className={`absolute bottom-3 left-3 rounded-lg ${accent.badge} px-2.5 py-1 text-xs font-bold text-white backdrop-blur-sm`}>
-                      {activeMealPlan.kcal.toLocaleString()} kcal
-                    </span>
-                  </div>
-                  {/* Content */}
-                  <div className="flex flex-1 flex-col p-5">
-                    <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-400">
-                      <span className="flex items-center gap-1"><Flame className="h-3.5 w-3.5 text-orange-400" />{activeMealPlan.kcal.toLocaleString()} kcal / day</span>
-                      <span className="flex items-center gap-1"><Calendar className="h-3.5 w-3.5" />{activeMealPlan.meals} meals</span>
-                    </div>
-                    <div className="mb-1.5 flex h-1.5 overflow-hidden rounded-full">
-                      <div className="bg-emerald-500" style={{ width: `${activeMealPlan.proteins}%` }} />
-                      <div className="bg-orange-400" style={{ width: `${activeMealPlan.fats}%` }} />
-                      <div className="bg-blue-400" style={{ width: `${activeMealPlan.carbs}%` }} />
-                    </div>
-                    <div className="mb-4 flex justify-between text-[10px]">
-                      <span className="text-emerald-400">{activeMealPlan.proteins}% protein</span>
-                      <span className="text-orange-400">{activeMealPlan.fats}% fats</span>
-                      <span className="text-blue-400">{activeMealPlan.carbs}% carbs</span>
-                    </div>
-                    <h3 className="mb-5 break-words text-xl font-bold leading-snug text-slate-50">{activeMealPlan.name}</h3>
-                    <Link to="/meal-plan" className={`mt-auto inline-flex w-max items-center justify-center rounded-[10px] px-6 py-2.5 text-sm font-semibold text-white shadow-lg transition-all duration-200 active:scale-95 ${accent.btn}`}>
-                      Open Plan
-                    </Link>
-                  </div>
-                </article>
-              );
-            })() : (
+            {activeMealPlan ? null : (
               <div className="rounded-xl border border-dashed border-white/15 bg-white/[0.02] px-4 py-8 text-center">
                 <p className="mb-3 text-sm text-slate-400">No active alimentation plan</p>
                 <Link to="/plans?tab=alimentation" className="inline-flex items-center gap-2 rounded-xl bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-orange-400">Go to My Plans</Link>

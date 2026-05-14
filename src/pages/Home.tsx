@@ -13,11 +13,9 @@ import {
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import {
-  ALIMENTATION_PLANS,
   DEFAULT_THEME_IDS,
   getThemeById,
   readCustomizations,
-  readMealCustomizations,
 } from "./MyPlans";
 import { getDateKey, hasCompletedPlanDay, isPlanDayCompleted, cleanupOldCompletions } from "../utils/planCompletion";
 import { getActivePlan, getWorkoutPlans } from "../utils/planStorage";
@@ -30,7 +28,6 @@ import {
   type ActiveDayInfo,
 } from "../utils/planCycleTracker";
 
-const ACTIVE_MEAL_KEY = "fitlife_active_meal_plan";
 
 /* ── Date helpers ──────────────────────────────────────────────────────────── */
 
@@ -503,15 +500,11 @@ export default function Home() {
   const [selectedDateKey, setSelectedDateKey] = useState(() => getDateKey());
 
   const activeWorkoutPlan = getActivePlan();
-  const activeMealPlanId = localStorage.getItem(ACTIVE_MEAL_KEY);
-  const activeMealPlan = ALIMENTATION_PLANS.find((p) => p.id === activeMealPlanId) ?? null;
   const workoutPlans = getWorkoutPlans();
   const customizations = readCustomizations();
-  const mealCustomizations = readMealCustomizations();
 
   // ── Cycle activations ──────────────────────────────────────────────────
   const workoutActivation = getPlanActivation("workout");
-  const mealActivation = getPlanActivation("meal");
 
   // Auto-reset cycles + cleanup old completions on mount
   useEffect(() => {
@@ -521,25 +514,14 @@ export default function Home() {
         isPlanDayCompleted("workout", activeWorkoutPlan.id, dayId, dateKey),
       );
     }
-    if (mealActivation && activeMealPlan) {
-      checkAndResetCycle("meal", (dayId, dateKey) =>
-        isPlanDayCompleted("meal", activeMealPlan.id, dayId, dateKey),
-      );
-    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // ── Guards: plan started on selected date? ─────────────────────────────
-  // If selected date is BEFORE the plan was activated → show "not started"
   const workoutStartedOnDate =
     activeWorkoutPlan && workoutActivation
       ? selectedDateKey >= workoutActivation.activatedAt
-      : Boolean(activeWorkoutPlan && !workoutActivation); // plan active but no activation record → show it
-
-  const mealStartedOnDate =
-    activeMealPlan && mealActivation
-      ? selectedDateKey >= mealActivation.activatedAt
-      : Boolean(activeMealPlan && !mealActivation);
+      : Boolean(activeWorkoutPlan && !workoutActivation);
 
   // ── Day mapping for selected date ──────────────────────────────────────
   const workoutDayInfo: ActiveDayInfo | null =
@@ -547,25 +529,14 @@ export default function Home() {
       ? getActiveDayForDate(workoutActivation, selectedDateKey)
       : null;
 
-  const mealDayInfo: ActiveDayInfo | null =
-    mealActivation && activeMealPlan && mealStartedOnDate
-      ? getActiveDayForDate(mealActivation, selectedDateKey)
-      : null;
-
   // ── Completion status ──────────────────────────────────────────────────
   const workoutCompleted = workoutDayInfo
     ? isPlanDayCompleted("workout", activeWorkoutPlan!.id, workoutDayInfo.dayId, selectedDateKey)
     : hasCompletedPlanDay("workout", activeWorkoutPlan?.id, selectedDateKey);
 
-  const mealCompleted = mealDayInfo
-    ? isPlanDayCompleted("meal", activeMealPlan!.id, mealDayInfo.dayId, selectedDateKey)
-    : hasCompletedPlanDay("meal", activeMealPlan?.id, selectedDateKey);
-
   // ── Stats ──────────────────────────────────────────────────────────────
   const totalWorkoutExercises =
     activeWorkoutPlan?.days.reduce((sum, day) => sum + day.exerciseIds.length, 0) ?? 0;
-  const totalCalories = activeMealPlan?.kcal ?? 0;
-  const consumedCalories = mealCompleted ? totalCalories : 0;
 
   // ── Navigation limits: max Today, min 6 days back ─────────────────────
   const { canGoPrev, canGoNext } = isDateInRange(selectedDateKey);
@@ -580,22 +551,9 @@ export default function Home() {
   );
   const workoutImageUrl = workoutCustomization?.imageUrl;
 
-  const activeMealIndex = activeMealPlan
-    ? Math.max(0, ALIMENTATION_PLANS.findIndex((p) => p.id === activeMealPlan.id))
-    : 0;
-  const mealCustomization = activeMealPlan ? mealCustomizations[activeMealPlan.id] : undefined;
-  const mealAccent = getThemeById(
-    mealCustomization?.colorId ?? DEFAULT_THEME_IDS[activeMealIndex % DEFAULT_THEME_IDS.length],
-  );
-  const mealImageUrl = mealCustomization?.imageUrl || activeMealPlan?.imageUrl;
-
-  // ── "Open Plan" hrefs with dayId ───────────────────────────────────────
+  // ── \"Open Plan\" hrefs with dayId ───────────────────────────────────────
   const workoutHref = activeWorkoutPlan
     ? `/gym-plan?planId=${activeWorkoutPlan.id}&date=${selectedDateKey}${workoutDayInfo ? `&dayId=${workoutDayInfo.dayId}` : ""}`
-    : "#";
-
-  const mealHref = activeMealPlan
-    ? `/meal-plan?planId=${activeMealPlan.id}&date=${selectedDateKey}${mealDayInfo ? `&dayId=${mealDayInfo.dayId}` : ""}`
     : "#";
 
   /* ── Render ─────────────────────────────────────────────────────────── */
@@ -661,15 +619,13 @@ export default function Home() {
             <p className="text-3xl font-bold text-white">{totalWorkoutExercises}</p>
             <p className="mt-1 text-sm text-slate-400">exercises in active workout plan</p>
           </div>
-          <CalorieProgressCard consumedCalories={consumedCalories} totalCalories={totalCalories} />
+          <CalorieProgressCard consumedCalories={0} totalCalories={0} />
         </section>
 
         {/* ── Weekly Activity Chart ── */}
         <WeeklyActivityChart
           workoutPlanId={activeWorkoutPlan?.id}
-          mealPlanId={activeMealPlan?.id}
           workoutActivatedAt={workoutActivation?.activatedAt}
-          mealActivatedAt={mealActivation?.activatedAt}
         />
 
         {/* ── Active plan cards ── */}
@@ -704,34 +660,8 @@ export default function Home() {
             </div>
           )}
 
-          {/* Meal plan */}
-          {!activeMealPlan ? (
-            <EmptyPlanCard type="meal" reason="no-plan" />
-          ) : !mealStartedOnDate ? (
-            <div>
-              <ActivePlanHeading type="meal" />
-              <EmptyPlanCard type="meal" reason="not-started" />
-            </div>
-          ) : (
-            <div>
-              <ActivePlanHeading type="meal" />
-              <ActivePlanCard
-                type="meal"
-                name={activeMealPlan.name}
-                href={mealHref}
-                completed={mealCompleted}
-                imageUrl={mealImageUrl}
-                accent={mealAccent}
-                dayInfo={mealDayInfo}
-                totalDays={7}
-                stats={[
-                  { icon: "flame", label: `${activeMealPlan.kcal.toLocaleString()} kcal / day` },
-                  { icon: "calendar", label: `${activeMealPlan.meals} meals` },
-                  { icon: "target", label: `${activeMealPlan.proteins}% protein` },
-                ]}
-              />
-            </div>
-          )}
+          {/* Meal plan — loads from API in future */}
+          <EmptyPlanCard type="meal" reason="no-plan" />
 
         </section>
       </div>

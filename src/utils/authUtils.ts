@@ -89,6 +89,9 @@ const AuthUtils = {
     };
   },
 
+  // Returneaza sesiunea completa cu userId — folosita de serviciile API
+  getSession: (): SessionData | null => readSession(),
+
   getCurrentUsername: (): string | null => readSession()?.fullName ?? null,
 
   getCurrentUserEmail: (): string | null => readSession()?.fullName ?? null,

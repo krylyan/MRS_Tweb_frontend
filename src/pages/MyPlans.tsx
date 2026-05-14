@@ -1,9 +1,11 @@
-import { AlertTriangle, CalendarDays, Check, Clock, Dumbbell, Flame, Image, MoreHorizontal, Palette, Plus, Star, Trash2 } from "lucide-react";
+import { AlertTriangle, CalendarDays, Check, Clock, Dumbbell, Flame, ImageIcon, MoreHorizontal, Palette, Plus, Star, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { deleteWorkoutPlan, getActivePlanId, getWorkoutPlans, setActivePlanId } from "../utils/planStorage";
-import type { StoredWorkoutPlan } from "../utils/planStorage";
-import { savePlanActivation, removePlanActivation } from "../utils/planCycleTracker";
+import { workoutPlanApi } from "../services/workoutPlanApi";
+import type { WorkoutPlanApi } from "../services/workoutPlanApi";
+import { mealPlanApi } from "../services/mealPlanApi";
+import type { MealPlanApi } from "../services/mealPlanApi";
+import { planActivationApi } from "../services/planActivationApi";
 
 type PlanCategory = "workout" | "alimentation";
 
@@ -80,86 +82,14 @@ export const getThemeById = (id: string) =>
   PLAN_THEMES.find((t) => t.id === id) ?? PLAN_THEMES[0];
 
 
-export const ALIMENTATION_PLANS: MockMealPlan[] = [
-  {
-    id: "meal-plan-cut",
-    name: "Lean Cut Menu",
-    description: "A low-calorie balanced plan designed to help you lose weight while maintaining muscle mass.",
-    updatedAt: "2026-03-21T09:00:00.000Z",
-    meals: 5,
-    kcal: 1583,
-    carbs: 50,
-    proteins: 18,
-    fats: 32,
-    imageUrl: "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=120&h=120&fit=crop&auto=format",
-  },
-  {
-    id: "meal-plan-balance",
-    name: "Balanced Energy Week",
-    description: "A well-rounded meal plan to sustain energy levels throughout the week for active individuals.",
-    updatedAt: "2026-03-20T09:00:00.000Z",
-    meals: 4,
-    kcal: 1950,
-    carbs: 48,
-    proteins: 22,
-    fats: 30,
-    imageUrl: "https://images.unsplash.com/photo-1540189549336-e6e99c3679fe?w=120&h=120&fit=crop&auto=format",
-  },
-  {
-    id: "meal-plan-mass",
-    name: "Clean Bulk Plan",
-    description: "A high-protein high-calorie plan to support muscle growth during a clean bulking phase.",
-    updatedAt: "2026-03-19T09:00:00.000Z",
-    meals: 6,
-    kcal: 2474,
-    carbs: 49,
-    proteins: 24,
-    fats: 27,
-    imageUrl: "https://images.unsplash.com/photo-1490645935967-10de6ba17061?w=120&h=120&fit=crop&auto=format",
-  },
-  {
-    id: "meal-plan-keto",
-    name: "Keto Performance",
-    description: "Minimal carbs, high healthy fats to keep your body in ketosis and fuel intense training sessions.",
-    updatedAt: "2026-03-18T09:00:00.000Z",
-    meals: 4,
-    kcal: 1780,
-    carbs: 8,
-    proteins: 28,
-    fats: 64,
-    imageUrl: "https://images.unsplash.com/photo-1547592180-85f173990554?w=120&h=120&fit=crop&auto=format",
-  },
-  {
-    id: "meal-plan-veg",
-    name: "Plant Power Diet",
-    description: "100% plant-based macros to support your workouts while keeping your diet clean and sustainable.",
-    updatedAt: "2026-03-17T09:00:00.000Z",
-    meals: 5,
-    kcal: 1690,
-    carbs: 55,
-    proteins: 20,
-    fats: 25,
-    imageUrl: "https://images.unsplash.com/photo-1498837167922-ddd27525d352?w=120&h=120&fit=crop&auto=format",
-  },
-];
+// Meal plans now come from the backend API â€” no more hardcoded mock data
 
 const MEAL_FAVORITES_KEY = "fitlife_favorite_meal_plans";
-const ACTIVE_MEAL_KEY = "fitlife_active_meal_plan";
 const MEAL_CUSTOMIZATIONS_KEY = "fitlife_meal_customizations";
-const HIDDEN_MEAL_KEY = "fitlife_hidden_meal_plans";
 
 const readMealFavoriteIds = (): string[] => {
   try {
     const raw = localStorage.getItem(MEAL_FAVORITES_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw) as string[];
-    return Array.isArray(parsed) ? parsed.filter((v): v is string => typeof v === "string") : [];
-  } catch { return []; }
-};
-
-const readHiddenMealIds = (): string[] => {
-  try {
-    const raw = localStorage.getItem(HIDDEN_MEAL_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw) as string[];
     return Array.isArray(parsed) ? parsed.filter((v): v is string => typeof v === "string") : [];
@@ -188,23 +118,46 @@ export default function MyPlans() {
   const [searchParams] = useSearchParams();
   const activeCategory: PlanCategory = (searchParams.get("tab") as PlanCategory) ?? "workout";
   const menuAreaRef = useRef<HTMLDivElement | null>(null);
-  const [workoutPlans, setWorkoutPlans] = useState<StoredWorkoutPlan[]>(() => getWorkoutPlans());
+
+  // â”€â”€ API data â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  const [workoutPlans, setWorkoutPlans] = useState<WorkoutPlanApi[]>([]);
+  const [mealPlans, setMealPlans] = useState<MealPlanApi[]>([]);
+  const [_isLoading, setIsLoading] = useState(true);
+
+  // â”€â”€ UI state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const [favoriteIds, setFavoriteIds] = useState<string[]>(() => readFavoriteIds());
-  const [activePlanId, setActivePlanIdState] = useState<string | null>(() => getActivePlanId());
+  const [activePlanId, setActivePlanIdState] = useState<string | null>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [editingPlanId, setEditingPlanId] = useState<string | null>(null);
   const [customizations, setCustomizations] = useState<PlanCustomizations>(() => readCustomizations());
   const menuRef = useRef<HTMLDivElement | null>(null);
 
-  // Meal plan state
   const [favoriteMealIds, setFavoriteMealIds] = useState<string[]>(() => readMealFavoriteIds());
-  const [hiddenMealIds, setHiddenMealIds] = useState<string[]>(() => readHiddenMealIds());
-  const [activeMealPlanId, setActiveMealPlanId] = useState<string | null>(() => localStorage.getItem(ACTIVE_MEAL_KEY));
+  const [activeMealPlanId, setActiveMealPlanId] = useState<string | null>(null);
   const [openMealMenuId, setOpenMealMenuId] = useState<string | null>(null);
   const [editingMealPlanId, setEditingMealPlanId] = useState<string | null>(null);
   const [mealCustomizations, setMealCustomizations] = useState<PlanCustomizations>(() => readMealCustomizations());
   const mealMenuRef = useRef<HTMLDivElement | null>(null);
   const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null);
+
+  // â”€â”€ Load plans from API on mount â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  useEffect(() => {
+    async function loadData() {
+      setIsLoading(true);
+      const [wPlans, mPlans, wActivation, mActivation] = await Promise.all([
+        workoutPlanApi.getMyPlans(),
+        mealPlanApi.getMyPlans(),
+        planActivationApi.getActive("Workout"),
+        planActivationApi.getActive("Meal"),
+      ]);
+      setWorkoutPlans(wPlans);
+      setMealPlans(mPlans);
+      if (wActivation) setActivePlanIdState(wActivation.planIdentifier);
+      if (mActivation) setActiveMealPlanId(mActivation.planIdentifier);
+      setIsLoading(false);
+    }
+    loadData();
+  }, []);
 
   useEffect(() => {
     const handleOutsideClick = (e: MouseEvent) => {
@@ -222,21 +175,25 @@ export default function MyPlans() {
     return () => document.removeEventListener("mousedown", handleOutsideClick);
   }, [openMealMenuId]);
 
-  const handleSetActive = (planId: string) => {
+  const handleSetActive = async (planId: string) => {
     const nextId = activePlanId === planId ? null : planId;
-    setActivePlanId(nextId);
+    if (nextId) {
+      const plan = workoutPlans.find((p) => p.id.toString() === planId);
+      await planActivationApi.activate(planId, "Workout", plan?.days.length || 7);
+    } else {
+      await planActivationApi.deactivate("Workout");
+    }
     setActivePlanIdState(nextId);
     setOpenMenuId(null);
   };
 
-  const handleSetMealActive = (planId: string) => {
+  const handleSetMealActive = async (planId: string) => {
     const nextId = activeMealPlanId === planId ? null : planId;
     if (nextId) {
-      localStorage.setItem(ACTIVE_MEAL_KEY, nextId);
-      savePlanActivation("meal", nextId, 7); // Meal plans have 7 days
+      const plan = mealPlans.find((p) => p.id.toString() === planId);
+      await planActivationApi.activate(planId, "Meal", plan?.meals || 7);
     } else {
-      localStorage.removeItem(ACTIVE_MEAL_KEY);
-      removePlanActivation("meal");
+      await planActivationApi.deactivate("Meal");
     }
     setActiveMealPlanId(nextId);
     setOpenMealMenuId(null);
@@ -249,8 +206,8 @@ export default function MyPlans() {
     setOpenMealMenuId(null);
   };
 
-  const requestDeleteMealPlan = (plan: MockMealPlan) => {
-    setPendingDelete({ type: "meal", id: plan.id, name: plan.name });
+  const requestDeleteMealPlan = (plan: MealPlanApi) => {
+    setPendingDelete({ type: "meal", id: plan.id.toString(), name: plan.name });
     setOpenMealMenuId(null);
   };
 
@@ -269,14 +226,14 @@ export default function MyPlans() {
   const allWorkoutPlans = useMemo<DisplayPlan[]>(
     () =>
       workoutPlans.map((plan) => ({
-        id: plan.id,
+        id: plan.id.toString(),
         sourceType: "workout",
         label: "Workout",
         name: plan.name,
         updatedAt: plan.updatedAt,
         statLabel: "Days",
         statValue: plan.days.length,
-        exerciseCount: plan.days.reduce((sum, d) => sum + d.exerciseIds.length, 0),
+        exerciseCount: plan.days.reduce((sum, d) => sum + d.exercises.length, 0),
         detailsEnabled: true,
         favoriteEnabled: true,
         deleteEnabled: true,
@@ -302,23 +259,25 @@ export default function MyPlans() {
     setOpenMenuId(null);
   };
 
-  const handleConfirmDelete = (): void => {
+  const handleConfirmDelete = async (): Promise<void> => {
     if (!pendingDelete) return;
 
     if (pendingDelete.type === "workout") {
-      deleteWorkoutPlan(pendingDelete.id);
-      setWorkoutPlans(getWorkoutPlans());
+      const numId = Number(pendingDelete.id);
+      await workoutPlanApi.delete(numId);
+      setWorkoutPlans((prev) => prev.filter((p) => p.id !== numId));
       setFavoriteIds((prev) => prev.filter((id) => id !== pendingDelete.id));
-      if (activePlanId === pendingDelete.id) setActivePlanIdState(null);
+      if (activePlanId === pendingDelete.id) {
+        await planActivationApi.deactivate("Workout");
+        setActivePlanIdState(null);
+      }
     } else {
-      setHiddenMealIds((prev) => {
-        const next = prev.includes(pendingDelete.id) ? prev : [...prev, pendingDelete.id];
-        localStorage.setItem(HIDDEN_MEAL_KEY, JSON.stringify(next));
-        return next;
-      });
+      const numId = Number(pendingDelete.id);
+      await mealPlanApi.delete(numId);
+      setMealPlans((prev) => prev.filter((p) => p.id !== numId));
       setFavoriteMealIds((prev) => prev.filter((id) => id !== pendingDelete.id));
       if (activeMealPlanId === pendingDelete.id) {
-        localStorage.removeItem(ACTIVE_MEAL_KEY);
+        await planActivationApi.deactivate("Meal");
         setActiveMealPlanId(null);
       }
     }
@@ -383,7 +342,7 @@ export default function MyPlans() {
           )}
         </div>
 
-        {/* Star badge — only when favorite, non-clickable */}
+        {/* Star badge â€” only when favorite, non-clickable */}
         {isFavorite && (
           <div className="absolute right-12 top-2 z-10">
             <span className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-amber-400/30 bg-black/40 backdrop-blur-sm text-amber-400">
@@ -392,7 +351,7 @@ export default function MyPlans() {
           </div>
         )}
 
-        {/* ⋯ Menu — sibling to image div, positioned on article (no overflow-hidden parent) */}
+        {/* â‹¯ Menu â€” sibling to image div, positioned on article (no overflow-hidden parent) */}
         <div className="absolute right-2 top-2 z-10" ref={isMenuOpen ? menuRef : null}>
           <button
             type="button"
@@ -497,29 +456,31 @@ export default function MyPlans() {
     );
   };
 
-  const renderMealCard = (plan: MockMealPlan, index: number) => {
-    const isMealFavorite = favoriteMealIds.includes(plan.id);
-    const isMealActive = activeMealPlanId === plan.id;
-    const isMealMenuOpen = openMealMenuId === plan.id;
-    const mealCustom = mealCustomizations[plan.id];
+  const renderMealCard = (plan: MealPlanApi, index: number) => {
+    const planIdStr = plan.id.toString();
+    const isMealFavorite = favoriteMealIds.includes(planIdStr);
+    const isMealActive = activeMealPlanId === planIdStr;
+    const isMealMenuOpen = openMealMenuId === planIdStr;
+    const mealCustom = mealCustomizations[planIdStr];
     const accent = mealCustom?.colorId ? getThemeById(mealCustom.colorId) : getThemeById(DEFAULT_THEME_IDS[index % 4]);
     const customImg = mealCustom?.imageUrl;
-    const displayImg = customImg || plan.imageUrl;
 
     return (
       <article
-        key={plan.id}
+        key={planIdStr}
         className={`reveal-up relative flex flex-col rounded-2xl border shadow-[0_18px_36px_rgba(0,0,0,0.25)] backdrop-blur-[6px] transition-all duration-300 hover:-translate-y-1 hover:shadow-xl ${accent.card
           } ${isMealActive ? "ring-2 ring-emerald-400/60" : ""}`}
       >
-        {/* Image area */}
-        <div className="relative h-44 overflow-hidden rounded-t-2xl">
-          <img src={displayImg} alt={plan.name} className="h-full w-full object-cover" loading="lazy" />
-          {/* Kcal badge */}
+        {/* Image / placeholder area */}
+        <div className={`relative flex h-44 items-center justify-center overflow-hidden rounded-t-2xl bg-gradient-to-br ${accent.imgBg}`}>
+          {customImg ? (
+            <img src={customImg} alt={plan.name} className="h-full w-full object-cover" loading="lazy" />
+          ) : (
+            <Flame className="h-16 w-16 text-white/20" />
+          )}
           <span className={`absolute bottom-3 left-3 rounded-lg ${accent.badge} px-2.5 py-1 text-xs font-bold text-white backdrop-blur-sm`}>
-            {plan.kcal.toLocaleString()} kcal
+            {plan.meals} meals/day
           </span>
-          {/* Active badge */}
           {isMealActive && (
             <span className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-lg bg-emerald-500/90 px-2.5 py-1 text-xs font-bold text-white backdrop-blur-sm">
               <Check className="h-3 w-3" />
@@ -528,7 +489,6 @@ export default function MyPlans() {
           )}
         </div>
 
-        {/* Star badge — only when favorite */}
         {isMealFavorite && (
           <div className="absolute right-12 top-2 z-10">
             <span className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-amber-400/30 bg-black/40 backdrop-blur-sm text-amber-400">
@@ -537,12 +497,11 @@ export default function MyPlans() {
           </div>
         )}
 
-        {/* ⋯ Menu — on article, no overflow-hidden parent */}
         <div className="absolute right-2 top-2 z-10" ref={isMealMenuOpen ? mealMenuRef : null}>
           <button
             type="button"
             aria-label="Plan options"
-            onClick={() => setOpenMealMenuId(isMealMenuOpen ? null : plan.id)}
+            onClick={() => setOpenMealMenuId(isMealMenuOpen ? null : planIdStr)}
             className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/20 bg-black/40 backdrop-blur-sm text-white/70 transition-all hover:bg-black/60 hover:text-white"
           >
             <MoreHorizontal className="h-4 w-4" />
@@ -552,7 +511,7 @@ export default function MyPlans() {
             <div className="dropdown-menu absolute right-0 top-10 z-50 min-w-[180px] overflow-hidden rounded-2xl border border-white/12 bg-slate-900/95 shadow-[0_20px_48px_rgba(0,0,0,0.6)] backdrop-blur-xl">
               <button
                 type="button"
-                onClick={() => handleToggleMealFavorite(plan.id)}
+                onClick={() => handleToggleMealFavorite(planIdStr)}
                 className="flex w-full items-center gap-3 px-4 py-3 text-sm font-medium text-slate-200 transition-colors hover:bg-white/[0.07]"
               >
                 <Star className={`h-4 w-4 ${isMealFavorite ? "fill-amber-400 text-amber-400" : "text-slate-400"}`} />
@@ -560,7 +519,7 @@ export default function MyPlans() {
               </button>
               <button
                 type="button"
-                onClick={() => handleSetMealActive(plan.id)}
+                onClick={() => handleSetMealActive(planIdStr)}
                 className="flex w-full items-center gap-3 px-4 py-3 text-sm font-medium text-slate-200 transition-colors hover:bg-white/[0.07]"
               >
                 <Check className={`h-4 w-4 ${isMealActive ? "text-emerald-400" : "text-slate-400"}`} />
@@ -568,7 +527,7 @@ export default function MyPlans() {
               </button>
               <button
                 type="button"
-                onClick={() => { setOpenMealMenuId(null); setEditingMealPlanId(plan.id); }}
+                onClick={() => { setOpenMealMenuId(null); setEditingMealPlanId(planIdStr); }}
                 className="flex w-full items-center gap-3 px-4 py-3 text-sm font-medium text-slate-200 transition-colors hover:bg-white/[0.07]"
               >
                 <Palette className="h-4 w-4 text-slate-400" />
@@ -587,34 +546,18 @@ export default function MyPlans() {
           )}
         </div>
 
-        {/* Content */}
         <div className="flex flex-1 flex-col rounded-b-2xl p-4">
           <div className="mb-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-400">
             <span className="flex items-center gap-1">
-              <Flame className="h-3.5 w-3.5 text-orange-400" />
-              {plan.kcal.toLocaleString()} kcal / day
-            </span>
-            <span className="flex items-center gap-1">
               <CalendarDays className="h-3.5 w-3.5" />
-              {plan.meals} meals
+              {plan.meals} meals / day
             </span>
-          </div>
-          <div className="mb-1 flex h-1.5 overflow-hidden rounded-full">
-            <div className="bg-emerald-500" style={{ width: `${plan.proteins}%` }} />
-            <div className="bg-orange-400" style={{ width: `${plan.fats}%` }} />
-            <div className="bg-blue-400" style={{ width: `${plan.carbs}%` }} />
-          </div>
-          <div className="mb-3 flex gap-3 text-[10px]">
-            <span className="text-emerald-400">{plan.proteins}% protein</span>
-            <span className="text-orange-400">{plan.fats}% fats</span>
-            <span className="text-blue-400">{plan.carbs}% carbs</span>
           </div>
           <h3 className="mb-4 break-words text-base font-bold leading-snug text-slate-50">{plan.name}</h3>
           <button
             type="button"
             onClick={() => navigate("/meal-plan")}
-            className={`mt-auto w-full rounded-[10px] py-2.5 text-sm font-semibold text-white shadow-lg transition-all duration-200 active:scale-95 ${accent.btn
-              }`}
+            className={`mt-auto w-full rounded-[10px] py-2.5 text-sm font-semibold text-white shadow-lg transition-all duration-200 active:scale-95 ${accent.btn}`}
           >
             Open Plan
           </button>
@@ -622,7 +565,6 @@ export default function MyPlans() {
       </article>
     );
   };
-
 
   const renderAddMealCard = (key: string) => (
     <button
@@ -679,13 +621,12 @@ export default function MyPlans() {
           {activeCategory === "workout" ? (
             renderSection("Saved Workouts", sortedWorkoutPlans, "all-workouts", true)
           ) : (() => {
-            const visibleMeals = ALIMENTATION_PLANS.filter((p) => !hiddenMealIds.includes(p.id));
             const sortedMeals = [
-              ...visibleMeals.filter((p) => p.id === activeMealPlanId),
+              ...mealPlans.filter((p) => p.id.toString() === activeMealPlanId),
               ...[...favoriteMealIds].reverse()
-                .map((id) => visibleMeals.find((p) => p.id === id && p.id !== activeMealPlanId))
-                .filter((p): p is typeof ALIMENTATION_PLANS[number] => p !== undefined),
-              ...visibleMeals.filter((p) => p.id !== activeMealPlanId && !favoriteMealIds.includes(p.id)),
+                .map((id) => mealPlans.find((p) => p.id.toString() === id && p.id.toString() !== activeMealPlanId))
+                .filter((p): p is MealPlanApi => p !== undefined),
+              ...mealPlans.filter((p) => p.id.toString() !== activeMealPlanId && !favoriteMealIds.includes(p.id.toString())),
             ];
             return (
               <section className="reveal-up reveal-delay-1 rounded-[14px] border border-white/12 bg-white/4 p-4 shadow-[0_14px_28px_rgba(0,0,0,0.25)] backdrop-blur-[6px]">
@@ -705,9 +646,9 @@ export default function MyPlans() {
 
       {/* Edit Workout Plan Modal */}
       {editingPlanId && (() => {
-        const editPlan = workoutPlans.find((p) => p.id === editingPlanId);
+        const editPlan = workoutPlans.find((p) => p.id.toString() === editingPlanId);
         if (!editPlan) return null;
-        const planIndex = workoutPlans.findIndex((p) => p.id === editingPlanId);
+        const planIndex = workoutPlans.findIndex((p) => p.id.toString() === editingPlanId);
         const currentCustom = customizations[editingPlanId];
         const currentColorId = currentCustom?.colorId ?? DEFAULT_THEME_IDS[planIndex % 4];
         const currentImageUrl = currentCustom?.imageUrl ?? "";
@@ -724,9 +665,9 @@ export default function MyPlans() {
 
       {/* Edit Meal Plan Modal */}
       {editingMealPlanId && (() => {
-        const editPlan = ALIMENTATION_PLANS.find((p) => p.id === editingMealPlanId);
+        const editPlan = mealPlans.find((p) => p.id.toString() === editingMealPlanId);
         if (!editPlan) return null;
-        const planIndex = ALIMENTATION_PLANS.findIndex((p) => p.id === editingMealPlanId);
+        const planIndex = mealPlans.findIndex((p) => p.id.toString() === editingMealPlanId);
         const currentCustom = mealCustomizations[editingMealPlanId];
         const currentColorId = currentCustom?.colorId ?? DEFAULT_THEME_IDS[planIndex % 4];
         const currentImageUrl = currentCustom?.imageUrl ?? "";
@@ -841,7 +782,7 @@ function EditPlanModal({ planName, currentColorId, currentImageUrl, onSave, onCl
           </div>
         </div>
 
-        {/* Preview — click to pick image */}
+        {/* Preview â€” click to pick image */}
         <div
           className={`relative mx-6 mt-5 flex h-32 cursor-pointer items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br ${preview.imgBg} group`}
           onClick={() => fileInputRef.current?.click()}
@@ -854,7 +795,7 @@ function EditPlanModal({ planName, currentColorId, currentImageUrl, onSave, onCl
           )}
           {/* Hover overlay */}
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 bg-black/0 transition-all group-hover:bg-black/50">
-            <Image className="h-6 w-6 text-white opacity-0 transition-opacity group-hover:opacity-100" />
+            <ImageIcon className="h-6 w-6 text-white opacity-0 transition-opacity group-hover:opacity-100" />
             <span className="text-xs font-medium text-white opacity-0 transition-opacity group-hover:opacity-100">Click to change</span>
           </div>
         </div>
