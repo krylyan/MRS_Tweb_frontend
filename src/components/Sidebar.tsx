@@ -20,7 +20,7 @@ export default function Sidebar() {
   const isOnPlans = location.pathname === "/plans";
   const isAdminMode = AuthUtils.isAdminModeEnabled();
   const currentUser = AuthUtils.getCurrentUser();
-  const isAdminAccount = currentUser?.role === "admin";
+  const isAdminAccount = currentUser?.role === "Admin";
 
   const [isPlansOpen, setIsPlansOpen] = useState(true);
 

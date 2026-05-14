@@ -2,15 +2,12 @@ import { useEffect, useState, type FormEvent } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import AuthButton from "../../components/auth/AuthButton";
 import AuthInput from "../../components/auth/AuthInput";
-import AuthUtils from "../../utils/authUtils";
+import AuthUtils, { type SessionData } from "../../utils/authUtils";
 import { authService } from "../../services/authService";
 
 interface SignInLocationState {
   message?: string;
 }
-
-// Cheie pentru token JWT in sessionStorage
-const JWT_TOKEN_KEY = "fitlife_jwt_token";
 
 export default function SignIn() {
   const navigate = useNavigate();
@@ -46,10 +43,14 @@ export default function SignIn() {
       return;
     }
 
-    // Salveaza token-ul JWT pentru requesturi viitoare
-    sessionStorage.setItem(JWT_TOKEN_KEY, result.data.token);
-    // Mentine sesiunea existenta AuthUtils pentru compatibilitate cu restul aplicatiei
-    AuthUtils.setLoginInfo(result.data.fullName);
+    // Salveaza sesiunea completa (userId, fullName, role, token) in sessionStorage
+    const session: SessionData = {
+      userId:   result.data.userId,
+      fullName: result.data.fullName,
+      role:     result.data.role as SessionData["role"],
+      token:    result.data.token,
+    };
+    AuthUtils.setSession(session);
 
     navigate("/home", { replace: true });
   };

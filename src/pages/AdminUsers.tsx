@@ -87,7 +87,7 @@ export default function AdminUsers() {
               <StatCard
                 icon={<ShieldCheck className="h-5 w-5" />}
                 label="Admins"
-                value={users.filter((user) => user.role === "admin").length.toString()}
+                value={users.filter((user) => user.role === "Admin").length.toString()}
               />
               <StatCard
                 icon={<AlertCircle className="h-5 w-5" />}
@@ -139,7 +139,7 @@ export default function AdminUsers() {
                     <div className="flex flex-wrap items-center gap-2">
                       <h3 className="text-lg font-semibold text-white">{user.fullName}</h3>
                       <span
-                        className={`rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide ${user.role === "admin"
+                        className={`rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide ${user.role === "Admin"
                             ? "bg-amber-400/20 text-amber-200"
                             : "bg-emerald-500/20 text-emerald-200"
                           }`}
@@ -163,11 +163,11 @@ export default function AdminUsers() {
                     <div className="flex flex-wrap gap-2">
                       <button
                         type="button"
-                        onClick={() => handleRoleChange(user.username, user.role === "admin" ? "user" : "admin")}
+                        onClick={() => handleRoleChange(user.username, user.role === "Admin" ? "User" : "Admin")}
                         className="inline-flex items-center gap-2 rounded-xl border border-amber-400/25 bg-amber-400/10 px-3 py-2 text-sm font-semibold text-amber-100 transition-colors hover:bg-amber-400/20"
                       >
                         <UserCog className="h-4 w-4" />
-                        {user.role === "admin" ? "Set as user" : "Set as admin"}
+                        {user.role === "Admin" ? "Set as user" : "Set as admin"}
                       </button>
 
                       <button

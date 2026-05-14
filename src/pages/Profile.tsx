@@ -138,7 +138,7 @@ function InfoCard({
 
 export default function Profile() {
   const currentUser = AuthUtils.getCurrentUser();
-  const isAdmin = currentUser?.role === "admin";
+  const isAdmin = currentUser?.role === "Admin";
 
   const [isEditing, setIsEditing] = useState(false);
   const [formName, setFormName] = useState(currentUser?.fullName ?? "User");

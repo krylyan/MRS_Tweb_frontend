@@ -13,7 +13,7 @@ export default function Exercises() {
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const currentUser = AuthUtils.getCurrentUser();
   const isAdminMode = AuthUtils.isAdminModeEnabled();
-  const canEditLibrary = isAdminMode && currentUser?.role === "admin";
+  const canEditLibrary = isAdminMode && currentUser?.role === "Admin";
   const muscleGroups = useMemo<Array<MuscleGroup | "all">>(
     () => ["all", ...exerciseService.getFilterCategories()],
     [],

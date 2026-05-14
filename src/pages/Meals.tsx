@@ -20,7 +20,7 @@ export default function Meals() {
   const [sortMode, setSortMode] = useState<MealSortMode>("priority");
   const currentUser = AuthUtils.getCurrentUser();
   const isAdminMode = AuthUtils.isAdminModeEnabled();
-  const canEditLibrary = isAdminMode && currentUser?.role === "admin";
+  const canEditLibrary = isAdminMode && currentUser?.role === "Admin";
 
   const mealCategories = useMemo<Array<MealCategory | "all">>(
     () => ["all", ...mealService.getFilterCategories()],

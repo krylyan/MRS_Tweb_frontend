@@ -24,7 +24,7 @@ function MobileNavigation({ isAdminMode }: { isAdminMode: boolean }) {
   const location = useLocation();
   const navigate = useNavigate();
   const currentUser = AuthUtils.getCurrentUser();
-  const isAdminAccount = currentUser?.role === "admin";
+  const isAdminAccount = currentUser?.role === "Admin";
 
   const commonItems: MobileNavItem[] = [
     { to: "/home", label: "Home", icon: Home },
