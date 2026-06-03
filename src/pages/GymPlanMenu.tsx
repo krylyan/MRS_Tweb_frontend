@@ -7,6 +7,7 @@ import {
   Grid3X3,
   Heart,
   Loader2,
+  Moon,
   Plus,
   Save,
   Trash2,
@@ -43,6 +44,7 @@ interface DayPlan {
   id: string;
   label: string;
   exercises: Exercise[];
+  isRestDay?: boolean;
 }
 
 interface DaysSelectorProps {
@@ -50,6 +52,7 @@ interface DaysSelectorProps {
   activeDayId: string;       // currently selected/viewed day (tab)
   todayPlanDayId: string;    // the day that maps to TODAY in the cycle
   completedDayIds: string[];
+  restDayIds: string[];
   onSelectDay: (day: DayPlan) => void;
 }
 
@@ -57,10 +60,12 @@ interface ActivityDetailsProps {
   selectedExerciseName: string | null;
   pauseTime: PauseTime;
   sets: WorkoutSet[];
+  isRestDay: boolean;
   onPauseTimeChange: (value: PauseTime) => void;
   onSetChange: (index: number, field: keyof WorkoutSet, value: number) => void;
   onAddSet: () => void;
   onRemoveSet: (index: number) => void;
+  onMarkRestDay: () => void;
 }
 
 const EXERCISE_ICON_BY_GROUP: Record<string, LucideIcon> = {
@@ -245,17 +250,22 @@ const createPlanPayload = (
   })),
 });
 
-function DaysSelector({ days, activeDayId, todayPlanDayId, completedDayIds, onSelectDay }: DaysSelectorProps) {
+function DaysSelector({ days, activeDayId, todayPlanDayId, completedDayIds, restDayIds, onSelectDay }: DaysSelectorProps) {
   return (
     <section className="reveal-up reveal-delay-2 mb-4 rounded-[14px] border border-white/12 bg-white/4 px-4 py-3 shadow-[0_14px_28px_rgba(0,0,0,0.25)] backdrop-blur-[6px]">
-      <div className="flex flex-wrap items-center gap-2.5">
+      <div className="flex w-full items-center gap-1.5">
         {days.map((day) => {
           const isSelected = day.id === activeDayId;      // currently viewed tab
           const isToday = day.id === todayPlanDayId;      // today's plan day → blue
           const isCompleted = completedDayIds.includes(day.id); // completed → red border
+          const isRest = restDayIds.includes(day.id);
 
-          let className = "rounded-[10px] border px-4 py-2 text-sm font-semibold transition-colors ";
-          if (isCompleted && isToday) {
+          let className = "flex-1 min-w-0 rounded-[10px] border px-2 py-2 text-sm font-semibold transition-colors text-center ";
+          if (isRest && isSelected) {
+            className += "border-violet-400/60 bg-violet-500/20 text-violet-200 hover:bg-violet-500/25";
+          } else if (isRest) {
+            className += "border-violet-400/30 bg-violet-500/10 text-violet-300 hover:bg-violet-500/15";
+          } else if (isCompleted && isToday) {
             // completed AND today: red border + blue background
             className += "border-rose-400/70 bg-blue-500/25 text-blue-100 shadow-[0_0_14px_rgba(244,63,94,0.25)] hover:bg-blue-500/30";
           } else if (isCompleted) {
@@ -277,8 +287,11 @@ function DaysSelector({ days, activeDayId, todayPlanDayId, completedDayIds, onSe
               type="button"
               onClick={() => onSelectDay(day)}
               className={className}
+              title={isRest ? `${day.label} — Rest Day` : day.label}
             >
-              {day.label}
+              <span className="block truncate">
+                {isRest ? "Rest" : day.label}
+              </span>
             </button>
           );
         })}
@@ -291,13 +304,18 @@ function ActivityDetails({
   selectedExerciseName,
   pauseTime,
   sets,
+  isRestDay,
   onPauseTimeChange,
   onSetChange,
   onAddSet,
   onRemoveSet,
+  onMarkRestDay,
 }: ActivityDetailsProps) {
   const title = selectedExerciseName ?? "No exercise selected";
   const [pauseInput, setPauseInput] = useState<string>(formatPauseTime(pauseTime));
+  // Per-set local string values so users can fully clear before typing a new number
+  const [weightInputs, setWeightInputs] = useState<string[]>(() => sets.map((s) => String(s.weight)));
+  const [repsInputs, setRepsInputs] = useState<string[]>(() => sets.map((s) => String(s.reps)));
   const inputClassName =
     "h-10 w-full rounded-[10px] border border-white/20 bg-white/[0.03] px-3 text-sm text-slate-100 outline-none transition-all placeholder:text-slate-400 focus:border-emerald-500/60 focus:shadow-[0_0_16px_rgba(16,185,129,0.2)]";
   const spinnerInputClassName =
@@ -307,6 +325,12 @@ function ActivityDetails({
   useEffect(() => {
     setPauseInput(formatPauseTime(pauseTime));
   }, [pauseTime]);
+
+  // Sync local string arrays when sets length changes (add/remove)
+  useEffect(() => {
+    setWeightInputs(sets.map((s) => String(s.weight)));
+    setRepsInputs(sets.map((s) => String(s.reps)));
+  }, [sets.length]);
 
   const commitPauseInput = (value: string): void => {
     const normalized = parsePauseTimeInput(value);
@@ -340,7 +364,13 @@ function ActivityDetails({
 
   const handleSetStep = (index: number, field: keyof WorkoutSet, delta: number): void => {
     const currentValue = sets[index]?.[field] ?? 0;
-    onSetChange(index, field, Math.max(0, currentValue + delta));
+    const next = Math.max(0, currentValue + delta);
+    onSetChange(index, field, next);
+    if (field === "weight") {
+      setWeightInputs((prev) => prev.map((v, i) => (i === index ? String(next) : v)));
+    } else {
+      setRepsInputs((prev) => prev.map((v, i) => (i === index ? String(next) : v)));
+    }
   };
 
   return (
@@ -413,11 +443,18 @@ function ActivityDetails({
 
               <div className="relative">
                 <input
-                  type="number"
-                  min={0}
-                  step={0.5}
-                  value={set.weight}
-                  onChange={(event) => onSetChange(index, "weight", Number(event.target.value || 0))}
+                  type="text"
+                  inputMode="decimal"
+                  value={weightInputs[index] ?? String(set.weight)}
+                  onChange={(event) => {
+                    const raw = event.target.value.replace(/[^\d.]/g, "");
+                    setWeightInputs((prev) => prev.map((v, i) => (i === index ? raw : v)));
+                  }}
+                  onBlur={() => {
+                    const parsed = Math.max(0, Number(weightInputs[index] ?? "") || 0);
+                    onSetChange(index, "weight", parsed);
+                    setWeightInputs((prev) => prev.map((v, i) => (i === index ? String(parsed) : v)));
+                  }}
                   className={`${inputClassName} ${spinnerInputClassName} pr-16`}
                 />
                 <span className="pointer-events-none absolute right-11 top-1/2 -translate-y-1/2 text-xs text-slate-400">
@@ -445,11 +482,18 @@ function ActivityDetails({
 
               <div className="relative">
                 <input
-                  type="number"
-                  min={0}
-                  step={1}
-                  value={set.reps}
-                  onChange={(event) => onSetChange(index, "reps", Number(event.target.value || 0))}
+                  type="text"
+                  inputMode="numeric"
+                  value={repsInputs[index] ?? String(set.reps)}
+                  onChange={(event) => {
+                    const raw = event.target.value.replace(/[^\d]/g, "");
+                    setRepsInputs((prev) => prev.map((v, i) => (i === index ? raw : v)));
+                  }}
+                  onBlur={() => {
+                    const parsed = Math.max(0, Math.floor(Number(repsInputs[index] ?? "") || 0));
+                    onSetChange(index, "reps", parsed);
+                    setRepsInputs((prev) => prev.map((v, i) => (i === index ? String(parsed) : v)));
+                  }}
                   className={`${inputClassName} ${spinnerInputClassName} pr-10 text-center`}
                 />
                 <div className="absolute inset-y-0 right-0 flex w-9 flex-col overflow-hidden rounded-r-[10px] border-l border-white/12">
@@ -485,14 +529,30 @@ function ActivityDetails({
           ))}
         </div>
 
-        <button
-          type="button"
-          onClick={onAddSet}
-          className="mt-4 flex w-fit items-center justify-center gap-2 rounded-[10px] border border-white/20 bg-white/[0.03] px-4 py-2 text-sm font-semibold text-slate-100 transition-all hover:bg-white/[0.08] mx-auto"
-        >
-          <Plus className="h-4 w-4" />
-          Add set
-        </button>
+        <div className="mt-4 flex items-center justify-center gap-3">
+          <button
+            type="button"
+            onClick={onAddSet}
+            className="flex items-center justify-center gap-2 rounded-[10px] border border-white/20 bg-white/[0.03] px-4 py-2 text-sm font-semibold text-slate-100 transition-all hover:bg-white/[0.08]"
+          >
+            <Plus className="h-4 w-4" />
+            Add set
+          </button>
+
+          <button
+            type="button"
+            onClick={onMarkRestDay}
+            className={`flex items-center justify-center gap-2 rounded-[10px] border px-4 py-2 text-sm font-semibold transition-all ${
+              isRestDay
+                ? "border-violet-400/60 bg-violet-500/20 text-violet-200 shadow-[0_0_14px_rgba(139,92,246,0.25)] hover:bg-violet-500/25"
+                : "border-white/20 bg-white/[0.03] text-slate-300 hover:border-violet-400/40 hover:bg-violet-500/10 hover:text-violet-200"
+            }`}
+            aria-label="Mark this day as a rest day"
+          >
+            <Moon className="h-4 w-4" />
+            {isRestDay ? "Rest Day ✓" : "Rest Day"}
+          </button>
+        </div>
       </div>
     </section>
   );
@@ -516,6 +576,7 @@ export default function GymPlanMenu() {
   );
   const [setsByExercise, setSetsByExercise] = useState<Record<string, WorkoutSet[]>>({});
   const [pauseByExercise, setPauseByExercise] = useState<Record<string, PauseTime>>({});
+  const [restDayIds, setRestDayIds] = useState<string[]>([]);
   const [isEditorReady, setIsEditorReady] = useState<boolean>(false);
   const [hasLoadedPlan, setHasLoadedPlan] = useState<boolean>(false);
   const [isDirty, setIsDirty] = useState<boolean>(false);
@@ -971,6 +1032,7 @@ export default function GymPlanMenu() {
                 activeDayId={activeDayId}
                 todayPlanDayId={todayPlanDayId}
                 completedDayIds={completedDayIds}
+                restDayIds={restDayIds}
                 onSelectDay={handleSelectDay}
               />
 
@@ -995,10 +1057,18 @@ export default function GymPlanMenu() {
                   selectedExerciseName={selectedExercise?.name ?? null}
                   pauseTime={selectedExercisePause}
                   sets={selectedExerciseSets}
+                  isRestDay={restDayIds.includes(activeDayId)}
                   onPauseTimeChange={handlePauseTimeChange}
                   onSetChange={handleSetChange}
                   onAddSet={handleAddSet}
                   onRemoveSet={handleRemoveSet}
+                  onMarkRestDay={() => {
+                    setRestDayIds((prev) =>
+                      prev.includes(activeDayId)
+                        ? prev.filter((id) => id !== activeDayId)
+                        : [...prev, activeDayId]
+                    );
+                  }}
                 />
               </div>
             </div>

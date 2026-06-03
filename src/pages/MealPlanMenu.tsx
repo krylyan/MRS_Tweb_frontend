@@ -379,7 +379,8 @@ function QuantityModal({
   onSave: (quantityGrams: number) => void;
   onClose: () => void;
 }) {
-  const [quantity, setQuantity] = useState(food.quantityGrams);
+  const [quantityStr, setQuantityStr] = useState(String(food.quantityGrams));
+  const quantity = Math.max(0, Number(quantityStr) || 0);
   const preview = toPlannedFood(food, quantity, food.planItemId);
   const shouldShowPreparation = food.itemType === "Prepared" && Boolean(food.preparationSteps?.trim());
   const preparationLines = getCleanPreparationSteps(food.preparationSteps);
@@ -429,10 +430,14 @@ function QuantityModal({
               id="quantityGrams"
               type="text"
               inputMode="decimal"
-              value={quantity}
+              value={quantityStr}
               onChange={(event) => {
                 const normalizedValue = event.target.value.replace(",", ".").replace(/[^\d.]/g, "");
-                setQuantity(Math.max(0, Number(normalizedValue || 0)));
+                setQuantityStr(normalizedValue);
+              }}
+              onBlur={() => {
+                const parsed = Math.max(0, Number(quantityStr) || 0);
+                setQuantityStr(String(parsed));
               }}
               className="h-12 flex-1 rounded-xl border border-white/15 bg-white/[0.04] px-4 text-slate-100 outline-none focus:border-emerald-400/70"
             />
@@ -896,13 +901,13 @@ export default function MealPlanMenu() {
         </div>
 
         <section className="reveal-up mb-4 rounded-[14px] border border-white/12 bg-white/4 px-4 py-3 shadow-[0_14px_28px_rgba(0,0,0,0.25)] backdrop-blur-[6px]">
-          <div className="flex flex-wrap items-center gap-2.5">
+          <div className="flex w-full items-center gap-1.5">
             {DAYS.map((day) => {
               const isSelected = day.id === activeDayId;
               const isToday = day.id === todayPlanDayId;
               const isCompleted = completedDayIds.includes(day.id);
 
-              let dayClass = "rounded-[10px] border px-4 py-2 text-sm font-semibold transition-colors ";
+              let dayClass = "flex-1 min-w-0 rounded-[10px] border px-2 py-2 text-sm font-semibold transition-colors text-center ";
               if (isCompleted && isToday) {
                 dayClass += "border-rose-400/70 bg-blue-500/25 text-blue-100 shadow-[0_0_14px_rgba(244,63,94,0.25)]";
               } else if (isCompleted) {
@@ -922,7 +927,7 @@ export default function MealPlanMenu() {
                   onClick={() => setActiveDayId(day.id)}
                   className={dayClass}
                 >
-                  {day.label}
+                  <span className="block truncate">{day.label}</span>
                 </button>
               );
             })}
