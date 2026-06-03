@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
+import { Plus } from "lucide-react";
 import type { Exercise } from "../types/exercise";
-import { ImageWithFallback } from "./figma/ImageWithFallback";
 
 interface WorkoutPreviewProps {
   selectedExercise: Exercise | null;
@@ -70,11 +70,15 @@ export default function WorkoutPreview({ selectedExercise }: WorkoutPreviewProps
             />
           )
         ) : (
-          <ImageWithFallback
-            src="https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080"
-            alt="Workout preview"
-            className="h-[250px] w-full object-cover md:h-[280px]"
-          />
+          <div className="flex h-[250px] w-full items-center justify-center bg-slate-950/35 md:h-[280px]">
+            <div className="flex flex-col items-center text-center">
+              <p className="text-sm font-semibold text-slate-100">No exercise selected</p>
+              <p className="mt-2 inline-flex items-center gap-1.5 text-xs text-slate-400">
+                <Plus className="h-3.5 w-3.5" />
+                Add an exercise to show its preview
+              </p>
+            </div>
+          </div>
         )}
       </div>
 

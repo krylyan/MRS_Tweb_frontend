@@ -6,7 +6,9 @@ import {
   Dumbbell,
   Grid3X3,
   Heart,
+  Loader2,
   Plus,
+  Save,
   Trash2,
   Trophy,
   UserRoundPlus,
@@ -35,11 +37,6 @@ interface WorkoutSet {
 interface PauseTime {
   minutes: number;
   seconds: number;
-}
-
-interface WorkoutTrackingState {
-  pauseTime: PauseTime;
-  sets: WorkoutSet[];
 }
 
 interface DayPlan {
@@ -96,11 +93,6 @@ const createEmptyDays = (): DayPlan[] =>
 
 const createEmptySelectedExerciseMap = (): Record<string, string | null> =>
   Object.fromEntries(createEmptyDays().map((day) => [day.id, null]));
-
-const createInitialWorkoutTrackingState = (): WorkoutTrackingState => ({
-  pauseTime: { ...DEFAULT_PAUSE_TIME },
-  sets: [{ ...DEFAULT_SET }],
-});
 
 const clampToNonNegativeInteger = (value: number): number =>
   Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 0;
@@ -217,10 +209,24 @@ const createSetsByExerciseFromApiPlan = (plan: WorkoutPlanApi): Record<string, W
   return Object.fromEntries(entries);
 };
 
+const createPauseByExerciseFromApiPlan = (plan: WorkoutPlanApi): Record<string, PauseTime> => {
+  const fallbackPause = plan.workoutTracking?.pauseTime ?? DEFAULT_PAUSE_TIME;
+  const entries = plan.days.flatMap((day, index) => {
+    const dayId = `day-${day.dayNumber || index + 1}`;
+    return (day.dayExercises ?? []).map((item) => [
+      getPlanExerciseKey(dayId, item.exerciseId),
+      item.pauseTime ?? fallbackPause,
+    ] as const);
+  });
+
+  return Object.fromEntries(entries);
+};
+
 const createPlanPayload = (
   planName: string,
   days: DayPlan[],
   setsByExercise: Record<string, WorkoutSet[]>,
+  pauseByExercise: Record<string, PauseTime>,
 ) => ({
   name: planName.trim(),
   days: days.map((day, dayIndex) => ({
@@ -229,6 +235,7 @@ const createPlanPayload = (
     exercises: day.exercises.map((exercise, exerciseIndex) => ({
       exerciseId: Number(exercise.id),
       order: exerciseIndex,
+      pauseTime: pauseByExercise[getPlanExerciseKey(day.id, exercise.id)] ?? { ...DEFAULT_PAUSE_TIME },
       sets: (setsByExercise[getPlanExerciseKey(day.id, exercise.id)] ?? [{ ...DEFAULT_SET }]).map((set, setIndex) => ({
         order: setIndex,
         weight: set.weight,
@@ -507,16 +514,16 @@ export default function GymPlanMenu() {
   const [selectedExerciseByDay, setSelectedExerciseByDay] = useState<Record<string, string | null>>(
     createEmptySelectedExerciseMap,
   );
-  const [workoutTracking, setWorkoutTracking] = useState<WorkoutTrackingState>(() =>
-    createInitialWorkoutTrackingState(),
-  );
   const [setsByExercise, setSetsByExercise] = useState<Record<string, WorkoutSet[]>>({});
+  const [pauseByExercise, setPauseByExercise] = useState<Record<string, PauseTime>>({});
   const [isEditorReady, setIsEditorReady] = useState<boolean>(false);
   const [hasLoadedPlan, setHasLoadedPlan] = useState<boolean>(false);
   const [isDirty, setIsDirty] = useState<boolean>(false);
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [completionVersion, setCompletionVersion] = useState(0);
   const [workoutCompletions, setWorkoutCompletions] = useState<PlanCompletionResponseDto[]>([]);
   const loadSettledRef = useRef<boolean>(false);
+  const suppressNextDirtyRef = useRef<boolean>(false);
   // Map name_lowercase → apiId numeric, construit din GET /api/exercise
   useEffect(() => {
     planActivationApi.getActive("Workout").then((activation) => {
@@ -578,12 +585,7 @@ export default function GymPlanMenu() {
         setActiveDayId(targetDayId);
         setSelectedExerciseByDay(createSelectedExerciseMapFromDays(hydratedDays));
         setSetsByExercise(createSetsByExerciseFromApiPlan(apiPlan));
-        setWorkoutTracking({
-          pauseTime: apiPlan.workoutTracking?.pauseTime ?? { ...DEFAULT_PAUSE_TIME },
-          sets: apiPlan.workoutTracking?.sets?.length
-            ? apiPlan.workoutTracking.sets.map((set) => ({ weight: set.weight, reps: set.reps }))
-            : [{ ...DEFAULT_SET }],
-        });
+        setPauseByExercise(createPauseByExerciseFromApiPlan(apiPlan));
         setIsEditorReady(true);
         setHasLoadedPlan(true);
         return;
@@ -595,7 +597,7 @@ export default function GymPlanMenu() {
         setActiveDayId("day-1");
         setSelectedExerciseByDay(createEmptySelectedExerciseMap());
         setSetsByExercise({});
-        setWorkoutTracking(createInitialWorkoutTrackingState());
+        setPauseByExercise({});
         setIsEditorReady(false);
         setHasLoadedPlan(true);
       }
@@ -619,6 +621,9 @@ export default function GymPlanMenu() {
   const selectedExerciseSets = selectedExercise
     ? setsByExercise[getPlanExerciseKey(activeDayId, selectedExercise.id)] ?? [{ ...DEFAULT_SET }]
     : [{ ...DEFAULT_SET }];
+  const selectedExercisePause = selectedExercise
+    ? pauseByExercise[getPlanExerciseKey(activeDayId, selectedExercise.id)] ?? { ...DEFAULT_PAUSE_TIME }
+    : { ...DEFAULT_PAUSE_TIME };
   const todayKey = getDateKey();
 
   const todayPlanDayId = useMemo(() => {
@@ -670,8 +675,13 @@ export default function GymPlanMenu() {
       loadSettledRef.current = true;
       return;
     }
+    if (suppressNextDirtyRef.current) {
+      suppressNextDirtyRef.current = false;
+      return;
+    }
+    setSaveState("idle");
     setIsDirty(true);
-  }, [planName, days, setsByExercise, workoutTracking, hasLoadedPlan]);
+  }, [planName, days, setsByExercise, pauseByExercise, hasLoadedPlan]);
 
   const getIconForMuscleGroup = (muscleGroup: MuscleGroup): LucideIcon =>
     EXERCISE_ICON_BY_GROUP[muscleGroup] ?? Dumbbell;
@@ -681,18 +691,25 @@ export default function GymPlanMenu() {
   };
 
   const handleSavePlan = async (): Promise<void> => {
-    if (!planId || !isEditorReady) return;
-    const payload = createPlanPayload(planName, days, setsByExercise);
+    if (!planId || !isEditorReady || saveState === "saving") return;
+    setSaveState("saving");
+    const payload = createPlanPayload(planName, days, setsByExercise, pauseByExercise);
     const savedPlan = await workoutPlanApi.update(Number(planId), payload.name, payload.days);
 
     if (savedPlan) {
       const hydratedDays = createDaysFromApiPlan(savedPlan);
+      suppressNextDirtyRef.current = true;
       setPlanName(savedPlan.name);
       setDays(hydratedDays);
       setSetsByExercise(createSetsByExerciseFromApiPlan(savedPlan));
+      setPauseByExercise(createPauseByExerciseFromApiPlan(savedPlan));
       setSelectedExerciseByDay(createSelectedExerciseMapFromDays(hydratedDays));
       setIsDirty(false);
+      setSaveState("saved");
+      window.setTimeout(() => setSaveState((current) => (current === "saved" ? "idle" : current)), 1800);
+      return;
     }
+    setSaveState("error");
   };
 
   const handleCompleteWorkout = async (): Promise<void> => {
@@ -717,7 +734,7 @@ export default function GymPlanMenu() {
       return;
     }
 
-    const payload = createPlanPayload(trimmedName, days, setsByExercise);
+    const payload = createPlanPayload(trimmedName, days, setsByExercise, pauseByExercise);
     const apiPlan = await workoutPlanApi.create(trimmedName, payload.days);
 
     if (!apiPlan) {
@@ -730,6 +747,7 @@ export default function GymPlanMenu() {
     setDays(hydratedDays);
     setSelectedExerciseByDay(createSelectedExerciseMapFromDays(hydratedDays));
     setSetsByExercise(createSetsByExerciseFromApiPlan(apiPlan));
+    setPauseByExercise(createPauseByExerciseFromApiPlan(apiPlan));
     setIsEditorReady(true);
     setIsDirty(false);
     setStatusMessage(`${trimmedName} created. You can now build the full workout plan.`);
@@ -764,6 +782,10 @@ export default function GymPlanMenu() {
         ...prev,
         [getPlanExerciseKey(activeDayId, exercise.id)]: [{ ...DEFAULT_SET }],
       }));
+      setPauseByExercise((prev) => ({
+        ...prev,
+        [getPlanExerciseKey(activeDayId, exercise.id)]: { ...DEFAULT_PAUSE_TIME },
+      }));
       setStatusMessage(`${exercise.name} added to ${activeDay?.label ?? "current day"}.`);
     } else {
       setStatusMessage(`${exercise.name} is already in ${activeDay?.label ?? "current day"}.`);
@@ -797,14 +819,20 @@ export default function GymPlanMenu() {
       delete next[getPlanExerciseKey(activeDayId, exerciseId)];
       return next;
     });
+    setPauseByExercise((prev) => {
+      const next = { ...prev };
+      delete next[getPlanExerciseKey(activeDayId, exerciseId)];
+      return next;
+    });
 
     setStatusMessage(`${deletedExercise.name} removed from ${activeDay?.label ?? "current day"}.`);
   };
 
   const handlePauseTimeChange = (value: PauseTime): void => {
-    setWorkoutTracking((prev) => ({
+    if (!selectedExercise) return;
+    setPauseByExercise((prev) => ({
       ...prev,
-      pauseTime: normalizePauseTime(value.minutes, value.seconds),
+      [getPlanExerciseKey(activeDayId, selectedExercise.id)]: normalizePauseTime(value.minutes, value.seconds),
     }));
   };
 
@@ -905,14 +933,25 @@ export default function GymPlanMenu() {
                       <button
                         type="button"
                         onClick={handleSavePlan}
-                        disabled={!isDirty}
-                        className={`rounded-xl border px-4 py-2 text-sm font-semibold transition-all duration-300 ${
-                          isDirty
-                            ? "scale-100 border-emerald-400/50 bg-emerald-500/20 text-emerald-100 shadow-[0_0_18px_rgba(16,185,129,0.25)] hover:bg-emerald-500/30 hover:shadow-[0_0_24px_rgba(16,185,129,0.35)]"
-                            : "scale-95 cursor-not-allowed border-white/10 bg-white/[0.03] text-slate-500"
+                        disabled={!isDirty || saveState === "saving"}
+                        className={`inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-semibold transition-all duration-300 ${
+                          saveState === "saved"
+                            ? "scale-100 border-emerald-300/60 bg-emerald-400/25 text-emerald-50 shadow-[0_0_26px_rgba(16,185,129,0.35)]"
+                            : saveState === "error"
+                              ? "scale-100 border-rose-300/50 bg-rose-500/15 text-rose-100"
+                              : isDirty
+                                ? "scale-100 border-emerald-400/50 bg-emerald-500/20 text-emerald-100 shadow-[0_0_18px_rgba(16,185,129,0.25)] hover:bg-emerald-500/30 hover:shadow-[0_0_24px_rgba(16,185,129,0.35)]"
+                                : "scale-95 cursor-not-allowed border-white/10 bg-white/[0.03] text-slate-500"
                         }`}
                       >
-                        Save Changes
+                        {saveState === "saving" ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : saveState === "saved" ? (
+                          <Check className="h-4 w-4" />
+                        ) : (
+                          <Save className="h-4 w-4" />
+                        )}
+                        {saveState === "saving" ? "Saving..." : saveState === "saved" ? "Saved!" : saveState === "error" ? "Save failed" : "Save Changes"}
                       </button>
                     </>
                   )}
@@ -954,7 +993,7 @@ export default function GymPlanMenu() {
 
                 <ActivityDetails
                   selectedExerciseName={selectedExercise?.name ?? null}
-                  pauseTime={workoutTracking.pauseTime}
+                  pauseTime={selectedExercisePause}
                   sets={selectedExerciseSets}
                   onPauseTimeChange={handlePauseTimeChange}
                   onSetChange={handleSetChange}

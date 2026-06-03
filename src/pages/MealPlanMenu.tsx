@@ -1,4 +1,4 @@
-import { Check, ChevronDown, ChevronUp, Flame, Plus, Search, X } from "lucide-react";
+import { Check, ChevronDown, ChevronUp, Flame, Loader2, Plus, Save, Search, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import ReactDOM from "react-dom";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -620,18 +620,34 @@ export default function MealPlanMenu() {
   useEffect(() => {
     let cancelled = false;
 
-    planActivationApi.getActive("Meal").then((activation) => {
+    const loadActiveMealPlan = async () => {
+      const activation = await planActivationApi.getActive("Meal");
       if (cancelled) return;
       setActiveMealActivation(activation);
+
       if (!routePlanId && !isNewPlan) {
-        setCurrentPlanId(activation?.planIdentifier ?? null);
+        const activatedPlanId = activation?.planIdentifier;
+        if (activatedPlanId && Number.isFinite(Number(activatedPlanId))) {
+          setCurrentPlanId(activatedPlanId);
+          return;
+        }
+
+        const plans = await mealPlanApi.getMyPlans();
+        if (cancelled) return;
+        const fallbackPlan = plans[0];
+        setCurrentPlanId(fallbackPlan ? String(fallbackPlan.id) : null);
+        navigate(fallbackPlan ? `/meal-plan?planId=${fallbackPlan.id}` : "/meal-plan?new=1", {
+          replace: true,
+        });
       }
-    });
+    };
+
+    loadActiveMealPlan();
 
     return () => {
       cancelled = true;
     };
-  }, [isNewPlan, routePlanId]);
+  }, [isNewPlan, navigate, routePlanId]);
 
   const [title, setTitle] = useState("New Meal Plan");
   const [titleFocused, setTitleFocused] = useState(false);
@@ -646,8 +662,8 @@ export default function MealPlanMenu() {
     snacks: false,
     dinner: false,
   });
-  const [saved, setSaved] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [completionVersion, setCompletionVersion] = useState(0);
 
   useEffect(() => {
@@ -727,7 +743,7 @@ export default function MealPlanMenu() {
 
   const markDirty = () => {
     setIsDirty(true);
-    setSaved(false);
+    setSaveState("idle");
   };
 
   const addFood = (slot: MealSlot, food: FoodItem) => {
@@ -754,20 +770,28 @@ export default function MealPlanMenu() {
   };
 
   const handleSave = async () => {
+    if (saveState === "saving") return;
+    setSaveState("saving");
+
     const payload = buildMealPlanPayload(allMeals);
     const mealsPerDay = Math.max(1, MEAL_SLOTS.length);
-    const savedPlan = currentPlanId
-      ? await mealPlanApi.update(Number(currentPlanId), title.trim() || "Meal Plan", mealsPerDay, payload)
+    const numericPlanId = currentPlanId && Number.isFinite(Number(currentPlanId)) ? Number(currentPlanId) : null;
+    const savedPlan = numericPlanId
+      ? await mealPlanApi.update(numericPlanId, title.trim() || "Meal Plan", mealsPerDay, payload)
       : await mealPlanApi.create(title.trim() || "Meal Plan", mealsPerDay, payload);
 
-    if (!savedPlan) return;
+    if (!savedPlan) {
+      setSaveState("error");
+      return;
+    }
+
     setCurrentPlanId(String(savedPlan.id));
     setTitle(savedPlan.name);
     setAllMeals(planToMeals(savedPlan));
     setIsDirty(false);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
-    if (!currentPlanId) {
+    setSaveState("saved");
+    window.setTimeout(() => setSaveState((current) => (current === "saved" ? "idle" : current)), 1800);
+    if (!numericPlanId) {
       navigate(`/meal-plan?planId=${savedPlan.id}`, { replace: true });
     }
   };
@@ -848,16 +872,25 @@ export default function MealPlanMenu() {
             <button
               type="button"
               onClick={handleSave}
-              className={`inline-flex w-fit items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold text-white shadow-lg transition-all duration-200 active:scale-95 ${
-                saved
-                  ? "bg-emerald-600 shadow-emerald-600/30"
-                  : isDirty
-                    ? "animate-pulse bg-emerald-500 shadow-emerald-500/30 hover:bg-emerald-400"
-                    : "bg-white/8 shadow-none hover:bg-white/12"
+              disabled={saveState === "saving" || (!isDirty && Boolean(currentPlanId))}
+              className={`inline-flex w-fit items-center gap-2 rounded-xl border px-5 py-2.5 text-sm font-semibold transition-all duration-300 active:scale-95 ${
+                saveState === "saved"
+                  ? "scale-100 border-emerald-300/60 bg-emerald-400/25 text-emerald-50 shadow-[0_0_26px_rgba(16,185,129,0.35)]"
+                  : saveState === "error"
+                    ? "scale-100 border-rose-300/50 bg-rose-500/15 text-rose-100"
+                    : isDirty || !currentPlanId
+                      ? "scale-100 border-emerald-400/50 bg-emerald-500/20 text-emerald-100 shadow-[0_0_18px_rgba(16,185,129,0.25)] hover:bg-emerald-500/30 hover:shadow-[0_0_24px_rgba(16,185,129,0.35)]"
+                      : "scale-95 cursor-not-allowed border-white/10 bg-white/[0.03] text-slate-500"
               }`}
             >
-              {saved ? <Check className="h-4 w-4" /> : null}
-              {saved ? "Saved!" : "Save Changes"}
+              {saveState === "saving" ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : saveState === "saved" ? (
+                <Check className="h-4 w-4" />
+              ) : (
+                <Save className="h-4 w-4" />
+              )}
+              {saveState === "saving" ? "Saving..." : saveState === "saved" ? "Saved!" : saveState === "error" ? "Save failed" : "Save Changes"}
             </button>
           </div>
         </div>

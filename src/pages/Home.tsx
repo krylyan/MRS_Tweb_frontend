@@ -40,12 +40,6 @@ const addDays = (dateKey: string, days: number): string => {
   return getDateKey(d);
 };
 
-const getOrdinal = (day: number): string => {
-  if (day > 10 && day < 20) return `${day}th`;
-  const suffix = day % 10 === 1 ? "st" : day % 10 === 2 ? "nd" : day % 10 === 3 ? "rd" : "th";
-  return `${day}${suffix}`;
-};
-
 interface ActiveDayInfo {
   dayIndex: number;
   dayNumber: number;

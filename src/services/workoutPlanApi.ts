@@ -29,6 +29,10 @@ export interface WorkoutDayExerciseApi {
   exerciseId: number;
   order: number;
   exercise: WorkoutExerciseApi;
+  pauseTime: {
+    minutes: number;
+    seconds: number;
+  };
   sets: WorkoutSetApi[];
 }
 
@@ -56,6 +60,10 @@ export interface DayPlanCreateBody {
   exercises?: {
     exerciseId: number;
     order: number;
+    pauseTime: {
+      minutes: number;
+      seconds: number;
+    };
     sets: {
       order: number;
       weight: number;
