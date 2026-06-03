@@ -2,13 +2,21 @@ import { Check, ChevronDown, ChevronUp, Flame, Plus, Search, X } from "lucide-re
 import { useEffect, useMemo, useRef, useState } from "react";
 import ReactDOM from "react-dom";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { FoodTypeDropdown, type FoodTypeFilter } from "../components/FoodTypeDropdown";
 import type { FoodItem } from "../types/meal";
-import { getDateKey, isPlanDayCompleted, markPlanDayCompleted } from "../utils/planCompletion";
-import { getPlanActivation, getActiveDayForDate, addDaysToKey } from "../utils/planCycleTracker";
-import { mealLibrary } from "../utils/mealLibrary";
+import { getDateKey } from "../utils/planCompletion";
+import { mealService } from "../services/mealService";
+import { mealPlanApi, type MealPlanApi, type MealPlanCreateDayBody, type MealPlanItemApi, type MealSlotApi } from "../services/mealPlanApi";
+import { planActivationApi, type PlanActivationApi } from "../services/planActivationApi";
+import { planCompletionApi, type PlanCompletionResponseDto } from "../services/planCompletionApi";
 
 type MealSlot = "breakfast" | "lunch" | "snacks" | "dinner";
-type DayMeals = Record<MealSlot, FoodItem[]>;
+type PlannedFoodItem = FoodItem & {
+  planItemId?: number;
+  foodItemId: number;
+  quantityGrams: number;
+};
+type DayMeals = Record<MealSlot, PlannedFoodItem[]>;
 type AllDayMeals = Record<string, DayMeals>;
 
 const MEAL_LABELS: Record<MealSlot, string> = {
@@ -19,19 +27,61 @@ const MEAL_LABELS: Record<MealSlot, string> = {
 };
 
 const MEAL_SLOTS: MealSlot[] = ["breakfast", "lunch", "snacks", "dinner"];
+const SLOT_TO_API: Record<MealSlot, MealSlotApi> = {
+  breakfast: "Breakfast",
+  lunch: "Lunch",
+  dinner: "Dinner",
+  snacks: "Snacks",
+};
+const API_TO_SLOT: Record<MealSlotApi, MealSlot> = {
+  Breakfast: "breakfast",
+  Lunch: "lunch",
+  Dinner: "dinner",
+  Snacks: "snacks",
+};
 
 const DAYS = Array.from({ length: 7 }, (_, i) => ({
   id: `day-${i + 1}`,
   label: `Day ${i + 1}`,
 }));
 
-const ACTIVE_MEAL_KEY = "fitlife_active_meal_plan";
+const parseDateKey = (dateKey: string): Date => {
+  const [year, month, day] = dateKey.split("-").map(Number);
+  return new Date(year, month - 1, day);
+};
 
-const DEFAULT_DAY_ONE_IDS: Record<MealSlot, string[]> = {
-  breakfast: ["bread", "egg", "yogurt"],
-  lunch: ["lettuce", "tomato", "chicken", "rice"],
-  snacks: ["apple", "hummus", "carrot"],
-  dinner: ["salmon", "sweet-potato", "almonds"],
+const addDaysToDateKey = (dateKey: string, days: number): string => {
+  const date = parseDateKey(dateKey);
+  date.setDate(date.getDate() + days);
+  return getDateKey(date);
+};
+
+const daysBetween = (startKey: string, endKey: string): number =>
+  Math.round((parseDateKey(endKey).getTime() - parseDateKey(startKey).getTime()) / 86_400_000);
+
+const getActivationStartKey = (activation: PlanActivationApi): string =>
+  activation.lastCycleResetAt ?? activation.activatedAt;
+
+const getScheduledDayForDate = (activation: PlanActivationApi, dateKey: string) => {
+  const diff = Math.max(0, daysBetween(getActivationStartKey(activation), dateKey));
+  const totalDays = Math.max(1, activation.totalDays || 7);
+  const cycleOffset = Math.floor(diff / totalDays) * totalDays;
+  const dayNumber = (diff % totalDays) + 1;
+
+  return {
+    dayId: `day-${dayNumber}`,
+    cycleStartKey: addDaysToDateKey(getActivationStartKey(activation), cycleOffset),
+  };
+};
+
+const getScheduledDateForDayInCycle = (
+  activation: PlanActivationApi,
+  dayId: string,
+  referenceDateKey: string,
+): string => {
+  const todaySchedule = getScheduledDayForDate(activation, referenceDateKey);
+  const dayNumber = Number.parseInt(dayId.replace("day-", ""), 10) || 1;
+  return addDaysToDateKey(todaySchedule.cycleStartKey, dayNumber - 1);
 };
 
 const createEmptyDay = (): DayMeals => ({
@@ -41,25 +91,67 @@ const createEmptyDay = (): DayMeals => ({
   dinner: [],
 });
 
-const createInitialMeals = (catalogue: FoodItem[]): AllDayMeals => {
-  const catalogueById = new Map(catalogue.map((food) => [food.id, food]));
-  const pickMeals = (ids: string[]): FoodItem[] =>
-    ids
-      .map((id) => catalogueById.get(id))
-      .filter((food): food is FoodItem => Boolean(food));
+const createInitialMeals = (_catalogue: FoodItem[]): AllDayMeals => {
 
   return {
-    "day-1": {
-      breakfast: pickMeals(DEFAULT_DAY_ONE_IDS.breakfast),
-      lunch: pickMeals(DEFAULT_DAY_ONE_IDS.lunch),
-      snacks: pickMeals(DEFAULT_DAY_ONE_IDS.snacks),
-      dinner: pickMeals(DEFAULT_DAY_ONE_IDS.dinner),
-    },
     ...Object.fromEntries(
-      Array.from({ length: 6 }, (_, i) => [`day-${i + 2}`, createEmptyDay()]),
+      Array.from({ length: 7 }, (_, i) => [`day-${i + 1}`, createEmptyDay()]),
     ),
   };
 };
+
+const toPlannedFood = (food: FoodItem, quantityGrams = 100, planItemId?: number): PlannedFoodItem => {
+  const factor = quantityGrams / 100;
+  return {
+    ...food,
+    planItemId,
+    foodItemId: food.id,
+    quantityGrams,
+    kcal: Number((food.kcal * factor).toFixed(1)),
+    protein: Number((food.protein * factor).toFixed(1)),
+    carbs: Number((food.carbs * factor).toFixed(1)),
+    fats: Number((food.fats * factor).toFixed(1)),
+  };
+};
+
+const mapPlanItemToFood = (item: MealPlanItemApi): PlannedFoodItem => ({
+  ...item.foodItem,
+  planItemId: item.id,
+  foodItemId: item.foodItemId,
+  quantityGrams: item.quantityGrams,
+  kcal: item.kcal,
+  protein: item.protein,
+  carbs: item.carbs,
+  fats: item.fats,
+});
+
+const planToMeals = (plan: MealPlanApi): AllDayMeals => {
+  const result = createInitialMeals([]);
+  plan.days.forEach((day) => {
+    const dayId = `day-${day.dayNumber}`;
+    result[dayId] = createEmptyDay();
+    day.categories.forEach((category) => {
+      const slot = API_TO_SLOT[category.slot];
+      result[dayId][slot] = category.items.map(mapPlanItemToFood);
+    });
+  });
+  return result;
+};
+
+const buildMealPlanPayload = (allMeals: AllDayMeals): MealPlanCreateDayBody[] =>
+  DAYS.map((day, dayIndex) => ({
+    label: day.label,
+    dayNumber: dayIndex + 1,
+    categories: MEAL_SLOTS.map((slot, slotIndex) => ({
+      slot: SLOT_TO_API[slot],
+      order: slotIndex,
+      items: (allMeals[day.id]?.[slot] ?? []).map((food, foodIndex) => ({
+        foodItemId: food.foodItemId,
+        order: foodIndex,
+        quantityGrams: food.quantityGrams,
+      })),
+    })),
+  }));
 
 function FoodPickerModal({
   catalogue,
@@ -69,19 +161,14 @@ function FoodPickerModal({
   onClose,
 }: {
   catalogue: FoodItem[];
-  existing: string[];
+  existing: number[];
   slotLabel: string;
   onAdd: (food: FoodItem) => void;
   onClose: () => void;
 }) {
   const [q, setQ] = useState("");
-  const [activeCategory, setActiveCategory] = useState<string>("all");
+  const [activeLibrary, setActiveLibrary] = useState<FoodTypeFilter>("all");
   const searchInputRef = useRef<HTMLInputElement | null>(null);
-
-  const categories = useMemo(() => {
-    const cats = Array.from(new Set(catalogue.map((f) => f.category))).sort();
-    return ["all", ...cats];
-  }, [catalogue]);
 
   useEffect(() => {
     setTimeout(() => searchInputRef.current?.focus(), 50);
@@ -102,11 +189,11 @@ function FoodPickerModal({
         !q_lower ||
         food.name.toLowerCase().includes(q_lower) ||
         food.description.toLowerCase().includes(q_lower);
-      const matchesCategory =
-        activeCategory === "all" || food.category === activeCategory;
-      return matchesSearch && matchesCategory;
+      const matchesLibrary =
+        activeLibrary === "all" || food.itemType === activeLibrary;
+      return matchesSearch && matchesLibrary;
     });
-  }, [catalogue, q, activeCategory]);
+  }, [catalogue, q, activeLibrary]);
 
   const existingSet = useMemo(() => new Set(existing), [existing]);
 
@@ -156,26 +243,12 @@ function FoodPickerModal({
           </div>
         </div>
 
-        {/* Category filter pills */}
-        <div className="flex flex-wrap gap-2 px-6 py-4">
-          {categories.map((cat) => (
-            <button
-              key={cat}
-              type="button"
-              onClick={() => setActiveCategory(cat)}
-              className={`rounded-full px-4 py-1.5 text-sm font-semibold capitalize transition-all ${
-                activeCategory === cat
-                  ? "bg-emerald-500/25 text-emerald-200 ring-1 ring-emerald-400/40"
-                  : "bg-white/[0.05] text-slate-300 hover:bg-white/[0.10] hover:text-slate-100"
-              }`}
-            >
-              {cat === "all" ? "All" : cat.charAt(0).toUpperCase() + cat.slice(1)}
-            </button>
-          ))}
+        <div className="relative z-40 px-6 py-4">
+          <FoodTypeDropdown value={activeLibrary} onChange={setActiveLibrary} className="max-w-[220px]" />
         </div>
 
         {/* Food cards grid */}
-        <div className="max-h-[420px] overflow-y-auto px-6 pb-6">
+        <div className="relative z-0 max-h-[420px] overflow-y-auto px-6 pb-6">
           {filtered.length === 0 ? (
             <p className="py-8 text-center text-sm text-slate-400">No foods found.</p>
           ) : (
@@ -204,11 +277,11 @@ function FoodPickerModal({
                       <img
                         src={food.imageUrl}
                         alt={food.name}
-                        className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                        className="h-full w-full object-contain p-2 transition-transform duration-300 group-hover:scale-105"
                         loading="lazy"
                       />
                       <span className="absolute bottom-2 left-2 rounded-lg bg-emerald-600/90 px-2 py-0.5 text-[11px] font-bold text-white shadow">
-                        {food.grams}g
+                        100g
                       </span>
                       {alreadyAdded ? (
                         <span className="absolute right-2 top-2 rounded-full bg-emerald-500/90 px-2 py-0.5 text-[10px] font-semibold text-white">
@@ -223,11 +296,11 @@ function FoodPickerModal({
                       <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px]">
                         <span className="flex items-center gap-0.5 font-semibold text-orange-400">
                           <Flame className="h-3 w-3" />
-                          {food.kcal}
+                          {food.kcal}/100g
                         </span>
-                        <span className="font-medium text-emerald-400">{food.protein}g P</span>
-                        <span className="font-medium text-amber-300">{food.fats}g F</span>
-                        <span className="font-medium text-blue-400">{food.carbs}g C</span>
+                        <span className="font-medium text-emerald-400">{food.protein.toFixed(1)}g P</span>
+                        <span className="font-medium text-amber-300">{food.fats.toFixed(1)}g F</span>
+                        <span className="font-medium text-blue-400">{food.carbs.toFixed(1)}g C</span>
                       </div>
                     </div>
                   </button>
@@ -242,45 +315,184 @@ function FoodPickerModal({
   );
 }
 
-function FoodCard({ food, onRemove }: { food: FoodItem; onRemove: () => void }) {
+function FoodCard({ food, onOpen, onRemove }: { food: PlannedFoodItem; onOpen: () => void; onRemove: () => void }) {
   return (
-    <div className="overflow-hidden rounded-2xl border border-white/10 bg-white/5 transition-all hover:border-white/20">
-      <div className="relative h-36 w-full overflow-hidden bg-slate-800">
+    <article
+      role="button"
+      tabIndex={0}
+      onClick={onOpen}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onOpen();
+        }
+      }}
+      className="relative min-h-[265px] cursor-pointer overflow-hidden rounded-2xl border border-white/10 bg-white/5 text-left transition-all hover:-translate-y-0.5 hover:border-emerald-400/40 hover:bg-white/[0.07]"
+    >
+      <div className="relative h-44 w-full overflow-hidden bg-slate-800">
         <img
           src={food.imageUrl}
           alt={food.name}
-          className="h-full w-full object-cover"
+          className="h-full w-full object-contain p-2 transition-transform duration-300 hover:scale-105"
           loading="lazy"
         />
         <span className="absolute bottom-2 left-2 rounded-lg bg-emerald-600/90 px-2 py-0.5 text-[11px] font-bold text-white shadow">
-          {food.grams}g
+          {food.quantityGrams}g
         </span>
-        <button
-          type="button"
-          onClick={onRemove}
-          aria-label={`Remove ${food.name}`}
-          className="absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-full bg-rose-500 shadow-md transition-all hover:bg-rose-400"
-        >
-          <X className="h-3 w-3 text-white" />
-        </button>
       </div>
 
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1 px-3 pb-1 pt-2 text-[11px]">
         <span className="flex items-center gap-0.5 font-medium text-orange-400">
           <Flame className="h-3 w-3" />
-          {food.kcal}
+          {food.kcal} kcal
         </span>
-        <span className="font-medium text-amber-300">{food.carbs}g</span>
-        <span className="font-medium text-rose-300">{food.protein}g</span>
-        <span className="font-medium text-lime-300">{food.fats}g</span>
+        <span className="font-medium text-emerald-400">{food.protein.toFixed(1)}g P</span>
+        <span className="font-medium text-amber-300">{food.fats.toFixed(1)}g F</span>
+        <span className="font-medium text-blue-400">{food.carbs.toFixed(1)}g C</span>
       </div>
 
       <div className="px-3 pb-3 pt-0.5">
         <p className="text-sm font-bold leading-snug text-slate-100">{food.name}</p>
-        <p className="text-[11px] text-emerald-400">add alternatives</p>
+        <p className="text-[11px] text-emerald-400">click to edit quantity</p>
       </div>
-    </div>
+        <button
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation();
+            onRemove();
+          }}
+          aria-label={`Remove ${food.name}`}
+          className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-rose-500 shadow-md transition-all hover:bg-rose-400"
+        >
+          <X className="h-4 w-4 text-white" />
+        </button>
+    </article>
   );
+}
+
+function QuantityModal({
+  food,
+  onSave,
+  onClose,
+}: {
+  food: PlannedFoodItem;
+  onSave: (quantityGrams: number) => void;
+  onClose: () => void;
+}) {
+  const [quantity, setQuantity] = useState(food.quantityGrams);
+  const preview = toPlannedFood(food, quantity, food.planItemId);
+  const shouldShowPreparation = food.itemType === "Prepared" && Boolean(food.preparationSteps?.trim());
+  const preparationLines = getCleanPreparationSteps(food.preparationSteps);
+
+  useEffect(() => {
+    const handleKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", handleKey);
+    return () => document.removeEventListener("keydown", handleKey);
+  }, [onClose]);
+
+  return ReactDOM.createPortal(
+    <div
+      className="fixed inset-0 z-[9999] flex items-start justify-center overflow-y-auto bg-black/75 p-4 sm:items-center"
+      onClick={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
+    >
+      <div className="flex max-h-[calc(100vh-2rem)] w-full max-w-xl flex-col overflow-y-auto rounded-2xl border border-white/12 bg-slate-900 shadow-[0_32px_80px_rgba(0,0,0,0.7)]">
+        <div className="relative h-72 shrink-0 bg-slate-800 sm:h-80">
+          <img src={food.imageUrl} alt={food.name} className="h-full w-full object-contain p-3" />
+          <button
+            type="button"
+            onClick={onClose}
+            className="absolute right-4 top-4 inline-flex h-10 w-10 items-center justify-center rounded-full bg-black/50 text-white transition-colors hover:bg-black/70"
+            aria-label="Close"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        <div className="p-5">
+          <h2 className="text-xl font-bold text-slate-50">{food.name}</h2>
+          <div className="mt-3 flex flex-wrap gap-2 text-xs font-semibold">
+            <span className="rounded-full bg-orange-500/15 px-3 py-1 text-orange-300">{preview.kcal} kcal</span>
+            <span className="rounded-full bg-emerald-500/15 px-3 py-1 text-emerald-300">{preview.protein.toFixed(1)}g protein</span>
+            <span className="rounded-full bg-amber-500/15 px-3 py-1 text-amber-300">{preview.fats.toFixed(1)}g fats</span>
+            <span className="rounded-full bg-blue-500/15 px-3 py-1 text-blue-300">{preview.carbs.toFixed(1)}g carbs</span>
+          </div>
+
+          <label className="mt-5 block text-sm font-semibold text-slate-200" htmlFor="quantityGrams">
+            Consumed quantity
+          </label>
+          <div className="mt-2 flex items-center gap-3">
+            <input
+              id="quantityGrams"
+              type="text"
+              inputMode="decimal"
+              value={quantity}
+              onChange={(event) => {
+                const normalizedValue = event.target.value.replace(",", ".").replace(/[^\d.]/g, "");
+                setQuantity(Math.max(0, Number(normalizedValue || 0)));
+              }}
+              className="h-12 flex-1 rounded-xl border border-white/15 bg-white/[0.04] px-4 text-slate-100 outline-none focus:border-emerald-400/70"
+            />
+            <span className="text-sm font-semibold text-slate-400">grams</span>
+          </div>
+
+          <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+            <h3 className="mb-2 text-sm font-bold text-slate-200">
+              {food.itemType === "Prepared" ? "Ingredients" : "About This Product"}
+            </h3>
+            <p className="text-sm leading-6 text-slate-300">{food.description || `${food.name} from the food library.`}</p>
+          </div>
+
+          {shouldShowPreparation ? (
+            <div className="mt-5">
+              <h3 className="mb-3 text-sm font-bold text-slate-200">Preparation Steps</h3>
+              <div className="space-y-3">
+                {preparationLines.map((step, index) => (
+                  <div key={index} className="flex gap-3">
+                    <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-500/20 text-xs font-bold text-emerald-300">
+                      {index + 1}
+                    </span>
+                    <p className="text-sm leading-relaxed text-slate-300">{step}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
+          <div className="mt-5 flex gap-3">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 rounded-xl border border-white/15 bg-white/[0.04] py-3 text-sm font-semibold text-slate-300 hover:bg-white/[0.08]"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={() => onSave(quantity)}
+              className="flex-1 rounded-xl bg-emerald-500 py-3 text-sm font-semibold text-white shadow-lg shadow-emerald-500/25 hover:bg-emerald-400"
+            >
+              Save quantity
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
+function getCleanPreparationSteps(value?: string | null): string[] {
+  if (!value) return [];
+  return value
+    .replace(/\r/g, "\n")
+    .split(/\n+/)
+    .map((line) => line.trim())
+    .map((line) => line.replace(/^step\s*\d+\s*[:.)-]?\s*/i, "").trim())
+    .filter((line) => line.length > 0 && !/^step\s*\d+$/i.test(line));
 }
 
 function MealSection({
@@ -290,15 +502,17 @@ function MealSection({
   collapsed,
   onToggleCollapse,
   onAdd,
+  onOpen,
   onRemove,
 }: {
   catalogue: FoodItem[];
   slot: MealSlot;
-  items: FoodItem[];
+  items: PlannedFoodItem[];
   collapsed: boolean;
   onToggleCollapse: () => void;
   onAdd: (food: FoodItem) => void;
-  onRemove: (foodId: string) => void;
+  onOpen: (food: PlannedFoodItem) => void;
+  onRemove: (foodId: number) => void;
 }) {
   const [pickerOpen, setPickerOpen] = useState(false);
   const slotKcal = items.reduce((sum, food) => sum + food.kcal, 0);
@@ -318,7 +532,7 @@ function MealSection({
           </span>
           <div className="flex items-center gap-3">
             <span className="text-sm text-slate-400">
-              <span className="font-semibold text-slate-200">{slotKcal}</span> kcal
+              <span className="font-semibold text-orange-400">{slotKcal}</span> kcal
             </span>
             {collapsed ? (
               <ChevronDown className="h-4 w-4 text-slate-400" />
@@ -334,12 +548,13 @@ function MealSection({
         >
           <div className="overflow-hidden">
             <div className="px-4 pb-5">
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7">
-                {items.map((food) => (
+              <div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-4">
+                {items.map((food, index) => (
                   <FoodCard
-                    key={food.id}
+                    key={`${food.planItemId ?? food.foodItemId}-${index}`}
                     food={food}
-                    onRemove={() => onRemove(food.id)}
+                    onOpen={() => onOpen(food)}
+                    onRemove={() => onRemove(food.foodItemId)}
                   />
                 ))}
 
@@ -382,22 +597,49 @@ export default function MealPlanMenu() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const titleRef = useRef<HTMLInputElement | null>(null);
-  const storedActiveMealPlanId = localStorage.getItem(ACTIVE_MEAL_KEY);
-  const activeMealPlanId = searchParams.get("planId") ?? storedActiveMealPlanId;
+  const routePlanId = searchParams.get("planId");
+  const isNewPlan = searchParams.get("new") === "1";
+  const [activeMealActivation, setActiveMealActivation] = useState<PlanActivationApi | null>(null);
+  const [mealCompletions, setMealCompletions] = useState<PlanCompletionResponseDto[]>([]);
+  const [currentPlanId, setCurrentPlanId] = useState<string | null>(routePlanId);
+  const activeMealPlanId = currentPlanId;
   const completionDateKey = getDateKey(searchParams.get("date"));
+  const todayKey = getDateKey();
   const canMarkCompleted = Boolean(
     activeMealPlanId &&
-    activeMealPlanId === storedActiveMealPlanId &&
-    completionDateKey <= getDateKey(), // no future marking
+    activeMealActivation &&
+    activeMealPlanId === activeMealActivation.planIdentifier &&
+    completionDateKey === todayKey
   );
   const urlDayId = searchParams.get("dayId");
-  const availableMeals = useMemo(() => mealLibrary.getVisibleMeals("priority"), []);
+  const [availableMeals, setAvailableMeals] = useState<FoodItem[]>([]);
+  useEffect(() => {
+    mealService.getAllMeals().then(setAvailableMeals);
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    planActivationApi.getActive("Meal").then((activation) => {
+      if (cancelled) return;
+      setActiveMealActivation(activation);
+      if (!routePlanId && !isNewPlan) {
+        setCurrentPlanId(activation?.planIdentifier ?? null);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isNewPlan, routePlanId]);
+
   const [title, setTitle] = useState("New Meal Plan");
   const [titleFocused, setTitleFocused] = useState(false);
   // If dayId is passed from dashboard, open that specific day
   const initialDayId = urlDayId && DAYS.some((d) => d.id === urlDayId) ? urlDayId : "day-1";
   const [activeDayId, setActiveDayId] = useState(initialDayId);
   const [allMeals, setAllMeals] = useState<AllDayMeals>(() => createInitialMeals(availableMeals));
+  const [selectedFood, setSelectedFood] = useState<{ slot: MealSlot; food: PlannedFoodItem } | null>(null);
   const [collapsed, setCollapsed] = useState<Record<MealSlot, boolean>>({
     breakfast: false,
     lunch: false,
@@ -408,6 +650,46 @@ export default function MealPlanMenu() {
   const [isDirty, setIsDirty] = useState(false);
   const [completionVersion, setCompletionVersion] = useState(0);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    planCompletionApi.getByUser("Meal").then((items) => {
+      if (!cancelled) setMealCompletions(items);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [completionVersion]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadPlan = async () => {
+      if (isNewPlan) {
+        setCurrentPlanId(null);
+        setTitle("New Meal Plan");
+        setAllMeals(createInitialMeals([]));
+        return;
+      }
+
+      const targetId = routePlanId ?? activeMealActivation?.planIdentifier;
+      if (!targetId || !Number.isFinite(Number(targetId))) return;
+
+      const plan = await mealPlanApi.getById(Number(targetId));
+      if (!plan || cancelled) return;
+      setCurrentPlanId(String(plan.id));
+      setTitle(plan.name);
+      setAllMeals(planToMeals(plan));
+      setIsDirty(false);
+    };
+
+    loadPlan();
+    return () => {
+      cancelled = true;
+    };
+  }, [activeMealActivation?.planIdentifier, isNewPlan, routePlanId]);
+
   const currentMeals = allMeals[activeDayId];
 
   const allFoods = useMemo(() => Object.values(currentMeals).flat(), [currentMeals]);
@@ -416,39 +698,31 @@ export default function MealPlanMenu() {
   const totalC = useMemo(() => allFoods.reduce((sum, food) => sum + food.carbs, 0), [allFoods]);
   const totalF = useMemo(() => allFoods.reduce((sum, food) => sum + food.fats, 0), [allFoods]);
 
-  const proteinPct = totalKcal > 0 ? Math.round((totalP * 4 / totalKcal) * 100) : 0;
-  const fatsPct = totalKcal > 0 ? Math.round((totalF * 9 / totalKcal) * 100) : 0;
-  const carbsPct = totalKcal > 0 ? Math.round((totalC * 4 / totalKcal) * 100) : 0;
   const completedDayIds = useMemo(() => {
-    if (!activeMealPlanId) return [];
-    const activation = getPlanActivation("meal");
-    const startKey = activation?.lastCycleResetAt ?? activation?.activatedAt;
+    if (!activeMealPlanId || !activeMealActivation || activeMealPlanId !== activeMealActivation.planIdentifier) return [];
     return DAYS
       .filter((day) => {
-        if (!startKey) {
-          return isPlanDayCompleted("meal", activeMealPlanId, day.id, completionDateKey);
-        }
-        // Each day has its own calendar date
-        const dayNumber = parseInt(day.id.replace("day-", ""), 10);
-        const dayDate = addDaysToKey(startKey, dayNumber - 1);
-        return isPlanDayCompleted("meal", activeMealPlanId, day.id, dayDate);
+        const dayDate = getScheduledDateForDayInCycle(activeMealActivation, day.id, todayKey);
+        return mealCompletions.some(
+          (item) => item.dayToken === `${activeMealPlanId}:${day.id}` && item.dateKey === dayDate,
+        );
       })
       .map((day) => day.id);
-  }, [activeMealPlanId, completionDateKey, completionVersion]);
+  }, [activeMealActivation, activeMealPlanId, mealCompletions, todayKey]);
 
   // Compute which meal plan day maps to TODAY (for blue highlight)
   const todayPlanDayId = useMemo(() => {
-    if (!canMarkCompleted || !activeMealPlanId) return "day-1";
-    const activation = getPlanActivation("meal");
-    if (!activation) return "day-1";
-    return getActiveDayForDate(activation, getDateKey()).dayId;
-  }, [activeMealPlanId, canMarkCompleted]);
+    if (!activeMealActivation || !activeMealPlanId || activeMealPlanId !== activeMealActivation.planIdentifier) return "";
+    return getScheduledDayForDate(activeMealActivation, todayKey).dayId;
+  }, [activeMealActivation, activeMealPlanId, todayKey]);
   const isCompletedForDate = useMemo(
     () =>
       canMarkCompleted && activeMealPlanId
-        ? isPlanDayCompleted("meal", activeMealPlanId, activeDayId, completionDateKey)
+        ? mealCompletions.some(
+            (item) => item.dayToken === `${activeMealPlanId}:${activeDayId}` && item.dateKey === todayKey,
+          )
         : false,
-    [activeDayId, activeMealPlanId, canMarkCompleted, completionDateKey, completionVersion],
+    [activeDayId, activeMealPlanId, canMarkCompleted, mealCompletions, todayKey],
   );
 
   const markDirty = () => {
@@ -459,12 +733,12 @@ export default function MealPlanMenu() {
   const addFood = (slot: MealSlot, food: FoodItem) => {
     setAllMeals((prev) => ({
       ...prev,
-      [activeDayId]: { ...prev[activeDayId], [slot]: [...prev[activeDayId][slot], food] },
+      [activeDayId]: { ...prev[activeDayId], [slot]: [...prev[activeDayId][slot], toPlannedFood(food)] },
     }));
     markDirty();
   };
 
-  const removeFood = (slot: MealSlot, foodId: string) => {
+  const removeFood = (slot: MealSlot, foodId: number) => {
     setAllMeals((prev) => ({
       ...prev,
       [activeDayId]: {
@@ -479,16 +753,62 @@ export default function MealPlanMenu() {
     setCollapsed((prev) => ({ ...prev, [slot]: !prev[slot] }));
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    const payload = buildMealPlanPayload(allMeals);
+    const mealsPerDay = Math.max(1, MEAL_SLOTS.length);
+    const savedPlan = currentPlanId
+      ? await mealPlanApi.update(Number(currentPlanId), title.trim() || "Meal Plan", mealsPerDay, payload)
+      : await mealPlanApi.create(title.trim() || "Meal Plan", mealsPerDay, payload);
+
+    if (!savedPlan) return;
+    setCurrentPlanId(String(savedPlan.id));
+    setTitle(savedPlan.name);
+    setAllMeals(planToMeals(savedPlan));
     setIsDirty(false);
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
+    if (!currentPlanId) {
+      navigate(`/meal-plan?planId=${savedPlan.id}`, { replace: true });
+    }
   };
 
-  const handleMarkCompleted = () => {
-    if (!activeMealPlanId || !canMarkCompleted) return;
-    markPlanDayCompleted("meal", activeMealPlanId, activeDayId, completionDateKey);
-    setCompletionVersion((current) => current + 1);
+  const handleSaveQuantity = async (quantityGrams: number) => {
+    if (!selectedFood) return;
+    const { slot, food } = selectedFood;
+    let updated: PlannedFoodItem | null = null;
+
+    if (food.planItemId) {
+      const savedItem = await mealPlanApi.updateItemQuantity(food.planItemId, quantityGrams);
+      if (savedItem) updated = mapPlanItemToFood(savedItem);
+    }
+
+    updated ??= toPlannedFood(food, quantityGrams, food.planItemId);
+    setAllMeals((prev) => ({
+      ...prev,
+      [activeDayId]: {
+        ...prev[activeDayId],
+        [slot]: prev[activeDayId][slot].map((item) =>
+          (item.planItemId && item.planItemId === food.planItemId) ||
+          (!item.planItemId && item.foodItemId === food.foodItemId)
+            ? updated!
+            : item,
+        ),
+      },
+    }));
+    setSelectedFood(null);
+    markDirty();
+  };
+
+  const handleMarkCompleted = async () => {
+    if (!activeMealPlanId || !canMarkCompleted || activeDayId !== todayPlanDayId) return;
+    const completed = await planCompletionApi.markComplete({
+      planType: "Meal",
+      dayToken: `${activeMealPlanId}:${activeDayId}`,
+      dateKey: todayKey,
+    });
+    if (completed) {
+      setCompletionVersion((current) => current + 1);
+    }
   };
 
   return (
@@ -510,7 +830,7 @@ export default function MealPlanMenu() {
             }`}
           />
           <div className="flex shrink-0 flex-wrap items-center gap-3">
-            {canMarkCompleted ? (
+            {canMarkCompleted && activeDayId === todayPlanDayId ? (
               <button
                 type="button"
                 onClick={handleMarkCompleted}
@@ -522,7 +842,7 @@ export default function MealPlanMenu() {
                 }`}
               >
                 {isCompletedForDate ? <Check className="h-4 w-4" /> : null}
-                {isCompletedForDate ? "Day completed" : "Mark day completed"}
+                {isCompletedForDate ? "Completed" : "Complete"}
               </button>
             ) : null}
             <button
@@ -586,62 +906,19 @@ export default function MealPlanMenu() {
           <div className="flex items-center gap-1.5">
             <span className="inline-block h-2.5 w-2.5 rounded-full bg-emerald-500" />
             <span className="text-xs text-slate-400">Protein</span>
-            <span className="text-sm font-semibold text-emerald-400">{totalP}g</span>
+            <span className="text-sm font-semibold text-emerald-400">{totalP.toFixed(1)}g</span>
           </div>
           <div className="h-4 w-px bg-white/15" />
           <div className="flex items-center gap-1.5">
             <span className="inline-block h-2.5 w-2.5 rounded-full bg-amber-400" />
             <span className="text-xs text-slate-400">Fats</span>
-            <span className="text-sm font-semibold text-amber-400">{totalF}g</span>
+            <span className="text-sm font-semibold text-amber-400">{totalF.toFixed(1)}g</span>
           </div>
           <div className="h-4 w-px bg-white/15" />
           <div className="flex items-center gap-1.5">
             <span className="inline-block h-2.5 w-2.5 rounded-full bg-blue-400" />
             <span className="text-xs text-slate-400">Carbs</span>
-            <span className="text-sm font-semibold text-blue-400">{totalC}g</span>
-          </div>
-        </div>
-
-        {/* Macro percentage bar */}
-        <div className="reveal-up mb-6">
-          <div className="flex h-6 overflow-hidden rounded-full text-[11px] font-semibold text-white">
-            <div
-              className="flex items-center justify-center bg-emerald-500 transition-all duration-500"
-              style={{ width: `${proteinPct}%` }}
-              title={`Protein ${proteinPct}%`}
-            >
-              {proteinPct > 9 ? `Protein ${proteinPct}%` : null}
-            </div>
-            <div
-              className="flex items-center justify-center bg-orange-400 transition-all duration-500"
-              style={{ width: `${fatsPct}%` }}
-              title={`Fats ${fatsPct}%`}
-            >
-              {fatsPct > 9 ? `Fats ${fatsPct}%` : null}
-            </div>
-            <div
-              className="flex items-center justify-center bg-blue-400 transition-all duration-500"
-              style={{ width: `${carbsPct}%` }}
-              title={`Carbs ${carbsPct}%`}
-            >
-              {carbsPct > 9 ? `Carbs ${carbsPct}%` : null}
-            </div>
-            {totalKcal === 0 ? <div className="flex-1 bg-white/10" /> : null}
-          </div>
-
-          <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-slate-400">
-            <span className="flex items-center gap-1">
-              <span className="inline-block h-2 w-2 rounded-full bg-emerald-500" />
-              Protein {proteinPct}%
-            </span>
-            <span className="flex items-center gap-1">
-              <span className="inline-block h-2 w-2 rounded-full bg-orange-400" />
-              Fats {fatsPct}%
-            </span>
-            <span className="flex items-center gap-1">
-              <span className="inline-block h-2 w-2 rounded-full bg-blue-400" />
-              Carbs {carbsPct}%
-            </span>
+            <span className="text-sm font-semibold text-blue-400">{totalC.toFixed(1)}g</span>
           </div>
         </div>
 
@@ -655,10 +932,19 @@ export default function MealPlanMenu() {
               collapsed={collapsed[slot]}
               onToggleCollapse={() => toggleCollapse(slot)}
               onAdd={(food) => addFood(slot, food)}
+              onOpen={(food) => setSelectedFood({ slot, food })}
               onRemove={(id) => removeFood(slot, id)}
             />
           ))}
         </div>
+
+        {selectedFood ? (
+          <QuantityModal
+            food={selectedFood.food}
+            onSave={handleSaveQuantity}
+            onClose={() => setSelectedFood(null)}
+          />
+        ) : null}
 
         <div className="mt-8">
           <button

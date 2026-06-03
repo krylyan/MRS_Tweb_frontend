@@ -7,7 +7,7 @@ interface ActivityCardProps {
   icon: LucideIcon;
   isSelected: boolean;
   onSelect: (exercise: Exercise) => void;
-  onDelete: (exerciseId: string) => void;
+  onDelete: (exerciseId: string | number) => void;
 }
 
 export default function ActivityCard({

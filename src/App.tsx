@@ -15,6 +15,11 @@ import Profile from "./pages/Profile";
 import Questionnaire from "./pages/Questionnaire";
 import SignIn from "./pages/auth/SignIn";
 import SignUp from "./pages/auth/SignUp";
+import AuthUtils from "./utils/authUtils";
+
+function HomeRoute() {
+  return AuthUtils.isAdminModeEnabled() ? <Navigate to="/admin" replace /> : <Home />;
+}
 
 export default function App() {
   return (
@@ -38,7 +43,7 @@ export default function App() {
             </ProtectedRoute>
           }
         >
-          <Route path="/home" element={<Home />} />
+          <Route path="/home" element={<HomeRoute />} />
           <Route path="/faq" element={<FAQ />} />
           <Route path="/plans" element={<MyPlans />} />
           <Route path="/gym-plan" element={<GymPlanMenu />} />

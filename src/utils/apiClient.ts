@@ -24,11 +24,15 @@ async function apiFetch(
   options: RequestInit = {}
 ): Promise<Response> {
   const token = AuthUtils.getToken();
+  const isFormData = options.body instanceof FormData;
 
   const headers: Record<string, string> = {
-    "Content-Type": "application/json",
     ...(options.headers as Record<string, string>),
   };
+
+  if (!isFormData) {
+    headers["Content-Type"] = headers["Content-Type"] ?? "application/json";
+  }
 
   if (token) {
     headers["Authorization"] = `Bearer ${token}`;
@@ -57,6 +61,13 @@ async function parseResponse<T>(response: Response): Promise<ApiResult<T>> {
   }
 
   if (!response.ok) {
+    // 401 — token expirat sau invalid: logout + redirect automat la login
+    if (status === 401) {
+      AuthUtils.logout();
+      window.location.href = "/signin";
+      return { ok: false, message: "Session expired. Please sign in again.", status };
+    }
+
     let message = `Server error ${status}`;
     if (typeof body === "string") message = body;
     else if (body && typeof body === "object") {
@@ -94,6 +105,19 @@ async function post<T>(path: string, body: unknown): Promise<ApiResult<T>> {
   }
 }
 
+async function postForm<T>(path: string, body: FormData): Promise<ApiResult<T>> {
+  try {
+    const response = await apiFetch(path, {
+      method: "POST",
+      body,
+    });
+    return parseResponse<T>(response);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Network error";
+    return { ok: false, message: `Cannot reach server: ${message}`, status: 0 };
+  }
+}
+
 async function put<T>(path: string, body: unknown): Promise<ApiResult<T>> {
   try {
     const response = await apiFetch(path, {
@@ -121,6 +145,7 @@ async function del<T>(path: string): Promise<ApiResult<T>> {
 export const apiClient = {
   get,
   post,
+  postForm,
   put,
   delete: del,
 };

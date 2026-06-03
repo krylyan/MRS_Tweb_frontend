@@ -1,77 +1,57 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import AuthUtils from "../utils/authUtils";
+import { questionnaireApi, type QuestionDto } from "../services/questionnaireApi";
 
-interface Question {
-  id: string;
-  title: string;
-  subtitle: string;
-  options: string[];
-}
+type AnswersMap = Record<string, string>; // questionId (string) → selected option
 
-type AnswersMap = Record<string, string>;
-
-const QUESTIONS: Question[] = [
-  {
-    id: "goal",
-    title: "WHAT IS YOUR MAIN FITNESS GOAL?",
-    subtitle: "Select the option that matches you best",
-    options: ["WEIGHT LOSS", "BUILD MUSCLE", "GET TONED", "IMPROVE ENDURANCE"],
-  },
-  {
-    id: "training_days",
-    title: "HOW MANY DAYS CAN YOU TRAIN WEEKLY?",
-    subtitle: "Pick the most realistic schedule",
-    options: ["2-3 DAYS", "4 DAYS", "5 DAYS", "6+ DAYS"],
-  },
-  {
-    id: "experience",
-    title: "WHAT IS YOUR TRAINING EXPERIENCE?",
-    subtitle: "This helps us set the right intensity",
-    options: ["BEGINNER", "INTERMEDIATE", "ADVANCED"],
-  },
-  {
-    id: "diet_style",
-    title: "WHAT EATING STYLE DO YOU PREFER?",
-    subtitle: "Choose what you can follow consistently",
-    options: ["3 MAIN MEALS", "SMALL FREQUENT MEALS", "LOW-CARB", "MEDITERRANEAN"],
-  },
-  {
-    id: "meal_prep",
-    title: "HOW MUCH TIME CAN YOU COOK DAILY?",
-    subtitle: "We adapt plans to your available time",
-    options: ["UNDER 20 MINUTES", "20-40 MINUTES", "OVER 40 MINUTES"],
-  },
-];
-
-const STEP_PROGRESS_WIDTHS = ["w-[20%]", "w-[40%]", "w-[60%]", "w-[80%]", "w-full"] as const;
+const STEP_PROGRESS_WIDTHS = [
+  "w-[20%]", "w-[40%]", "w-[60%]", "w-[80%]", "w-full",
+] as const;
 
 export default function Questionnaire() {
   const navigate = useNavigate();
+  const [questions, setQuestions] = useState<QuestionDto[]>([]);
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState<AnswersMap>({});
+  const [loading, setLoading] = useState(true);
 
-  const current = QUESTIONS[step];
-  const selectedValue = answers[current.id] ?? "";
-  const progressWidthClass = STEP_PROGRESS_WIDTHS[step];
-
+  // Fetch întrebările din backend la mount
   useEffect(() => {
     if (!AuthUtils.isQuestionnaireRequired()) {
       navigate("/home", { replace: true });
-    }
-  }, [navigate]);
-
-  const handleSelect = (value: string): void => {
-    setAnswers((prev) => ({ ...prev, [current.id]: value }));
-  };
-
-  const handleContinue = (): void => {
-    if (!selectedValue) {
       return;
     }
+    questionnaireApi.fetchQuestions().then((data) => {
+      setQuestions(data);
+      setLoading(false);
+    });
+  }, [navigate]);
 
-    if (step === QUESTIONS.length - 1) {
-      AuthUtils.saveQuestionnaireAnswers(answers);
+  if (loading || questions.length === 0) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-[linear-gradient(180deg,#111827_0%,#1f2937_52%,#111827_100%)]">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-emerald-500 border-t-transparent" />
+      </main>
+    );
+  }
+
+  const current = questions[step];
+  const selectedValue = answers[String(current.id)] ?? "";
+  const progressWidthClass =
+    STEP_PROGRESS_WIDTHS[Math.min(step, STEP_PROGRESS_WIDTHS.length - 1)];
+
+  const handleSelect = (value: string): void => {
+    setAnswers((prev) => ({ ...prev, [String(current.id)]: value }));
+  };
+
+  const handleContinue = async (): Promise<void> => {
+    if (!selectedValue) return;
+
+    if (step === questions.length - 1) {
+      // Ultimul pas — submit toate răspunsurile la backend
+      await questionnaireApi.submitAll(questions, answers);
+      AuthUtils.saveQuestionnaireAnswers();
       navigate("/home", { replace: true });
       return;
     }
@@ -79,7 +59,8 @@ export default function Questionnaire() {
     setStep((prev) => prev + 1);
   };
 
-  const handleSkip = (): void => {
+  const handleSkip = async (): Promise<void> => {
+    await questionnaireApi.skipAll(questions);
     AuthUtils.skipQuestionnaire();
     navigate("/home", { replace: true });
   };
@@ -89,7 +70,7 @@ export default function Questionnaire() {
       <div className="mx-auto flex min-h-screen w-full max-w-[420px] flex-col px-2 pb-[14px] pt-3">
         <div className="mb-2 flex items-center justify-between">
           <span className="text-xs text-gray-400">
-            {step + 1}/{QUESTIONS.length}
+            {step + 1}/{questions.length}
           </span>
           <button
             type="button"
@@ -147,11 +128,10 @@ export default function Questionnaire() {
                 : "cursor-not-allowed border-white/8 bg-slate-700"
             }`}
           >
-            {step === QUESTIONS.length - 1 ? "FINISH" : "CONTINUE"}
+            {step === questions.length - 1 ? "FINISH" : "CONTINUE"}
           </button>
         </div>
       </div>
     </main>
   );
 }
-

@@ -19,6 +19,11 @@ export default defineConfig({
         secure: false,
         // rewrite: (path) => path  // pastram /api prefix (nu-l stergem)
       },
+      "/uploads": {
+        target: "http://localhost:5227",
+        changeOrigin: true,
+        secure: false,
+      },
     },
   },
 });

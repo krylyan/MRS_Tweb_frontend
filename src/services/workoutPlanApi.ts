@@ -4,20 +4,64 @@ import AuthUtils from "../utils/authUtils";
 export interface DayPlanApi {
   id: number;
   label: string;
-  exercises: { id: number; name: string; muscleGroup: string }[];
+  dayNumber: number;
+  exercises: WorkoutExerciseApi[];
+  dayExercises: WorkoutDayExerciseApi[];
+}
+
+export interface WorkoutSetApi {
+  id: number;
+  order: number;
+  weight: number;
+  reps: number;
+}
+
+export interface WorkoutExerciseApi {
+  id: number;
+  name: string;
+  muscleGroup: string;
+  gifUrl?: string;
+  instructions?: string;
+}
+
+export interface WorkoutDayExerciseApi {
+  dayPlanId: number;
+  exerciseId: number;
+  order: number;
+  exercise: WorkoutExerciseApi;
+  sets: WorkoutSetApi[];
 }
 
 export interface WorkoutPlanApi {
   id: number;
+  userId: number;
   name: string;
   createdAt: string;
   updatedAt: string;
   days: DayPlanApi[];
+  workoutTracking?: {
+    id: number;
+    pauseTime: {
+      minutes: number;
+      seconds: number;
+    };
+    sets: WorkoutSetApi[];
+  } | null;
 }
 
 export interface DayPlanCreateBody {
   label: string;
-  exerciseIds: number[];
+  dayNumber?: number;
+  exerciseIds?: number[];
+  exercises?: {
+    exerciseId: number;
+    order: number;
+    sets: {
+      order: number;
+      weight: number;
+      reps: number;
+    }[];
+  }[];
 }
 
 export const workoutPlanApi = {
@@ -40,9 +84,9 @@ export const workoutPlanApi = {
     return result.ok ? result.data : null;
   },
 
-  async update(id: number, name: string, days: DayPlanCreateBody[]): Promise<boolean> {
+  async update(id: number, name: string, days: DayPlanCreateBody[]): Promise<WorkoutPlanApi | null> {
     const result = await apiClient.put<WorkoutPlanApi>(`/workoutplan/${id}`, { name, days });
-    return result.ok;
+    return result.ok ? result.data : null;
   },
 
   async delete(id: number): Promise<boolean> {

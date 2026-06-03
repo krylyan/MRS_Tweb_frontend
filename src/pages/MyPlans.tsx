@@ -6,6 +6,13 @@ import type { WorkoutPlanApi } from "../services/workoutPlanApi";
 import { mealPlanApi } from "../services/mealPlanApi";
 import type { MealPlanApi } from "../services/mealPlanApi";
 import { planActivationApi } from "../services/planActivationApi";
+import {
+  planPreferencesApi,
+  toCustomizationMap,
+  toFavoriteIds,
+  type PlanCustomizations,
+} from "../services/planPreferencesApi";
+import { mediaApi } from "../services/mediaApi";
 
 type PlanCategory = "workout" | "alimentation";
 
@@ -42,16 +49,6 @@ interface PendingDelete {
   name: string;
 }
 
-const FAVORITES_KEY = "fitlife_favorite_workout_plans";
-const CUSTOMIZATIONS_KEY = "fitlife_plan_customizations";
-
-export interface PlanCustomization {
-  colorId: string;
-  imageUrl: string;
-}
-
-export type PlanCustomizations = Record<string, PlanCustomization>;
-
 export const PLAN_THEMES = [
   { id: "emerald", dot: "#10b981", card: "border-emerald-500/40 bg-gradient-to-br from-emerald-600/25 to-emerald-900/40 hover:border-emerald-400/60 hover:shadow-emerald-500/20", btn: "bg-emerald-500 hover:bg-emerald-400 shadow-emerald-500/30", badge: "bg-emerald-600/90", imgBg: "from-emerald-800/50 to-emerald-950/80" },
   { id: "blue", dot: "#3b82f6", card: "border-blue-500/40 bg-gradient-to-br from-blue-600/25 to-blue-900/40 hover:border-blue-400/60 hover:shadow-blue-500/20", btn: "bg-blue-500 hover:bg-blue-400 shadow-blue-500/30", badge: "bg-blue-600/90", imgBg: "from-blue-800/50 to-blue-950/80" },
@@ -67,51 +64,11 @@ export const PLAN_THEMES = [
 
 export const DEFAULT_THEME_IDS = ["emerald", "blue", "purple", "orange"] as const;
 
-export const readCustomizations = (): PlanCustomizations => {
-  try {
-    const raw = localStorage.getItem(CUSTOMIZATIONS_KEY);
-    if (!raw) return {};
-    return JSON.parse(raw) as PlanCustomizations;
-  } catch { return {}; }
-};
-
-const writeCustomizations = (data: PlanCustomizations) =>
-  localStorage.setItem(CUSTOMIZATIONS_KEY, JSON.stringify(data));
-
 export const getThemeById = (id: string) =>
   PLAN_THEMES.find((t) => t.id === id) ?? PLAN_THEMES[0];
 
 
 // Meal plans now come from the backend API â€” no more hardcoded mock data
-
-const MEAL_FAVORITES_KEY = "fitlife_favorite_meal_plans";
-const MEAL_CUSTOMIZATIONS_KEY = "fitlife_meal_customizations";
-
-const readMealFavoriteIds = (): string[] => {
-  try {
-    const raw = localStorage.getItem(MEAL_FAVORITES_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw) as string[];
-    return Array.isArray(parsed) ? parsed.filter((v): v is string => typeof v === "string") : [];
-  } catch { return []; }
-};
-
-export const readMealCustomizations = (): PlanCustomizations => {
-  try {
-    const raw = localStorage.getItem(MEAL_CUSTOMIZATIONS_KEY);
-    if (!raw) return {};
-    return JSON.parse(raw) as PlanCustomizations;
-  } catch { return {}; }
-};
-
-const readFavoriteIds = (): string[] => {
-  const raw = localStorage.getItem(FAVORITES_KEY);
-  if (!raw) return [];
-  try {
-    const parsed = JSON.parse(raw) as string[];
-    return Array.isArray(parsed) ? parsed.filter((value): value is string => typeof value === "string") : [];
-  } catch { return []; }
-};
 
 export default function MyPlans() {
   const navigate = useNavigate();
@@ -125,18 +82,18 @@ export default function MyPlans() {
   const [_isLoading, setIsLoading] = useState(true);
 
   // â”€â”€ UI state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  const [favoriteIds, setFavoriteIds] = useState<string[]>(() => readFavoriteIds());
+  const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
   const [activePlanId, setActivePlanIdState] = useState<string | null>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [editingPlanId, setEditingPlanId] = useState<string | null>(null);
-  const [customizations, setCustomizations] = useState<PlanCustomizations>(() => readCustomizations());
+  const [customizations, setCustomizations] = useState<PlanCustomizations>({});
   const menuRef = useRef<HTMLDivElement | null>(null);
 
-  const [favoriteMealIds, setFavoriteMealIds] = useState<string[]>(() => readMealFavoriteIds());
+  const [favoriteMealIds, setFavoriteMealIds] = useState<string[]>([]);
   const [activeMealPlanId, setActiveMealPlanId] = useState<string | null>(null);
   const [openMealMenuId, setOpenMealMenuId] = useState<string | null>(null);
   const [editingMealPlanId, setEditingMealPlanId] = useState<string | null>(null);
-  const [mealCustomizations, setMealCustomizations] = useState<PlanCustomizations>(() => readMealCustomizations());
+  const [mealCustomizations, setMealCustomizations] = useState<PlanCustomizations>({});
   const mealMenuRef = useRef<HTMLDivElement | null>(null);
   const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null);
 
@@ -144,16 +101,22 @@ export default function MyPlans() {
   useEffect(() => {
     async function loadData() {
       setIsLoading(true);
-      const [wPlans, mPlans, wActivation, mActivation] = await Promise.all([
+      const [wPlans, mPlans, wActivation, mActivation, favorites, planCustomizations] = await Promise.all([
         workoutPlanApi.getMyPlans(),
         mealPlanApi.getMyPlans(),
         planActivationApi.getActive("Workout"),
         planActivationApi.getActive("Meal"),
+        planPreferencesApi.getFavorites(),
+        planPreferencesApi.getCustomizations(),
       ]);
       setWorkoutPlans(wPlans);
       setMealPlans(mPlans);
       if (wActivation) setActivePlanIdState(wActivation.planIdentifier);
       if (mActivation) setActiveMealPlanId(mActivation.planIdentifier);
+      setFavoriteIds(toFavoriteIds(favorites, "Workout"));
+      setFavoriteMealIds(toFavoriteIds(favorites, "Meal"));
+      setCustomizations(toCustomizationMap(planCustomizations, "Workout"));
+      setMealCustomizations(toCustomizationMap(planCustomizations, "Meal"));
       setIsLoading(false);
     }
     loadData();
@@ -178,8 +141,7 @@ export default function MyPlans() {
   const handleSetActive = async (planId: string) => {
     const nextId = activePlanId === planId ? null : planId;
     if (nextId) {
-      const plan = workoutPlans.find((p) => p.id.toString() === planId);
-      await planActivationApi.activate(planId, "Workout", plan?.days.length || 7);
+      await planActivationApi.activate(planId, "Workout", 7);
     } else {
       await planActivationApi.deactivate("Workout");
     }
@@ -199,10 +161,16 @@ export default function MyPlans() {
     setOpenMealMenuId(null);
   };
 
-  const handleToggleMealFavorite = (planId: string) => {
-    setFavoriteMealIds((prev) =>
-      prev.includes(planId) ? prev.filter((id) => id !== planId) : [...prev, planId],
-    );
+  const handleToggleMealFavorite = async (planId: string) => {
+    const isFavorite = favoriteMealIds.includes(planId);
+    const ok = isFavorite
+      ? await planPreferencesApi.removeFavorite("Meal", planId)
+      : await planPreferencesApi.addFavorite({ planType: "Meal", planIdentifier: planId });
+    if (ok) {
+      setFavoriteMealIds((prev) =>
+        isFavorite ? prev.filter((id) => id !== planId) : [...prev, planId],
+      );
+    }
     setOpenMealMenuId(null);
   };
 
@@ -211,17 +179,18 @@ export default function MyPlans() {
     setOpenMealMenuId(null);
   };
 
-  const handleSaveMealCustomization = (planId: string, colorId: string, imageUrl: string) => {
-    const next = { ...mealCustomizations, [planId]: { colorId, imageUrl } };
-    setMealCustomizations(next);
-    localStorage.setItem(MEAL_CUSTOMIZATIONS_KEY, JSON.stringify(next));
-    setEditingMealPlanId(null);
+  const handleSaveMealCustomization = async (planId: string, colorId: string, imageUrl: string) => {
+    const saved = await planPreferencesApi.saveCustomization({
+      planType: "Meal",
+      planIdentifier: planId,
+      colorId,
+      imageUrl,
+    });
+    if (saved) {
+      setMealCustomizations((prev) => ({ ...prev, [planId]: { colorId, imageUrl } }));
+      setEditingMealPlanId(null);
+    }
   };
-
-  useEffect(() => {
-    localStorage.setItem(MEAL_FAVORITES_KEY, JSON.stringify(favoriteMealIds));
-  }, [favoriteMealIds]);
-
 
   const allWorkoutPlans = useMemo<DisplayPlan[]>(
     () =>
@@ -265,6 +234,7 @@ export default function MyPlans() {
     if (pendingDelete.type === "workout") {
       const numId = Number(pendingDelete.id);
       await workoutPlanApi.delete(numId);
+      await planPreferencesApi.removeFavorite("Workout", pendingDelete.id);
       setWorkoutPlans((prev) => prev.filter((p) => p.id !== numId));
       setFavoriteIds((prev) => prev.filter((id) => id !== pendingDelete.id));
       if (activePlanId === pendingDelete.id) {
@@ -274,6 +244,7 @@ export default function MyPlans() {
     } else {
       const numId = Number(pendingDelete.id);
       await mealPlanApi.delete(numId);
+      await planPreferencesApi.removeFavorite("Meal", pendingDelete.id);
       setMealPlans((prev) => prev.filter((p) => p.id !== numId));
       setFavoriteMealIds((prev) => prev.filter((id) => id !== pendingDelete.id));
       if (activeMealPlanId === pendingDelete.id) {
@@ -285,19 +256,31 @@ export default function MyPlans() {
     setPendingDelete(null);
   };
 
-  const handleToggleFavorite = (planId: string, favoriteEnabled: boolean): void => {
+  const handleToggleFavorite = async (planId: string, favoriteEnabled: boolean): Promise<void> => {
     if (!favoriteEnabled) return;
-    setFavoriteIds((prev) =>
-      prev.includes(planId) ? prev.filter((id) => id !== planId) : [...prev, planId],
-    );
+    const isFavorite = favoriteIds.includes(planId);
+    const ok = isFavorite
+      ? await planPreferencesApi.removeFavorite("Workout", planId)
+      : await planPreferencesApi.addFavorite({ planType: "Workout", planIdentifier: planId });
+    if (ok) {
+      setFavoriteIds((prev) =>
+        isFavorite ? prev.filter((id) => id !== planId) : [...prev, planId],
+      );
+    }
     setOpenMenuId(null);
   };
 
-  const handleSaveCustomization = (planId: string, colorId: string, imageUrl: string) => {
-    const next = { ...customizations, [planId]: { colorId, imageUrl } };
-    setCustomizations(next);
-    writeCustomizations(next);
-    setEditingPlanId(null);
+  const handleSaveCustomization = async (planId: string, colorId: string, imageUrl: string) => {
+    const saved = await planPreferencesApi.saveCustomization({
+      planType: "Workout",
+      planIdentifier: planId,
+      colorId,
+      imageUrl,
+    });
+    if (saved) {
+      setCustomizations((prev) => ({ ...prev, [planId]: { colorId, imageUrl } }));
+      setEditingPlanId(null);
+    }
   };
 
   const getAccentClasses = (planId: string, index: number) => {
@@ -319,13 +302,13 @@ export default function MyPlans() {
     return (
       <article
         key={`${sectionKey}-${plan.id}`}
-        className={`reveal-up relative flex flex-col rounded-2xl border shadow-[0_18px_36px_rgba(0,0,0,0.25)] backdrop-blur-[6px] transition-all duration-300 hover:-translate-y-1 hover:shadow-xl ${accent.card
+        className={`relative flex flex-col rounded-2xl border shadow-[0_10px_22px_rgba(0,0,0,0.2)] transition-colors duration-200 hover:shadow-lg ${accent.card
           } ${isActive ? "ring-2 ring-emerald-400/60" : ""}`}
       >
         {/* Image area */}
         <div className={`relative flex h-44 items-center justify-center overflow-hidden rounded-t-2xl bg-gradient-to-br ${accent.imgBg}`}>
           {customImg ? (
-            <img src={customImg} alt={plan.name} className="h-full w-full object-cover" />
+            <img src={customImg} alt={plan.name} className="h-full w-full object-contain p-2" />
           ) : (
             <Dumbbell className="h-16 w-16 text-white/20" />
           )}
@@ -468,13 +451,13 @@ export default function MyPlans() {
     return (
       <article
         key={planIdStr}
-        className={`reveal-up relative flex flex-col rounded-2xl border shadow-[0_18px_36px_rgba(0,0,0,0.25)] backdrop-blur-[6px] transition-all duration-300 hover:-translate-y-1 hover:shadow-xl ${accent.card
+        className={`relative flex flex-col rounded-2xl border shadow-[0_10px_22px_rgba(0,0,0,0.2)] transition-colors duration-200 hover:shadow-lg ${accent.card
           } ${isMealActive ? "ring-2 ring-emerald-400/60" : ""}`}
       >
         {/* Image / placeholder area */}
         <div className={`relative flex h-44 items-center justify-center overflow-hidden rounded-t-2xl bg-gradient-to-br ${accent.imgBg}`}>
           {customImg ? (
-            <img src={customImg} alt={plan.name} className="h-full w-full object-cover" loading="lazy" />
+            <img src={customImg} alt={plan.name} className="h-full w-full object-contain p-2" loading="lazy" />
           ) : (
             <Flame className="h-16 w-16 text-white/20" />
           )}
@@ -556,7 +539,7 @@ export default function MyPlans() {
           <h3 className="mb-4 break-words text-base font-bold leading-snug text-slate-50">{plan.name}</h3>
           <button
             type="button"
-            onClick={() => navigate("/meal-plan")}
+            onClick={() => navigate(`/meal-plan?planId=${plan.id}`)}
             className={`mt-auto w-full rounded-[10px] py-2.5 text-sm font-semibold text-white shadow-lg transition-all duration-200 active:scale-95 ${accent.btn}`}
           >
             Open Plan
@@ -570,7 +553,7 @@ export default function MyPlans() {
     <button
       key={key}
       type="button"
-      onClick={() => navigate("/meal-plan")}
+      onClick={() => navigate("/meal-plan?new=1")}
       className="reveal-up reveal-delay-2 flex min-h-[304px] items-center justify-center rounded-[16px] border border-dashed border-white/25 bg-gradient-to-br from-white/[0.08] to-slate-900/50 p-4 text-slate-100 transition-all hover:border-emerald-300/40 hover:bg-gradient-to-br hover:from-emerald-400/18 hover:to-slate-900/55 hover:text-emerald-100"
     >
       <div className="flex flex-col items-center gap-4">
@@ -745,13 +728,16 @@ interface EditPlanModalProps {
   planName: string;
   currentColorId: string;
   currentImageUrl: string;
-  onSave: (colorId: string, imageUrl: string) => void;
+  onSave: (colorId: string, imageUrl: string) => Promise<void>;
   onClose: () => void;
 }
 
 function EditPlanModal({ planName, currentColorId, currentImageUrl, onSave, onClose }: EditPlanModalProps) {
   const [selectedColor, setSelectedColor] = useState(currentColorId);
-  const [imageData, setImageData] = useState(currentImageUrl); // base64 or empty
+  const [imagePreview, setImagePreview] = useState(currentImageUrl);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const preview = PLAN_THEMES.find((t) => t.id === selectedColor) ?? PLAN_THEMES[0];
@@ -759,20 +745,51 @@ function EditPlanModal({ planName, currentColorId, currentImageUrl, onSave, onCl
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      setImageData(ev.target?.result as string);
+    if (imagePreview.startsWith("blob:")) {
+      URL.revokeObjectURL(imagePreview);
+    }
+    setSelectedFile(file);
+    setImagePreview(URL.createObjectURL(file));
+    setError(null);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (imagePreview.startsWith("blob:")) {
+        URL.revokeObjectURL(imagePreview);
+      }
     };
-    reader.readAsDataURL(file);
+  }, [imagePreview]);
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    setError(null);
+
+    try {
+      let imageUrl = currentImageUrl;
+
+      if (selectedFile) {
+        const uploaded = await mediaApi.uploadImage(selectedFile, "plan-customizations");
+        if (!uploaded) {
+          setError("Could not upload the image. Try a smaller JPG, PNG, WebP, or GIF file.");
+          return;
+        }
+        imageUrl = uploaded.imageUrl;
+      }
+
+      await onSave(selectedColor, imageUrl);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
     <div
-      className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 p-4"
+      className="fixed inset-0 z-[200] flex items-start justify-center overflow-y-auto bg-black/60 p-4 sm:items-center"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div
-        className="dropdown-menu relative flex w-full max-w-md flex-col overflow-hidden rounded-3xl border border-white/12 bg-slate-900/98 shadow-[0_32px_80px_rgba(0,0,0,0.7)] backdrop-blur-2xl"
+        className="dropdown-menu relative flex max-h-[calc(100vh-2rem)] w-full max-w-xl flex-col overflow-y-auto rounded-3xl border border-white/12 bg-slate-900/98 shadow-[0_32px_80px_rgba(0,0,0,0.7)] backdrop-blur-2xl"
       >
         {/* Header */}
         <div className="flex items-center justify-between border-b border-white/8 px-6 py-5">
@@ -784,12 +801,12 @@ function EditPlanModal({ planName, currentColorId, currentImageUrl, onSave, onCl
 
         {/* Preview â€” click to pick image */}
         <div
-          className={`relative mx-6 mt-5 flex h-32 cursor-pointer items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br ${preview.imgBg} group`}
+          className={`relative mx-6 mt-5 flex h-64 cursor-pointer items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br ${preview.imgBg} group sm:h-72`}
           onClick={() => fileInputRef.current?.click()}
           title="Click to change image"
         >
-          {imageData ? (
-            <img src={imageData} alt="Preview" className="h-full w-full object-cover" />
+          {imagePreview ? (
+            <img src={imagePreview} alt="Preview" className="h-full w-full object-contain p-3" />
           ) : (
             <Dumbbell className="h-12 w-12 text-white/20" />
           )}
@@ -807,6 +824,7 @@ function EditPlanModal({ planName, currentColorId, currentImageUrl, onSave, onCl
           onChange={handleFileChange}
         />
 
+        {error && <p className="px-6 pt-3 text-sm font-medium text-rose-300">{error}</p>}
 
         {/* Color Picker */}
         <div className="px-6 pt-5">
@@ -840,16 +858,18 @@ function EditPlanModal({ planName, currentColorId, currentImageUrl, onSave, onCl
           <button
             type="button"
             onClick={onClose}
+            disabled={isSaving}
             className="flex-1 rounded-xl border border-white/15 bg-white/[0.04] py-2.5 text-sm font-semibold text-slate-300 transition-colors hover:bg-white/[0.08]"
           >
             Cancel
           </button>
           <button
             type="button"
-            onClick={() => onSave(selectedColor, imageData)}
+            onClick={handleSave}
+            disabled={isSaving}
             className="flex-1 rounded-xl bg-emerald-500 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-400"
           >
-            Save
+            {isSaving ? "Saving..." : "Save"}
           </button>
         </div>
       </div>

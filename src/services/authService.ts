@@ -58,11 +58,17 @@ export async function registerUser(
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
-    if (!response.ok) return { ok: false, message: await parseError(response) };
+    if (!response.ok) {
+      const message = await parseError(response);
+      console.error("[AUTH] Register FAILED:", message);
+      return { ok: false, message };
+    }
     const data = (await response.json()) as RegisterResponse;
+    console.log("[AUTH] Register SUCCESS:", data);
     return { ok: true, data };
   } catch (error) {
     const message = error instanceof Error ? error.message : "Network error";
+    console.error("[AUTH] Register ERROR:", message);
     return { ok: false, message: `Cannot reach server: ${message}` };
   }
 }
@@ -77,11 +83,23 @@ export async function loginUser(
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
-    if (!response.ok) return { ok: false, message: await parseError(response) };
+    if (!response.ok) {
+      const message = await parseError(response);
+      console.error("[AUTH] Login FAILED:", message);
+      return { ok: false, message };
+    }
     const data = (await response.json()) as LoginResponse;
+    console.log("[AUTH] Login SUCCESS:", {
+      userId: data.userId,
+      fullName: data.fullName,
+      role: data.role,
+      token: data.token,
+      expiresAt: data.expiresAt,
+    });
     return { ok: true, data };
   } catch (error) {
     const message = error instanceof Error ? error.message : "Network error";
+    console.error("[AUTH] Login ERROR:", message);
     return { ok: false, message: `Cannot reach server: ${message}` };
   }
 }

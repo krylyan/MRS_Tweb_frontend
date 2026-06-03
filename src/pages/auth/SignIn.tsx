@@ -21,10 +21,15 @@ export default function SignIn() {
   const [loading, setLoading] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
 
+  // Redirect automat dacă userul e deja logat
   useEffect(() => {
+    if (AuthUtils.isAuthenticated()) {
+      navigate("/home", { replace: true });
+      return;
+    }
     const frame = requestAnimationFrame(() => setIsLoaded(true));
     return () => cancelAnimationFrame(frame);
-  }, []);
+  }, [navigate]);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault();

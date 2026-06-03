@@ -44,7 +44,7 @@ function MobileNavigation({ isAdminMode }: { isAdminMode: boolean }) {
       ]
     : [];
 
-  const navItems = isAdminMode ? [...commonItems, ...adminItems] : [commonItems[0], ...userItems, ...commonItems.slice(1)];
+  const navItems = isAdminMode ? [commonItems[1], commonItems[2], ...adminItems] : [commonItems[0], ...userItems, ...commonItems.slice(1)];
 
   const handleLogout = () => {
     AuthUtils.logout();

@@ -18,22 +18,29 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import ActivitiesList from "../components/ActivitiesList";
 import WorkoutPreview from "../components/WorkoutPreview";
 import { exerciseService } from "../services/exerciseService";
+import { workoutPlanApi } from "../services/workoutPlanApi";
+import type { WorkoutPlanApi } from "../services/workoutPlanApi";
+import { planActivationApi } from "../services/planActivationApi";
+import type { PlanActivationApi } from "../services/planActivationApi";
+import { planCompletionApi } from "../services/planCompletionApi";
+import type { PlanCompletionResponseDto } from "../services/planCompletionApi";
 import type { Exercise, MuscleGroup } from "../types/exercise";
-import {
-  createEmptyWorkoutPlan,
-  getActivePlanId,
-  getWorkoutPlanById,
-  getWorkoutPlans,
-  saveWorkoutPlan,
-} from "../utils/planStorage";
-import { getDateKey, isPlanDayCompleted, markPlanDayCompleted } from "../utils/planCompletion";
-import { getPlanActivation, getActiveDayForDate, addDaysToKey } from "../utils/planCycleTracker";
-import type {
-  PauseTime,
-  StoredWorkoutPlan,
-  WorkoutSet,
-  WorkoutTrackingState,
-} from "../utils/planStorage";
+import { getDateKey } from "../utils/planCompletion";
+
+interface WorkoutSet {
+  weight: number;
+  reps: number;
+}
+
+interface PauseTime {
+  minutes: number;
+  seconds: number;
+}
+
+interface WorkoutTrackingState {
+  pauseTime: PauseTime;
+  sets: WorkoutSet[];
+}
 
 interface DayPlan {
   id: string;
@@ -47,7 +54,6 @@ interface DaysSelectorProps {
   todayPlanDayId: string;    // the day that maps to TODAY in the cycle
   completedDayIds: string[];
   onSelectDay: (day: DayPlan) => void;
-  onAddDay: () => void;
 }
 
 interface ActivityDetailsProps {
@@ -79,22 +85,17 @@ const DEFAULT_SET: WorkoutSet = {
   reps: 0,
 };
 
-const getExercisesByIds = (allExercises: Exercise[], ids: string[]): Exercise[] =>
-  ids
-    .map((id) => allExercises.find((exercise) => exercise.id === id))
-    .filter((exercise): exercise is Exercise => !!exercise);
+const WORKOUT_DAY_COUNT = 7;
 
-const createEmptyDays = (): DayPlan[] => [
-  {
-    id: "day-1",
-    label: "Day 1",
+const createEmptyDays = (): DayPlan[] =>
+  Array.from({ length: WORKOUT_DAY_COUNT }, (_, index) => ({
+    id: `day-${index + 1}`,
+    label: `Day ${index + 1}`,
     exercises: [],
-  },
-];
+  }));
 
-const createEmptySelectedExerciseMap = (): Record<string, string | null> => ({
-  "day-1": null,
-});
+const createEmptySelectedExerciseMap = (): Record<string, string | null> =>
+  Object.fromEntries(createEmptyDays().map((day) => [day.id, null]));
 
 const createInitialWorkoutTrackingState = (): WorkoutTrackingState => ({
   pauseTime: { ...DEFAULT_PAUSE_TIME },
@@ -134,45 +135,110 @@ const parsePauseTimeInput = (value: string): PauseTime => {
   return normalizePauseTime(minutes, seconds);
 };
 
-const hydrateDaysFromPlan = (plan: StoredWorkoutPlan, allExercises: Exercise[]): DayPlan[] => {
-  const hydrated = plan.days.map((day) => ({
-    id: day.id,
-    label: day.label,
-    exercises: getExercisesByIds(allExercises, day.exerciseIds),
-  }));
+const getPlanExerciseKey = (dayId: string, exerciseId: string | number): string =>
+  `${dayId}:${exerciseId}`;
 
-  return hydrated.length ? hydrated : createEmptyDays();
+const parseDateKey = (dateKey: string): Date => {
+  const [year, month, day] = dateKey.split("-").map(Number);
+  return new Date(year, month - 1, day);
 };
 
-const createStoredPlanPayload = (
-  planId: string,
-  planName: string,
-  days: DayPlan[],
-  selectedExerciseByDay: Record<string, string | null>,
-  workoutTracking: WorkoutTrackingState,
-  existingPlan?: StoredWorkoutPlan | null,
-): StoredWorkoutPlan => {
-  const timestamp = new Date().toISOString();
+const addDaysToDateKey = (dateKey: string, days: number): string => {
+  const date = parseDateKey(dateKey);
+  date.setDate(date.getDate() + days);
+  return getDateKey(date);
+};
+
+const daysBetween = (startKey: string, endKey: string): number =>
+  Math.round((parseDateKey(endKey).getTime() - parseDateKey(startKey).getTime()) / 86_400_000);
+
+const getActivationStartKey = (activation: PlanActivationApi): string =>
+  activation.lastCycleResetAt ?? activation.activatedAt;
+
+const getScheduledDayForDate = (activation: PlanActivationApi, dateKey: string) => {
+  const startKey = getActivationStartKey(activation);
+  const diff = Math.max(0, daysBetween(startKey, dateKey));
+  const totalDays = Math.max(1, activation.totalDays || WORKOUT_DAY_COUNT);
+  const cycleOffset = Math.floor(diff / totalDays) * totalDays;
+  const dayNumber = (diff % totalDays) + 1;
 
   return {
-    id: planId,
-    name: planName,
-    createdAt: existingPlan?.createdAt ?? timestamp,
-    updatedAt: timestamp,
-    days: days.map((day) => ({
-      id: day.id,
-      label: day.label,
-      exerciseIds: day.exercises.map((exercise) => exercise.id),
-    })),
-    selectedExerciseByDay: { ...selectedExerciseByDay },
-    workoutTracking: {
-      pauseTime: { ...workoutTracking.pauseTime },
-      sets: workoutTracking.sets.map((set) => ({ ...set })),
-    },
+    dayId: `day-${dayNumber}`,
+    dayNumber,
+    cycleNumber: Math.floor(diff / totalDays) + 1,
+    cycleStartKey: addDaysToDateKey(startKey, cycleOffset),
   };
 };
 
-function DaysSelector({ days, activeDayId, todayPlanDayId, completedDayIds, onSelectDay, onAddDay }: DaysSelectorProps) {
+const getScheduledDateForDayInCycle = (
+  activation: PlanActivationApi,
+  dayId: string,
+  referenceDateKey: string,
+): string => {
+  const todaySchedule = getScheduledDayForDate(activation, referenceDateKey);
+  const dayNumber = Number.parseInt(dayId.replace("day-", ""), 10) || 1;
+  return addDaysToDateKey(todaySchedule.cycleStartKey, dayNumber - 1);
+};
+
+const createDaysFromApiPlan = (plan: WorkoutPlanApi): DayPlan[] => {
+  const hydrated = plan.days.slice(0, WORKOUT_DAY_COUNT).map((day, index) => ({
+    id: `day-${day.dayNumber || index + 1}`,
+    label: day.label || `Day ${index + 1}`,
+    exercises: (day.dayExercises?.length ? day.dayExercises.map((item) => item.exercise) : day.exercises).map(
+      (exercise) => ({
+        id: exercise.id,
+        name: exercise.name,
+        muscleGroup: exercise.muscleGroup as MuscleGroup,
+        gifUrl: exercise.gifUrl ?? "",
+        instructions: exercise.instructions ?? "",
+      }),
+    ),
+  }));
+
+  const byId = new Map(hydrated.map((day) => [day.id, day]));
+
+  return createEmptyDays().map((emptyDay) => byId.get(emptyDay.id) ?? emptyDay);
+};
+
+const createSelectedExerciseMapFromDays = (days: DayPlan[]): Record<string, string | null> =>
+  Object.fromEntries(days.map((day) => [day.id, day.exercises[0] ? String(day.exercises[0].id) : null]));
+
+const createSetsByExerciseFromApiPlan = (plan: WorkoutPlanApi): Record<string, WorkoutSet[]> => {
+  const entries = plan.days.flatMap((day, index) => {
+    const dayId = `day-${day.dayNumber || index + 1}`;
+    return (day.dayExercises ?? []).map((item) => [
+      getPlanExerciseKey(dayId, item.exerciseId),
+      item.sets.length
+        ? item.sets.map((set) => ({ weight: set.weight, reps: set.reps }))
+        : [{ ...DEFAULT_SET }],
+    ] as const);
+  });
+
+  return Object.fromEntries(entries);
+};
+
+const createPlanPayload = (
+  planName: string,
+  days: DayPlan[],
+  setsByExercise: Record<string, WorkoutSet[]>,
+) => ({
+  name: planName.trim(),
+  days: days.map((day, dayIndex) => ({
+    label: day.label,
+    dayNumber: dayIndex + 1,
+    exercises: day.exercises.map((exercise, exerciseIndex) => ({
+      exerciseId: Number(exercise.id),
+      order: exerciseIndex,
+      sets: (setsByExercise[getPlanExerciseKey(day.id, exercise.id)] ?? [{ ...DEFAULT_SET }]).map((set, setIndex) => ({
+        order: setIndex,
+        weight: set.weight,
+        reps: set.reps,
+      })),
+    })),
+  })),
+});
+
+function DaysSelector({ days, activeDayId, todayPlanDayId, completedDayIds, onSelectDay }: DaysSelectorProps) {
   return (
     <section className="reveal-up reveal-delay-2 mb-4 rounded-[14px] border border-white/12 bg-white/4 px-4 py-3 shadow-[0_14px_28px_rgba(0,0,0,0.25)] backdrop-blur-[6px]">
       <div className="flex flex-wrap items-center gap-2.5">
@@ -184,16 +250,16 @@ function DaysSelector({ days, activeDayId, todayPlanDayId, completedDayIds, onSe
           let className = "rounded-[10px] border px-4 py-2 text-sm font-semibold transition-colors ";
           if (isCompleted && isToday) {
             // completed AND today: red border + blue background
-            className += "border-rose-400/70 bg-blue-500/25 text-blue-100 shadow-[0_0_14px_rgba(244,63,94,0.25)]";
+            className += "border-rose-400/70 bg-blue-500/25 text-blue-100 shadow-[0_0_14px_rgba(244,63,94,0.25)] hover:bg-blue-500/30";
           } else if (isCompleted) {
             // completed but not today: red border, dim bg
-            className += "border-rose-400/60 bg-rose-500/10 text-rose-200 shadow-[0_0_10px_rgba(244,63,94,0.15)]";
+            className += "border-rose-400/60 bg-rose-500/10 text-rose-200 shadow-[0_0_10px_rgba(244,63,94,0.15)] hover:bg-rose-500/15";
           } else if (isToday) {
             // today's day (active in plan) → blue
-            className += "border-blue-400/50 bg-blue-500/25 text-blue-100 shadow-[0_0_16px_rgba(59,130,246,0.22)]";
+            className += "border-blue-400/50 bg-blue-500/25 text-blue-100 shadow-[0_0_16px_rgba(59,130,246,0.22)] hover:bg-blue-500/30";
           } else if (isSelected) {
             // just selected/viewed tab (not today, not completed)
-            className += "border-emerald-400/40 bg-emerald-500/20 text-emerald-200";
+            className += "border-emerald-400/40 bg-emerald-500/20 text-emerald-200 hover:bg-emerald-500/25";
           } else {
             className += "border-white/10 bg-white/[0.02] text-slate-200 hover:bg-white/[0.08]";
           }
@@ -209,15 +275,6 @@ function DaysSelector({ days, activeDayId, todayPlanDayId, completedDayIds, onSe
             </button>
           );
         })}
-
-        <button
-          type="button"
-          onClick={onAddDay}
-          className="flex items-center gap-1.5 rounded-[10px] border border-white/15 bg-white/[0.04] px-4 py-2 text-sm font-semibold text-slate-300 transition-all hover:border-emerald-400/30 hover:bg-emerald-500/10 hover:text-emerald-200"
-        >
-          <Plus className="h-4 w-4" />
-          Add Day
-        </button>
       </div>
     </section>
   );
@@ -437,12 +494,12 @@ function ActivityDetails({
 export default function GymPlanMenu() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const allExercises = useMemo(() => exerciseService.getAllExercises(), []);
   const planId = searchParams.get("planId");
   const urlDayId = searchParams.get("dayId");
-  const activeWorkoutPlanId = getActivePlanId();
   const completionDateKey = getDateKey(searchParams.get("date"));
   const isNewDraft = searchParams.get("new") === "1";
+  const [activeWorkoutPlanId, setActiveWorkoutPlanId] = useState<string | null>(null);
+  const [activeWorkoutActivation, setActiveWorkoutActivation] = useState<PlanActivationApi | null>(null);
   const [planName, setPlanName] = useState<string>("");
   const [, setStatusMessage] = useState<string>("");
   const [days, setDays] = useState<DayPlan[]>(() => createEmptyDays());
@@ -453,65 +510,103 @@ export default function GymPlanMenu() {
   const [workoutTracking, setWorkoutTracking] = useState<WorkoutTrackingState>(() =>
     createInitialWorkoutTrackingState(),
   );
+  const [setsByExercise, setSetsByExercise] = useState<Record<string, WorkoutSet[]>>({});
   const [isEditorReady, setIsEditorReady] = useState<boolean>(false);
   const [hasLoadedPlan, setHasLoadedPlan] = useState<boolean>(false);
   const [isDirty, setIsDirty] = useState<boolean>(false);
   const [completionVersion, setCompletionVersion] = useState(0);
+  const [workoutCompletions, setWorkoutCompletions] = useState<PlanCompletionResponseDto[]>([]);
   const loadSettledRef = useRef<boolean>(false);
+  // Map name_lowercase → apiId numeric, construit din GET /api/exercise
+  useEffect(() => {
+    planActivationApi.getActive("Workout").then((activation) => {
+      setActiveWorkoutActivation(activation);
+      setActiveWorkoutPlanId(activation?.planIdentifier ?? null);
+    });
+  }, []);
 
   useEffect(() => {
-    if (!planId && !isNewDraft) {
-      const availablePlans = getWorkoutPlans();
-      const fallbackPlan = availablePlans[0];
+    let cancelled = false;
 
-      navigate(fallbackPlan ? `/gym-plan?planId=${fallbackPlan.id}` : "/gym-plan?new=1", {
-        replace: true,
-      });
-      return;
-    }
+    planCompletionApi.getByUser("Workout").then((completions) => {
+      if (!cancelled) {
+        setWorkoutCompletions(completions);
+      }
+    });
 
-    loadSettledRef.current = false;
-    setIsDirty(false);
+    return () => {
+      cancelled = true;
+    };
+  }, [completionVersion]);
 
-    if (planId) {
-      const storedPlan = getWorkoutPlanById(planId);
+  useEffect(() => {
+    let cancelled = false;
 
-      if (!storedPlan) {
-        navigate("/plans", { replace: true });
+    const loadPlan = async (): Promise<void> => {
+      if (!planId && !isNewDraft) {
+        const availablePlans = await workoutPlanApi.getMyPlans();
+        if (cancelled) return;
+        const fallbackPlan = availablePlans[0];
+
+        navigate(fallbackPlan ? `/gym-plan?planId=${fallbackPlan.id}` : "/gym-plan?new=1", {
+          replace: true,
+        });
         return;
       }
 
-      const hydratedDays = hydrateDaysFromPlan(storedPlan, allExercises);
-      setPlanName(storedPlan.name);
-      setDays(hydratedDays);
-      // If dayId is passed from dashboard, open that specific day
-      const targetDayId = urlDayId && hydratedDays.some((d) => d.id === urlDayId)
-        ? urlDayId
-        : hydratedDays[0]?.id ?? "day-1";
-      setActiveDayId(targetDayId);
-      setSelectedExerciseByDay({
-        ...createEmptySelectedExerciseMap(),
-        ...storedPlan.selectedExerciseByDay,
-      });
-      setWorkoutTracking({
-        pauseTime: { ...storedPlan.workoutTracking.pauseTime },
-        sets: storedPlan.workoutTracking.sets.map((set) => ({ ...set })),
-      });
-      setIsEditorReady(true);
-      setHasLoadedPlan(true);
-      return;
-    }
+      loadSettledRef.current = false;
+      setIsDirty(false);
 
-    if (isNewDraft) {
-      setPlanName("");
-      setDays(createEmptyDays());
-      setActiveDayId("day-1");
-      setSelectedExerciseByDay(createEmptySelectedExerciseMap());
-      setWorkoutTracking(createInitialWorkoutTrackingState());
-      setIsEditorReady(false);
-      setHasLoadedPlan(true);
-    }
-  }, [allExercises, isNewDraft, navigate, planId]);
+      if (planId) {
+        const apiPlan = Number.isFinite(Number(planId))
+          ? await workoutPlanApi.getById(Number(planId))
+          : null;
+        if (cancelled) return;
+
+        if (!apiPlan) {
+          navigate("/plans", { replace: true });
+          return;
+        }
+
+        const hydratedDays = createDaysFromApiPlan(apiPlan);
+        const targetDayId = urlDayId && hydratedDays.some((d) => d.id === urlDayId)
+          ? urlDayId
+          : hydratedDays[0]?.id ?? "day-1";
+
+        setPlanName(apiPlan.name);
+        setDays(hydratedDays);
+        setActiveDayId(targetDayId);
+        setSelectedExerciseByDay(createSelectedExerciseMapFromDays(hydratedDays));
+        setSetsByExercise(createSetsByExerciseFromApiPlan(apiPlan));
+        setWorkoutTracking({
+          pauseTime: apiPlan.workoutTracking?.pauseTime ?? { ...DEFAULT_PAUSE_TIME },
+          sets: apiPlan.workoutTracking?.sets?.length
+            ? apiPlan.workoutTracking.sets.map((set) => ({ weight: set.weight, reps: set.reps }))
+            : [{ ...DEFAULT_SET }],
+        });
+        setIsEditorReady(true);
+        setHasLoadedPlan(true);
+        return;
+      }
+
+      if (isNewDraft) {
+        setPlanName("");
+        setDays(createEmptyDays());
+        setActiveDayId("day-1");
+        setSelectedExerciseByDay(createEmptySelectedExerciseMap());
+        setSetsByExercise({});
+        setWorkoutTracking(createInitialWorkoutTrackingState());
+        setIsEditorReady(false);
+        setHasLoadedPlan(true);
+      }
+    };
+
+    loadPlan();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isNewDraft, navigate, planId, urlDayId]);
 
   const activeDay = useMemo<DayPlan | undefined>(
     () => days.find((day) => day.id === activeDayId),
@@ -520,44 +615,52 @@ export default function GymPlanMenu() {
   const activeDayExercises = activeDay?.exercises ?? [];
   const selectedExerciseId = selectedExerciseByDay[activeDayId] ?? null;
   const selectedExercise =
-    activeDayExercises.find((exercise) => exercise.id === selectedExerciseId) ?? null;
-  const canMarkCompleted = Boolean(
-    planId &&
-    planId === activeWorkoutPlanId &&
-    completionDateKey <= getDateKey(), // no future marking
-  );
+    activeDayExercises.find((exercise) => String(exercise.id) === String(selectedExerciseId)) ?? null;
+  const selectedExerciseSets = selectedExercise
+    ? setsByExercise[getPlanExerciseKey(activeDayId, selectedExercise.id)] ?? [{ ...DEFAULT_SET }]
+    : [{ ...DEFAULT_SET }];
+  const todayKey = getDateKey();
 
-  // Compute which plan day maps to TODAY (for blue highlight)
   const todayPlanDayId = useMemo(() => {
-    if (!planId || planId !== activeWorkoutPlanId) return "day-1";
-    const activation = getPlanActivation("workout");
-    if (!activation) return "day-1";
-    return getActiveDayForDate(activation, getDateKey()).dayId;
-  }, [planId, activeWorkoutPlanId]);
+    if (!planId || planId !== activeWorkoutPlanId || !activeWorkoutActivation) return "";
+    return getScheduledDayForDate(activeWorkoutActivation, todayKey).dayId;
+  }, [activeWorkoutActivation, activeWorkoutPlanId, planId, todayKey]);
 
   const completedDayIds = useMemo(() => {
-    if (!planId) return [];
-    const activation = getPlanActivation("workout");
-    const startKey = activation?.lastCycleResetAt ?? activation?.activatedAt;
+    if (!planId || !activeWorkoutActivation || planId !== activeWorkoutPlanId) return [];
+
     return days
       .filter((day) => {
-        if (!startKey) {
-          // No activation record: fallback to completionDateKey
-          return isPlanDayCompleted("workout", planId, day.id, completionDateKey);
-        }
-        // Each day has its own calendar date
-        const dayNumber = parseInt(day.id.replace("day-", ""), 10);
-        const dayDate = addDaysToKey(startKey, dayNumber - 1);
-        return isPlanDayCompleted("workout", planId, day.id, dayDate);
+        const scheduledDate = getScheduledDateForDayInCycle(activeWorkoutActivation, day.id, todayKey);
+        return workoutCompletions.some(
+          (completion) =>
+            completion.dayToken === `${planId}:${day.id}` &&
+            completion.dateKey === scheduledDate,
+        );
       })
       .map((day) => day.id);
-  }, [completionVersion, days, planId, completionDateKey]);
+  }, [activeWorkoutActivation, activeWorkoutPlanId, days, planId, todayKey, workoutCompletions]);
+
+  const canMarkCompleted = Boolean(
+    planId &&
+    activeWorkoutActivation &&
+    planId === activeWorkoutPlanId &&
+    activeDayId === todayPlanDayId &&
+    completionDateKey === todayKey,
+  );
+
   const isCompletedForDate = useMemo(
     () =>
-      canMarkCompleted && planId
-        ? isPlanDayCompleted("workout", planId, activeDayId, completionDateKey)
-        : false,
-    [activeDayId, canMarkCompleted, completionDateKey, completionVersion, planId],
+      Boolean(
+        canMarkCompleted &&
+        planId &&
+        workoutCompletions.some(
+          (completion) =>
+            completion.dayToken === `${planId}:${activeDayId}` &&
+            completion.dateKey === todayKey,
+        ),
+      ),
+    [activeDayId, canMarkCompleted, planId, todayKey, workoutCompletions],
   );
 
   // Track unsaved changes — skip the first run after the plan loads
@@ -568,7 +671,7 @@ export default function GymPlanMenu() {
       return;
     }
     setIsDirty(true);
-  }, [planName, days, workoutTracking, hasLoadedPlan]);
+  }, [planName, days, setsByExercise, workoutTracking, hasLoadedPlan]);
 
   const getIconForMuscleGroup = (muscleGroup: MuscleGroup): LucideIcon =>
     EXERCISE_ICON_BY_GROUP[muscleGroup] ?? Dumbbell;
@@ -577,23 +680,36 @@ export default function GymPlanMenu() {
     setPlanName(value);
   };
 
-  const handleSavePlan = (): void => {
+  const handleSavePlan = async (): Promise<void> => {
     if (!planId || !isEditorReady) return;
-    const existingPlan = getWorkoutPlanById(planId);
-    if (!existingPlan) return;
-    saveWorkoutPlan(
-      createStoredPlanPayload(planId, planName, days, selectedExerciseByDay, workoutTracking, existingPlan),
-    );
-    setIsDirty(false);
+    const payload = createPlanPayload(planName, days, setsByExercise);
+    const savedPlan = await workoutPlanApi.update(Number(planId), payload.name, payload.days);
+
+    if (savedPlan) {
+      const hydratedDays = createDaysFromApiPlan(savedPlan);
+      setPlanName(savedPlan.name);
+      setDays(hydratedDays);
+      setSetsByExercise(createSetsByExerciseFromApiPlan(savedPlan));
+      setSelectedExerciseByDay(createSelectedExerciseMapFromDays(hydratedDays));
+      setIsDirty(false);
+    }
   };
 
-  const handleMarkCompleted = (): void => {
+  const handleCompleteWorkout = async (): Promise<void> => {
     if (!planId || !canMarkCompleted) return;
-    markPlanDayCompleted("workout", planId, activeDayId, completionDateKey);
-    setCompletionVersion((current) => current + 1);
+    // 1. Salvare locală — feedback vizual imediat
+    const completed = await planCompletionApi.markComplete({
+      planType: "Workout",
+      dayToken: `${planId}:${activeDayId}`,
+      dateKey: todayKey,
+    });
+
+    if (completed) {
+      setCompletionVersion((current) => current + 1);
+    }
   };
 
-  const handleActivatePlan = (): void => {
+  const handleActivatePlan = async (): Promise<void> => {
     const trimmedName = planName.trim();
 
     if (!trimmedName) {
@@ -601,38 +717,28 @@ export default function GymPlanMenu() {
       return;
     }
 
-    const createdPlan = saveWorkoutPlan(
-      createStoredPlanPayload(
-        createEmptyWorkoutPlan(trimmedName).id,
-        trimmedName,
-        days,
-        selectedExerciseByDay,
-        workoutTracking,
-      ),
-    );
+    const payload = createPlanPayload(trimmedName, days, setsByExercise);
+    const apiPlan = await workoutPlanApi.create(trimmedName, payload.days);
 
+    if (!apiPlan) {
+      setStatusMessage("The workout plan could not be saved in the database.");
+      return;
+    }
+
+    const hydratedDays = createDaysFromApiPlan(apiPlan);
+    setPlanName(apiPlan.name);
+    setDays(hydratedDays);
+    setSelectedExerciseByDay(createSelectedExerciseMapFromDays(hydratedDays));
+    setSetsByExercise(createSetsByExerciseFromApiPlan(apiPlan));
     setIsEditorReady(true);
+    setIsDirty(false);
     setStatusMessage(`${trimmedName} created. You can now build the full workout plan.`);
-    navigate(`/gym-plan?planId=${createdPlan.id}`, { replace: true });
+    navigate(`/gym-plan?planId=${apiPlan.id}`, { replace: true });
   };
 
   const handleSelectDay = (day: DayPlan): void => {
     setActiveDayId(day.id);
     setStatusMessage(`${day.label} selected.`);
-  };
-
-  const handleAddDay = (): void => {
-    const nextDayNumber = days.length + 1;
-    const nextDay: DayPlan = {
-      id: `day-${nextDayNumber}`,
-      label: `Day ${nextDayNumber}`,
-      exercises: [],
-    };
-
-    setDays((prev) => [...prev, nextDay]);
-    setSelectedExerciseByDay((prev) => ({ ...prev, [nextDay.id]: null }));
-    setActiveDayId(nextDay.id);
-    setStatusMessage(`${nextDay.label} added to your schedule.`);
   };
 
   const handleSelectExercise = (exercise: Exercise): void => {
@@ -641,7 +747,7 @@ export default function GymPlanMenu() {
       return;
     }
 
-    setSelectedExerciseByDay((prev) => ({ ...prev, [activeDayId]: exercise.id }));
+    setSelectedExerciseByDay((prev) => ({ ...prev, [activeDayId]: String(exercise.id) }));
     setStatusMessage(`${exercise.name} selected.`);
   };
 
@@ -654,21 +760,25 @@ export default function GymPlanMenu() {
           day.id === activeDayId ? { ...day, exercises: [...day.exercises, exercise] } : day,
         ),
       );
+      setSetsByExercise((prev) => ({
+        ...prev,
+        [getPlanExerciseKey(activeDayId, exercise.id)]: [{ ...DEFAULT_SET }],
+      }));
       setStatusMessage(`${exercise.name} added to ${activeDay?.label ?? "current day"}.`);
     } else {
       setStatusMessage(`${exercise.name} is already in ${activeDay?.label ?? "current day"}.`);
     }
 
-    setSelectedExerciseByDay((prev) => ({ ...prev, [activeDayId]: exercise.id }));
+    setSelectedExerciseByDay((prev) => ({ ...prev, [activeDayId]: String(exercise.id) }));
   };
 
-  const handleDeleteExerciseFromActiveDay = (exerciseId: string): void => {
-    const deletedExercise = activeDayExercises.find((exercise) => exercise.id === exerciseId);
+    const handleDeleteExerciseFromActiveDay = (exerciseId: string | number): void => {
+    const deletedExercise = activeDayExercises.find((exercise) => String(exercise.id) === String(exerciseId));
     if (!deletedExercise) {
       return;
     }
 
-    const remainingExercises = activeDayExercises.filter((exercise) => exercise.id !== exerciseId);
+    const remainingExercises = activeDayExercises.filter((exercise) => String(exercise.id) !== String(exerciseId));
 
     setDays((prev) =>
       prev.map((day) =>
@@ -677,10 +787,15 @@ export default function GymPlanMenu() {
     );
 
     setSelectedExerciseByDay((prev) => {
-      if (prev[activeDayId] !== exerciseId) {
+      if (prev[activeDayId] !== String(exerciseId)) {
         return prev;
       }
-      return { ...prev, [activeDayId]: remainingExercises[0]?.id ?? null };
+      return { ...prev, [activeDayId]: remainingExercises[0] ? String(remainingExercises[0].id) : null };
+    });
+    setSetsByExercise((prev) => {
+      const next = { ...prev };
+      delete next[getPlanExerciseKey(activeDayId, exerciseId)];
+      return next;
     });
 
     setStatusMessage(`${deletedExercise.name} removed from ${activeDay?.label ?? "current day"}.`);
@@ -694,9 +809,11 @@ export default function GymPlanMenu() {
   };
 
   const handleSetChange = (index: number, field: keyof WorkoutSet, value: number): void => {
-    setWorkoutTracking((prev) => ({
+    if (!selectedExercise) return;
+    const key = getPlanExerciseKey(activeDayId, selectedExercise.id);
+    setSetsByExercise((prev) => ({
       ...prev,
-      sets: prev.sets.map((set, setIndex) => {
+      [key]: (prev[key] ?? [{ ...DEFAULT_SET }]).map((set, setIndex) => {
         if (setIndex !== index) {
           return set;
         }
@@ -713,25 +830,31 @@ export default function GymPlanMenu() {
   };
 
   const handleAddSet = (): void => {
-    setWorkoutTracking((prev) => {
-      const lastSet = prev.sets[prev.sets.length - 1] ?? DEFAULT_SET;
+    if (!selectedExercise) return;
+    const key = getPlanExerciseKey(activeDayId, selectedExercise.id);
+    setSetsByExercise((prev) => {
+      const currentSets = prev[key] ?? [{ ...DEFAULT_SET }];
+      const lastSet = currentSets[currentSets.length - 1] ?? DEFAULT_SET;
 
       return {
         ...prev,
-        sets: [...prev.sets, { weight: lastSet.weight, reps: lastSet.reps }],
+        [key]: [...currentSets, { weight: lastSet.weight, reps: lastSet.reps }],
       };
     });
   };
 
   const handleRemoveSet = (index: number): void => {
-    setWorkoutTracking((prev) => {
-      if (prev.sets.length === 1) {
+    if (!selectedExercise) return;
+    const key = getPlanExerciseKey(activeDayId, selectedExercise.id);
+    setSetsByExercise((prev) => {
+      const currentSets = prev[key] ?? [{ ...DEFAULT_SET }];
+      if (currentSets.length === 1) {
         return prev;
       }
 
       return {
         ...prev,
-        sets: prev.sets.filter((_, setIndex) => setIndex !== index),
+        [key]: currentSets.filter((_, setIndex) => setIndex !== index),
       };
     });
   };
@@ -767,7 +890,7 @@ export default function GymPlanMenu() {
                       {canMarkCompleted ? (
                         <button
                           type="button"
-                          onClick={handleMarkCompleted}
+                          onClick={handleCompleteWorkout}
                           disabled={isCompletedForDate}
                           className={`inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-semibold transition-all duration-200 ${
                             isCompletedForDate
@@ -776,7 +899,7 @@ export default function GymPlanMenu() {
                           }`}
                       >
                         {isCompletedForDate ? <Check className="h-4 w-4" /> : null}
-                          {isCompletedForDate ? "Day completed" : "Mark day completed"}
+                          {isCompletedForDate ? "Completed" : "Complete"}
                         </button>
                       ) : null}
                       <button
@@ -810,7 +933,6 @@ export default function GymPlanMenu() {
                 todayPlanDayId={todayPlanDayId}
                 completedDayIds={completedDayIds}
                 onSelectDay={handleSelectDay}
-                onAddDay={handleAddDay}
               />
 
               <div className="grid w-full gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)]">
@@ -823,7 +945,7 @@ export default function GymPlanMenu() {
                     dayExercises={activeDayExercises}
                     selectedExerciseId={selectedExerciseId}
                     getIconForMuscleGroup={getIconForMuscleGroup}
-                    searchExercises={exerciseService.searchExercises}
+                    searchExercises={(query) => exerciseService.searchExercises(query)}
                     onAddExercise={handleAddExerciseToActiveDay}
                     onSelectExercise={handleSelectExercise}
                     onDeleteExercise={handleDeleteExerciseFromActiveDay}
@@ -833,7 +955,7 @@ export default function GymPlanMenu() {
                 <ActivityDetails
                   selectedExerciseName={selectedExercise?.name ?? null}
                   pauseTime={workoutTracking.pauseTime}
-                  sets={workoutTracking.sets}
+                  sets={selectedExerciseSets}
                   onPauseTimeChange={handlePauseTimeChange}
                   onSetChange={handleSetChange}
                   onAddSet={handleAddSet}
@@ -847,3 +969,5 @@ export default function GymPlanMenu() {
     </main>
   );
 }
+
+

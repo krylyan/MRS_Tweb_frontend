@@ -1,23 +1,19 @@
 import {
-  ArrowDownWideNarrow,
-  Eye,
-  EyeOff,
   Pencil,
   Plus,
   Search,
-  Sparkles,
-  Tag,
   Trash2,
   UtensilsCrossed,
   X,
 } from "lucide-react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import ReactDOM from "react-dom";
+import { FoodTypeDropdown, type FoodTypeFilter } from "../components/FoodTypeDropdown";
+import { mealService, type FoodItemPayload } from "../services/mealService";
 import type { FoodItem, MealItemType } from "../types/meal";
-import { mealLibrary, type MealSortMode } from "../utils/mealLibrary";
 
 interface MealFormState {
-  id: string | null;
+  id: number | null;
   name: string;
   category: string;
   kcal: string;
@@ -29,8 +25,6 @@ interface MealFormState {
   description: string;
   itemType: MealItemType;
   preparationSteps: string;
-  priority: string;
-  popularity: string;
 }
 
 const createEmptyForm = (): MealFormState => ({
@@ -44,10 +38,8 @@ const createEmptyForm = (): MealFormState => ({
   grams: "100",
   imageUrl: "",
   description: "",
-  itemType: "simple",
+  itemType: "Simple",
   preparationSteps: "",
-  priority: "0",
-  popularity: "0",
 });
 
 const toCategoryLabel = (category: string): string =>
@@ -58,102 +50,105 @@ const toCategoryLabel = (category: string): string =>
 
 export default function AdminMeals() {
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeFilter, setActiveFilter] = useState<string>("all");
-  const [sortMode, setSortMode] = useState<MealSortMode>("priority");
-  const [newCategory, setNewCategory] = useState("");
+  const [activeFilter, setActiveFilter] = useState<FoodTypeFilter>("all");
   const [statusMessage, setStatusMessage] = useState("");
   const [statusTone, setStatusTone] = useState<"success" | "error">("success");
   const [form, setForm] = useState<MealFormState>(createEmptyForm);
-  const [meals, setMeals] = useState<FoodItem[]>(() => mealLibrary.getAllMealsForAdmin());
-  const [categories, setCategories] = useState<string[]>(() => mealLibrary.getFilterCategories());
+  const [meals, setMeals] = useState<FoodItem[]>([]);
+  const [categories, setCategories] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
   const [mealToDelete, setMealToDelete] = useState<FoodItem | null>(null);
 
+  // Fetch la montare
   useEffect(() => {
-    if (!statusMessage) {
-      return;
-    }
+    Promise.all([mealService.getAllMeals(), mealService.getFilterCategories()])
+      .then(([data, cats]) => {
+        setMeals(data);
+        setCategories(cats);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, []);
 
-    const timeoutId = window.setTimeout(() => setStatusMessage(""), 3200);
-    return () => window.clearTimeout(timeoutId);
+  useEffect(() => {
+    if (!statusMessage) return;
+    const id = window.setTimeout(() => setStatusMessage(""), 3200);
+    return () => window.clearTimeout(id);
   }, [statusMessage]);
 
   useEffect(() => {
-    if (!mealToDelete) {
-      return;
-    }
-
+    if (!mealToDelete) return;
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setMealToDelete(null);
-      }
+      if (event.key === "Escape") setMealToDelete(null);
     };
-
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [mealToDelete]);
 
-  const sortedMeals = useMemo(() => mealLibrary.getAllMealsForAdmin(sortMode), [sortMode, meals]);
-
   const filteredMeals = useMemo(() => {
-    const normalizedQuery = searchQuery.trim().toLowerCase();
-
-    return sortedMeals.filter((meal) => {
-      const matchesFilter = activeFilter === "all" || meal.category === activeFilter;
+    const q = searchQuery.trim().toLowerCase();
+    return meals.filter((m) => {
+      const matchesFilter = activeFilter === "all" || m.itemType === activeFilter;
       const matchesQuery =
-        !normalizedQuery ||
-        meal.name.toLowerCase().includes(normalizedQuery) ||
-        meal.description.toLowerCase().includes(normalizedQuery);
-
+        !q || m.name.toLowerCase().includes(q) || m.description.toLowerCase().includes(q);
       return matchesFilter && matchesQuery;
     });
-  }, [activeFilter, searchQuery, sortedMeals]);
+  }, [activeFilter, meals, searchQuery]);
 
-  const refreshLibrary = () => {
-    setMeals(mealLibrary.getAllMealsForAdmin(sortMode));
-    setCategories(mealLibrary.getFilterCategories());
+  const refreshMeals = () => {
+    Promise.all([mealService.getAllMeals(), mealService.getFilterCategories()]).then(
+      ([data, cats]) => {
+        setMeals(data);
+        setCategories(cats);
+      },
+    );
   };
 
-  const setResultMessage = (ok: boolean, successMessage: string, errorMessage?: string) => {
+  const setResultMessage = (ok: boolean, successMsg: string, errorMsg?: string) => {
     setStatusTone(ok ? "success" : "error");
-    setStatusMessage(ok ? successMessage : errorMessage ?? "Action failed.");
+    setStatusMessage(ok ? successMsg : errorMsg ?? "Action failed.");
   };
 
   const toNumber = (value: string): number => Number(value || 0);
 
-  const handleSubmit = () => {
-    const payload = {
-      name: form.name,
-      category: form.category,
-      kcal: toNumber(form.kcal),
-      protein: toNumber(form.protein),
-      fats: toNumber(form.fats),
-      carbs: toNumber(form.carbs),
-      grams: toNumber(form.grams),
-      imageUrl: form.imageUrl,
-      description: form.description,
-      itemType: form.itemType,
-      preparationSteps: form.preparationSteps
-        .split(/\r?\n/)
-        .map((step) => step.trim())
-        .filter(Boolean),
-      priority: toNumber(form.priority),
-      popularity: toNumber(form.popularity),
-    };
+  const buildPayload = (): FoodItemPayload => ({
+    name: form.name,
+    category: form.category,
+    kcal: toNumber(form.kcal),
+    protein: toNumber(form.protein),
+    fats: toNumber(form.fats),
+    carbs: toNumber(form.carbs),
+    grams: toNumber(form.grams),
+    imageUrl: form.imageUrl,
+    description: form.description,
+    itemType: form.itemType,
+    preparationSteps: form.itemType === "Prepared" && form.preparationSteps.trim()
+      ? form.preparationSteps.trim()
+      : null,
+  });
 
+  const handleSubmit = async () => {
+    if (!form.name || !form.category) {
+      setResultMessage(false, "", "Name and category are required.");
+      return;
+    }
+    setSubmitting(true);
+    const payload = buildPayload();
     const result = form.id
-      ? mealLibrary.updateMeal(form.id, payload)
-      : mealLibrary.createMeal(payload);
+      ? await mealService.updateMeal(form.id, payload)
+      : await mealService.createMeal(payload);
 
     setResultMessage(
       result.ok,
       form.id ? "Meal updated successfully." : "Meal created successfully.",
       result.message,
     );
-
     if (result.ok) {
       setForm(createEmptyForm());
-      refreshLibrary();
+      refreshMeals();
     }
+    setSubmitting(false);
   };
 
   const handleEditMeal = (meal: FoodItem) => {
@@ -168,78 +163,25 @@ export default function AdminMeals() {
       grams: String(meal.grams),
       imageUrl: meal.imageUrl,
       description: meal.description,
-      itemType: meal.itemType ?? "simple",
-      preparationSteps: (meal.preparationSteps ?? []).join("\n"),
-      priority: String(meal.priority ?? 0),
-      popularity: String(meal.popularity ?? 0),
+      itemType: meal.itemType,
+      preparationSteps: meal.preparationSteps ?? "",
     });
   };
 
-  const handleDeleteMeal = (meal: FoodItem) => {
-    const result = mealLibrary.deleteMeal(meal.id);
+  const handleDeleteMeal = async (meal: FoodItem) => {
+    const result = await mealService.deleteMeal(meal.id);
     setResultMessage(result.ok, `${meal.name} deleted.`, result.message);
-
     if (result.ok) {
-      if (form.id === meal.id) {
-        setForm(createEmptyForm());
-      }
-      refreshLibrary();
+      if (form.id === meal.id) setForm(createEmptyForm());
+      refreshMeals();
     }
-
     setMealToDelete(null);
-  };
-
-  const handleToggleRecommended = (meal: FoodItem) => {
-    const result = mealLibrary.toggleRecommended(meal.id);
-    setResultMessage(
-      result.ok,
-      meal.recommended ? `${meal.name} is no longer recommended.` : `${meal.name} marked as recommended.`,
-      result.message,
-    );
-
-    if (result.ok) {
-      refreshLibrary();
-    }
-  };
-
-  const handleToggleHidden = (meal: FoodItem) => {
-    const result = mealLibrary.toggleHidden(meal.id);
-    setResultMessage(
-      result.ok,
-      meal.hidden ? `${meal.name} is visible again.` : `${meal.name} has been hidden from users.`,
-      result.message,
-    );
-
-    if (result.ok) {
-      refreshLibrary();
-    }
-  };
-
-  const handleAddCategory = () => {
-    const result = mealLibrary.addCategory(newCategory);
-    setResultMessage(result.ok, "Category added.", result.message);
-
-    if (result.ok) {
-      setNewCategory("");
-      refreshLibrary();
-    }
-  };
-
-  const handleRemoveCategory = (category: string) => {
-    const result = mealLibrary.removeCategory(category);
-    setResultMessage(result.ok, `Category ${category} removed.`, result.message);
-
-    if (result.ok) {
-      if (activeFilter === category) {
-        setActiveFilter("all");
-      }
-      refreshLibrary();
-    }
   };
 
   return (
     <main className="min-h-screen text-slate-200">
       <div className="mx-auto w-full max-w-[1450px] px-4 py-6 sm:px-6 sm:py-8">
+        {/* Header */}
         <section className="reveal-up mb-6 rounded-3xl border border-amber-400/25 bg-amber-500/15 p-6 shadow-[0_24px_60px_rgba(0,0,0,0.35)]">
           <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
             <div>
@@ -249,90 +191,60 @@ export default function AdminMeals() {
               </div>
               <h1 className="text-4xl font-bold text-white">Manage Meals</h1>
               <p className="mt-2 max-w-2xl text-sm text-slate-300">
-                Add or edit meals, mark them as recommended or hidden, manage categories, control prepared vs simple products, update nutrition and images, and organize the library by priority, popularity, or category.
+                Add or edit meals, manage categories and nutrition data.
               </p>
             </div>
 
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
+            <div className="grid grid-cols-2 gap-3">
               <AdminStatCard label="Meals" value={meals.length.toString()} />
-              <AdminStatCard label="Recommended" value={meals.filter((meal) => meal.recommended).length.toString()} />
-              <AdminStatCard label="Hidden" value={meals.filter((meal) => meal.hidden).length.toString()} />
               <AdminStatCard label="Categories" value={categories.length.toString()} />
             </div>
           </div>
         </section>
 
         <div className="grid gap-6 xl:grid-cols-[1.3fr_0.7fr]">
+          {/* Lista mese */}
           <section className="reveal-up reveal-delay-1 rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-sm">
-            <div className="mb-4 grid gap-3 lg:grid-cols-[1fr_220px]">
-              <div className="relative">
+            {/* Search + filter */}
+            <div className="relative z-40 mb-4">
+              <div className="relative mb-3">
                 <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
                 <input
                   type="text"
                   value={searchQuery}
-                  onChange={(event) => setSearchQuery(event.target.value)}
+                  onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Search meals..."
-                  className="h-12 w-full rounded-[14px] border border-white/12 bg-white/4 pl-12 pr-4 text-sm text-slate-100 outline-none transition-all placeholder:text-slate-400 focus:border-amber-400/60 focus:shadow-[0_0_16px_rgba(251,191,36,0.16)]"
+                  className="h-12 w-full rounded-[14px] border border-white/12 bg-white/4 pl-12 pr-4 text-sm text-slate-100 outline-none transition-all placeholder:text-slate-400 focus:border-amber-400/60"
                 />
               </div>
 
-              <label className="relative">
-                <ArrowDownWideNarrow className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                <select
-                  value={sortMode}
-                  onChange={(event) => {
-                    const nextSortMode = event.target.value as MealSortMode;
-                    setSortMode(nextSortMode);
-                    setMeals(mealLibrary.getAllMealsForAdmin(nextSortMode));
-                  }}
-                  className="h-12 w-full appearance-none rounded-[14px] border border-white/12 bg-white/4 pl-11 pr-4 text-sm font-semibold text-slate-100 outline-none transition-all focus:border-amber-400/60"
-                >
-                  <option value="priority">Sort: Priority</option>
-                  <option value="popularity">Sort: Popularity</option>
-                  <option value="category">Sort: Category</option>
-                </select>
-              </label>
+              <FoodTypeDropdown
+                value={activeFilter}
+                onChange={setActiveFilter}
+                accent="amber"
+                className="max-w-[220px]"
+              />
             </div>
 
-            <div className="mb-4 flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() => setActiveFilter("all")}
-                className={`rounded-full px-4 py-2 text-sm font-semibold transition-all ${activeFilter === "all"
-                    ? "bg-amber-400/20 text-amber-100 ring-1 ring-amber-300/40"
-                    : "bg-white/[0.05] text-slate-300 hover:bg-white/[0.1] hover:text-white"
-                  }`}
-              >
-                All
-              </button>
-              {categories.map((category) => (
-                <button
-                  key={category}
-                  type="button"
-                  onClick={() => setActiveFilter(category)}
-                  className={`rounded-full px-4 py-2 text-sm font-semibold transition-all ${activeFilter === category
-                      ? "bg-amber-400/20 text-amber-100 ring-1 ring-amber-300/40"
-                      : "bg-white/[0.05] text-slate-300 hover:bg-white/[0.1] hover:text-white"
-                    }`}
-                >
-                  {toCategoryLabel(category)}
-                </button>
-              ))}
-            </div>
+            {loading && (
+              <div className="py-10 text-center text-slate-400 animate-pulse">
+                Loading meals...
+              </div>
+            )}
 
-            <div className="space-y-3">
-              {filteredMeals.map((meal) => {
-                return (
+            {!loading && (
+              <div className="relative z-0 space-y-3">
+                {filteredMeals.map((meal) => (
                   <article
                     key={meal.id}
                     className="rounded-2xl border border-white/8 bg-slate-950/40 p-4 shadow-[0_12px_30px_rgba(0,0,0,0.2)]"
                   >
-                    <div className="grid gap-4 xl:grid-cols-[96px_minmax(0,1fr)_220px] xl:items-center">
+                    <div className="grid gap-4 xl:grid-cols-[96px_minmax(0,1fr)_160px] xl:items-center">
                       <div className="xl:col-start-1">
                         <img
                           src={meal.imageUrl}
                           alt={meal.name}
-                          className="h-24 w-24 rounded-2xl object-cover"
+                          className="h-24 w-24 rounded-2xl bg-slate-950/60 object-contain p-1.5"
                         />
                       </div>
 
@@ -342,52 +254,33 @@ export default function AdminMeals() {
                           <span className="rounded-full bg-emerald-500/20 px-2.5 py-1 text-[11px] font-semibold text-emerald-200">
                             {toCategoryLabel(meal.category)}
                           </span>
-                          {meal.recommended ? (
-                            <span className="rounded-full bg-amber-400/20 px-2.5 py-1 text-[11px] font-semibold text-amber-100">
-                              Recommended
-                            </span>
-                          ) : null}
-                          {meal.hidden ? (
-                            <span className="rounded-full bg-rose-400/20 px-2.5 py-1 text-[11px] font-semibold text-rose-100">
-                              Hidden
-                            </span>
-                          ) : null}
                         </div>
                         <p className="mt-2 line-clamp-2 max-w-2xl text-sm text-slate-400">
                           {meal.description}
                         </p>
                         <div className="mt-3 flex flex-wrap gap-2 text-[11px] font-semibold">
-                          <span className="rounded-full bg-white/[0.05] px-2.5 py-1 text-slate-300">{meal.kcal} kcal</span>
-                          <span className="rounded-full bg-white/[0.05] px-2.5 py-1 text-slate-300">{meal.protein}g protein</span>
-                          <span className="rounded-full bg-white/[0.05] px-2.5 py-1 text-slate-300">{meal.fats}g fats</span>
-                          <span className="rounded-full bg-white/[0.05] px-2.5 py-1 text-slate-300">{meal.carbs}g carbs</span>
-                          <span className="rounded-full bg-white/[0.05] px-2.5 py-1 text-slate-300">{meal.grams}g serving</span>
-                          <span className="rounded-full bg-white/[0.05] px-2.5 py-1 text-slate-300">Priority {meal.priority ?? 0}</span>
-                          <span className="rounded-full bg-white/[0.05] px-2.5 py-1 text-slate-300">Popularity {meal.popularity ?? 0}</span>
+                          <span className="rounded-full bg-white/[0.05] px-2.5 py-1 text-slate-300">
+                            {meal.kcal} kcal / 100g
+                          </span>
+                          <span className="rounded-full bg-white/[0.05] px-2.5 py-1 text-slate-300">
+                            {meal.protein}g protein
+                          </span>
+                          <span className="rounded-full bg-white/[0.05] px-2.5 py-1 text-slate-300">
+                            {meal.fats}g fats
+                          </span>
+                          <span className="rounded-full bg-white/[0.05] px-2.5 py-1 text-slate-300">
+                            {meal.carbs}g carbs
+                          </span>
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-4 gap-2 xl:col-start-3 xl:w-[220px] xl:justify-self-end">
+                      <div className="grid grid-cols-2 gap-2 xl:col-start-3 xl:w-[112px] xl:justify-self-end">
                         <ActionIconButton
                           label="Edit"
                           title="Edit"
                           icon={<Pencil className="h-4 w-4" />}
                           tone="sky"
                           onClick={() => handleEditMeal(meal)}
-                        />
-                        <ActionIconButton
-                          label={meal.recommended ? "Unrecommend" : "Recommend"}
-                          title={meal.recommended ? "Unrecommend" : "Recommend"}
-                          icon={<Sparkles className="h-4 w-4" />}
-                          tone="amber"
-                          onClick={() => handleToggleRecommended(meal)}
-                        />
-                        <ActionIconButton
-                          label={meal.hidden ? "Show" : "Hide"}
-                          title={meal.hidden ? "Show" : "Hide"}
-                          icon={meal.hidden ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
-                          tone="violet"
-                          onClick={() => handleToggleHidden(meal)}
                         />
                         <ActionIconButton
                           label="Delete"
@@ -399,269 +292,210 @@ export default function AdminMeals() {
                       </div>
                     </div>
                   </article>
-                );
-              })}
+                ))}
 
-              {filteredMeals.length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-white/12 bg-white/[0.03] px-4 py-10 text-center text-slate-400">
-                  No meals match the current filters.
-                </div>
-              ) : null}
-            </div>
+                {filteredMeals.length === 0 && (
+                  <div className="rounded-2xl border border-dashed border-white/12 bg-white/[0.03] px-4 py-10 text-center text-slate-400">
+                    No meals match the current filters.
+                  </div>
+                )}
+              </div>
+            )}
           </section>
 
-          <div className="space-y-6">
-            <section className="reveal-up reveal-delay-2 rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur-sm">
-              <div className="mb-4 flex items-center justify-between">
-                <h2 className="text-xl font-bold text-white">{form.id ? "Edit Meal" : "Add Meal"}</h2>
-                {form.id ? (
-                  <button
-                    type="button"
-                    onClick={() => setForm(createEmptyForm())}
-                    className="inline-flex items-center gap-2 rounded-xl border border-white/12 bg-white/[0.04] px-3 py-2 text-sm font-semibold text-slate-300 transition-colors hover:bg-white/[0.08] hover:text-white"
-                  >
-                    <X className="h-4 w-4" />
-                    Cancel
-                  </button>
-                ) : null}
-              </div>
-
-              <div className="space-y-4">
-                <FormField label="Name">
-                  <input
-                    type="text"
-                    value={form.name}
-                    onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))}
-                    className="h-11 w-full rounded-xl border border-white/12 bg-white/[0.04] px-3 text-sm text-white outline-none transition-all focus:border-amber-400/50"
-                  />
-                </FormField>
-
-                <FormField label="Category">
-                  <select
-                    value={form.category}
-                    onChange={(event) => setForm((prev) => ({ ...prev, category: event.target.value }))}
-                    className="h-11 w-full rounded-xl border border-white/12 bg-slate-900 px-3 text-sm text-white outline-none transition-all focus:border-amber-400/50"
-                  >
-                    <option value="">Select a category</option>
-                    {categories.map((category) => (
-                      <option key={category} value={category}>
-                        {toCategoryLabel(category)}
-                      </option>
-                    ))}
-                  </select>
-                </FormField>
-
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <FormField label="Calories">
-                    <input
-                      type="number"
-                      value={form.kcal}
-                      onChange={(event) => setForm((prev) => ({ ...prev, kcal: event.target.value }))}
-                      className="input-no-spinner h-11 w-full rounded-xl border border-white/12 bg-white/[0.04] px-3 text-sm text-white outline-none transition-all focus:border-amber-400/50"
-                    />
-                  </FormField>
-                  <FormField label="Protein">
-                    <input
-                      type="number"
-                      value={form.protein}
-                      onChange={(event) => setForm((prev) => ({ ...prev, protein: event.target.value }))}
-                      className="input-no-spinner h-11 w-full rounded-xl border border-white/12 bg-white/[0.04] px-3 text-sm text-white outline-none transition-all focus:border-amber-400/50"
-                    />
-                  </FormField>
-                  <FormField label="Fats">
-                    <input
-                      type="number"
-                      value={form.fats}
-                      onChange={(event) => setForm((prev) => ({ ...prev, fats: event.target.value }))}
-                      className="input-no-spinner h-11 w-full rounded-xl border border-white/12 bg-white/[0.04] px-3 text-sm text-white outline-none transition-all focus:border-amber-400/50"
-                    />
-                  </FormField>
-                  <FormField label="Carbs">
-                    <input
-                      type="number"
-                      value={form.carbs}
-                      onChange={(event) => setForm((prev) => ({ ...prev, carbs: event.target.value }))}
-                      className="input-no-spinner h-11 w-full rounded-xl border border-white/12 bg-white/[0.04] px-3 text-sm text-white outline-none transition-all focus:border-amber-400/50"
-                    />
-                  </FormField>
-                </div>
-
-                <div className="grid gap-3 sm:grid-cols-3">
-                  <FormField label="Serving (g)">
-                    <input
-                      type="number"
-                      value={form.grams}
-                      onChange={(event) => setForm((prev) => ({ ...prev, grams: event.target.value }))}
-                      className="input-no-spinner h-11 w-full rounded-xl border border-white/12 bg-white/[0.04] px-3 text-sm text-white outline-none transition-all focus:border-amber-400/50"
-                    />
-                  </FormField>
-                  <FormField label="Priority">
-                    <input
-                      type="number"
-                      value={form.priority}
-                      onChange={(event) => setForm((prev) => ({ ...prev, priority: event.target.value }))}
-                      className="input-no-spinner h-11 w-full rounded-xl border border-white/12 bg-white/[0.04] px-3 text-sm text-white outline-none transition-all focus:border-amber-400/50"
-                    />
-                  </FormField>
-                  <FormField label="Popularity">
-                    <input
-                      type="number"
-                      value={form.popularity}
-                      onChange={(event) => setForm((prev) => ({ ...prev, popularity: event.target.value }))}
-                      className="input-no-spinner h-11 w-full rounded-xl border border-white/12 bg-white/[0.04] px-3 text-sm text-white outline-none transition-all focus:border-amber-400/50"
-                    />
-                  </FormField>
-                </div>
-
-                <FormField label="Details mode">
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setForm((prev) => ({ ...prev, itemType: "prepared" }))}
-                      className={`rounded-xl border px-4 py-2.5 text-sm font-semibold transition-colors ${form.itemType === "prepared"
-                          ? "border-amber-400/40 bg-amber-400/15 text-amber-100"
-                          : "border-white/12 bg-white/[0.04] text-slate-300 hover:bg-white/[0.08]"
-                        }`}
-                    >
-                      Recipe
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setForm((prev) => ({ ...prev, itemType: "simple", preparationSteps: "" }))}
-                      className={`rounded-xl border px-4 py-2.5 text-sm font-semibold transition-colors ${form.itemType === "simple"
-                          ? "border-amber-400/40 bg-amber-400/15 text-amber-100"
-                          : "border-white/12 bg-white/[0.04] text-slate-300 hover:bg-white/[0.08]"
-                        }`}
-                    >
-                      Product
-                    </button>
-                  </div>
-                </FormField>
-
-                <FormField label="Image URL">
-                  <input
-                    type="text"
-                    value={form.imageUrl}
-                    onChange={(event) => setForm((prev) => ({ ...prev, imageUrl: event.target.value }))}
-                    className="h-11 w-full rounded-xl border border-white/12 bg-white/[0.04] px-3 text-sm text-white outline-none transition-all focus:border-amber-400/50"
-                  />
-                </FormField>
-
-                <FormField label="Description">
-                  <textarea
-                    value={form.description}
-                    onChange={(event) => setForm((prev) => ({ ...prev, description: event.target.value }))}
-                    rows={4}
-                    className="w-full rounded-xl border border-white/12 bg-white/[0.04] px-3 py-3 text-sm text-white outline-none transition-all focus:border-amber-400/50"
-                  />
-                </FormField>
-
-                <FormField label={form.itemType === "prepared" ? "Preparation steps" : "About this product text"}>
-                  <textarea
-                    value={form.preparationSteps}
-                    onChange={(event) => setForm((prev) => ({ ...prev, preparationSteps: event.target.value }))}
-                    rows={5}
-                    placeholder={
-                      form.itemType === "prepared"
-                        ? "One step per line"
-                        : "Leave empty to show the main description in About This Product"
-                    }
-                    className="w-full rounded-xl border border-white/12 bg-white/[0.04] px-3 py-3 text-sm text-white outline-none transition-all focus:border-amber-400/50"
-                    disabled={form.itemType === "simple"}
-                  />
-                </FormField>
-
+          {/* Formular Add/Edit */}
+          <section className="reveal-up reveal-delay-2 rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur-sm">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-xl font-bold text-white">
+                {form.id ? "Edit Meal" : "Add Meal"}
+              </h2>
+              {form.id ? (
                 <button
                   type="button"
-                  onClick={handleSubmit}
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-amber-500 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-amber-400"
+                  onClick={() => setForm(createEmptyForm())}
+                  className="inline-flex items-center gap-2 rounded-xl border border-white/12 bg-white/[0.04] px-3 py-2 text-sm font-semibold text-slate-300 transition-colors hover:bg-white/[0.08] hover:text-white"
                 >
-                  {form.id ? <Pencil className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
-                  {form.id ? "Save changes" : "Add meal"}
+                  <X className="h-4 w-4" />
+                  Cancel
                 </button>
-              </div>
-            </section>
+              ) : null}
+            </div>
 
-            <section className="reveal-up reveal-delay-3 rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur-sm">
-              <div className="mb-4 flex items-center gap-2">
-                <Tag className="h-5 w-5 text-amber-200" />
-                <h2 className="text-xl font-bold text-white">Manage Categories</h2>
-              </div>
-
-              <div className="mb-4 flex gap-2">
+            <div className="space-y-4">
+              <FormField label="Name">
                 <input
                   type="text"
-                  value={newCategory}
-                  onChange={(event) => setNewCategory(event.target.value)}
-                  placeholder="Add new category..."
-                  className="h-11 flex-1 rounded-xl border border-white/12 bg-white/[0.04] px-3 text-sm text-white outline-none transition-all focus:border-amber-400/50"
+                  value={form.name}
+                  onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
+                  className="h-11 w-full rounded-xl border border-white/12 bg-white/[0.04] px-3 text-sm text-white outline-none transition-all focus:border-amber-400/50"
                 />
-                <button
-                  type="button"
-                  onClick={handleAddCategory}
-                  className="inline-flex items-center gap-2 rounded-xl bg-amber-500 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-amber-400"
-                >
-                  <Plus className="h-4 w-4" />
-                  Add
-                </button>
+              </FormField>
+
+              <FormField label="Category">
+                <input
+                  type="text"
+                  value={form.category}
+                  onChange={(e) => setForm((p) => ({ ...p, category: e.target.value }))}
+                  placeholder="e.g. chicken, protein, carbs..."
+                  className="h-11 w-full rounded-xl border border-white/12 bg-white/[0.04] px-3 text-sm text-white outline-none transition-all focus:border-amber-400/50"
+                />
+              </FormField>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <FormField label="Calories / 100g">
+                  <input
+                    type="number"
+                    value={form.kcal}
+                    onChange={(e) => setForm((p) => ({ ...p, kcal: e.target.value }))}
+                    className="input-no-spinner h-11 w-full rounded-xl border border-white/12 bg-white/[0.04] px-3 text-sm text-white outline-none transition-all focus:border-amber-400/50"
+                  />
+                </FormField>
+                <FormField label="Protein (g)">
+                  <input
+                    type="number"
+                    value={form.protein}
+                    onChange={(e) => setForm((p) => ({ ...p, protein: e.target.value }))}
+                    className="input-no-spinner h-11 w-full rounded-xl border border-white/12 bg-white/[0.04] px-3 text-sm text-white outline-none transition-all focus:border-amber-400/50"
+                  />
+                </FormField>
+                <FormField label="Fats (g)">
+                  <input
+                    type="number"
+                    value={form.fats}
+                    onChange={(e) => setForm((p) => ({ ...p, fats: e.target.value }))}
+                    className="input-no-spinner h-11 w-full rounded-xl border border-white/12 bg-white/[0.04] px-3 text-sm text-white outline-none transition-all focus:border-amber-400/50"
+                  />
+                </FormField>
+                <FormField label="Carbs (g)">
+                  <input
+                    type="number"
+                    value={form.carbs}
+                    onChange={(e) => setForm((p) => ({ ...p, carbs: e.target.value }))}
+                    className="input-no-spinner h-11 w-full rounded-xl border border-white/12 bg-white/[0.04] px-3 text-sm text-white outline-none transition-all focus:border-amber-400/50"
+                  />
+                </FormField>
               </div>
 
-              <div className="flex flex-wrap gap-2">
-                {categories.map((category) => (
-                  <div
-                    key={category}
-                    className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.05] px-3 py-2 text-sm text-slate-200"
+              <FormField label="Nutrition base (g)">
+                <input
+                  type="number"
+                  value={form.grams}
+                  onChange={(e) => setForm((p) => ({ ...p, grams: e.target.value }))}
+                  className="input-no-spinner h-11 w-full rounded-xl border border-white/12 bg-white/[0.04] px-3 text-sm text-white outline-none transition-all focus:border-amber-400/50"
+                />
+              </FormField>
+
+              <FormField label="Type">
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setForm((p) => ({ ...p, itemType: "Prepared" }))}
+                    className={`rounded-xl border px-4 py-2.5 text-sm font-semibold transition-colors ${
+                      form.itemType === "Prepared"
+                        ? "border-amber-400/40 bg-amber-400/15 text-amber-100"
+                        : "border-white/12 bg-white/[0.04] text-slate-300 hover:bg-white/[0.08]"
+                    }`}
                   >
-                    <span>{toCategoryLabel(category)}</span>
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveCategory(category)}
-                      className="text-slate-400 transition-colors hover:text-rose-300"
-                      aria-label={`Remove ${category}`}
-                    >
-                      <X className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </section>
+                    Recipe
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setForm((p) => ({ ...p, itemType: "Simple", preparationSteps: "" }))}
+                    className={`rounded-xl border px-4 py-2.5 text-sm font-semibold transition-colors ${
+                      form.itemType === "Simple"
+                        ? "border-amber-400/40 bg-amber-400/15 text-amber-100"
+                        : "border-white/12 bg-white/[0.04] text-slate-300 hover:bg-white/[0.08]"
+                    }`}
+                  >
+                    Product
+                  </button>
+                </div>
+              </FormField>
+
+              <FormField label="Image URL">
+                <input
+                  type="text"
+                  value={form.imageUrl}
+                  onChange={(e) => setForm((p) => ({ ...p, imageUrl: e.target.value }))}
+                  className="h-11 w-full rounded-xl border border-white/12 bg-white/[0.04] px-3 text-sm text-white outline-none transition-all focus:border-amber-400/50"
+                />
+              </FormField>
+
+              <FormField label="Description">
+                <textarea
+                  value={form.description}
+                  onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
+                  rows={3}
+                  className="w-full rounded-xl border border-white/12 bg-white/[0.04] px-3 py-3 text-sm text-white outline-none transition-all focus:border-amber-400/50"
+                />
+              </FormField>
+
+              <FormField
+                label={form.itemType === "Prepared" ? "Preparation Steps" : "About This Product"}
+              >
+                <textarea
+                  value={form.preparationSteps}
+                  onChange={(e) => setForm((p) => ({ ...p, preparationSteps: e.target.value }))}
+                  rows={5}
+                  placeholder={
+                    form.itemType === "Prepared"
+                      ? "Enter preparation instructions..."
+                      : "Optional additional text"
+                  }
+                  disabled={form.itemType === "Simple"}
+                  className="w-full rounded-xl border border-white/12 bg-white/[0.04] px-3 py-3 text-sm text-white outline-none transition-all focus:border-amber-400/50 disabled:opacity-40"
+                />
+              </FormField>
+
+              <button
+                type="button"
+                onClick={handleSubmit}
+                disabled={submitting}
+                className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-amber-500 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-amber-400 disabled:opacity-50"
+              >
+                {submitting ? (
+                  "Saving..."
+                ) : (
+                  <>
+                    {form.id ? <Pencil className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+                    {form.id ? "Save changes" : "Add meal"}
+                  </>
+                )}
+              </button>
+            </div>
+          </section>
+        </div>
+      </div>
+
+      {statusMessage ? (
+        <div className="pointer-events-none fixed bottom-4 right-4 z-[9999]">
+          <div
+            className={`min-w-[260px] max-w-[360px] rounded-2xl border px-4 py-3 text-sm shadow-[0_18px_42px_rgba(0,0,0,0.35)] backdrop-blur-md ${
+              statusTone === "success"
+                ? "border-emerald-500/30 bg-emerald-500/12 text-emerald-200"
+                : "border-rose-500/30 bg-rose-500/12 text-rose-200"
+            }`}
+          >
+            {statusMessage}
           </div>
         </div>
+      ) : null}
 
-        {statusMessage ? (
-          <div className="pointer-events-none fixed bottom-4 right-4 z-[9999]">
-            <div
-              className={`min-w-[260px] max-w-[360px] rounded-2xl border px-4 py-3 text-sm shadow-[0_18px_42px_rgba(0,0,0,0.35)] backdrop-blur-md ${statusTone === "success"
-                  ? "border-emerald-500/30 bg-emerald-500/12 text-emerald-200"
-                  : "border-rose-500/30 bg-rose-500/12 text-rose-200"
-                }`}
-            >
-              {statusMessage}
-            </div>
-          </div>
-        ) : null}
-
-        {mealToDelete
-          ? ReactDOM.createPortal(
-            <DeleteMealModal
+      {mealToDelete
+        ? ReactDOM.createPortal(
+            <DeleteModal
+              itemName={mealToDelete.name}
               onCancel={() => setMealToDelete(null)}
               onConfirm={() => handleDeleteMeal(mealToDelete)}
             />,
             document.body,
           )
-          : null}
-      </div>
+        : null}
     </main>
   );
 }
 
-function FormField({
-  label,
-  children,
-}: {
-  label: string;
-  children: ReactNode;
-}) {
+function FormField({ label, children }: { label: string; children: ReactNode }) {
   return (
     <label className="block">
       <span className="mb-1 block text-sm font-medium text-slate-300">{label}</span>
@@ -690,15 +524,13 @@ function ActionIconButton({
   label: string;
   onClick: () => void;
   title: string;
-  tone: "sky" | "amber" | "violet" | "rose";
+  tone: "sky" | "amber" | "rose";
 }) {
   const toneClasses: Record<typeof tone, string> = {
     sky: "border-sky-400/25 bg-sky-400/10 text-sky-100 hover:bg-sky-400/20",
     amber: "border-amber-400/25 bg-amber-400/10 text-amber-100 hover:bg-amber-400/20",
-    violet: "border-violet-400/25 bg-violet-400/10 text-violet-100 hover:bg-violet-400/20",
     rose: "border-rose-400/25 bg-rose-400/10 text-rose-100 hover:bg-rose-400/20",
   };
-
   return (
     <div className="group relative">
       <button
@@ -717,46 +549,42 @@ function ActionIconButton({
   );
 }
 
-function DeleteMealModal({
+function DeleteModal({
+  itemName,
   onCancel,
   onConfirm,
 }: {
+  itemName: string;
   onCancel: () => void;
   onConfirm: () => void;
 }) {
   return (
     <div
       className="fixed inset-0 z-[10000] flex items-center justify-center p-4"
-      onClick={(event) => {
-        if (event.target === event.currentTarget) {
-          onCancel();
-        }
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onCancel();
       }}
     >
       <div className="modal-backdrop absolute inset-0 bg-black/75" onClick={onCancel} />
-
       <div className="modal-panel relative z-10 w-full max-w-md overflow-hidden rounded-2xl border border-white/12 bg-slate-900 shadow-[0_32px_80px_rgba(0,0,0,0.7)]">
         <div className="border-b border-white/10 px-8 py-8 text-center">
-          <h2 className="mx-auto max-w-[290px] text-[20px] font-bold leading-[1.2] text-slate-50 sm:text-[22px]">
-            Are you sure you want to delete this item?
+          <h2 className="mx-auto max-w-[290px] text-[20px] font-bold leading-[1.2] text-slate-50">
+            Delete &ldquo;{itemName}&rdquo;?
           </h2>
-          <p className="mt-6 text-sm leading-6 text-slate-400">
-            This action cannot be undone.
-          </p>
+          <p className="mt-4 text-sm leading-6 text-slate-400">This action cannot be undone.</p>
         </div>
-
         <div className="grid grid-cols-2 gap-3 p-4">
           <button
             type="button"
             onClick={onCancel}
-            className="rounded-2xl border border-white/12 bg-white/[0.04] px-4 py-3 text-base font-semibold text-slate-200 transition-colors hover:bg-white/[0.08] hover:text-white"
+            className="rounded-2xl border border-white/12 bg-white/[0.04] px-4 py-3 text-base font-semibold text-slate-200 transition-colors hover:bg-white/[0.08]"
           >
             Cancel
           </button>
           <button
             type="button"
             onClick={onConfirm}
-            className="rounded-2xl border border-rose-400/25 bg-rose-500/15 px-4 py-3 text-base font-semibold text-rose-200 transition-colors hover:bg-rose-500/25 hover:text-rose-100"
+            className="rounded-2xl border border-rose-400/25 bg-rose-500/15 px-4 py-3 text-base font-semibold text-rose-200 transition-colors hover:bg-rose-500/25"
           >
             Delete
           </button>

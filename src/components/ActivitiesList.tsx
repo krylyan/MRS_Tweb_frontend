@@ -10,10 +10,10 @@ interface ActivitiesListProps {
   dayExercises: Exercise[];
   selectedExerciseId: string | null;
   getIconForMuscleGroup: (muscleGroup: MuscleGroup) => LucideIcon;
-  searchExercises: (query: string) => Exercise[];
+  searchExercises: (query: string) => Promise<Exercise[]>;
   onAddExercise: (exercise: Exercise) => void;
   onSelectExercise: (exercise: Exercise) => void;
-  onDeleteExercise: (exerciseId: string) => void;
+  onDeleteExercise: (exerciseId: string | number) => void;
 }
 
 export default function ActivitiesList({
@@ -30,7 +30,7 @@ export default function ActivitiesList({
   const [activeFilter, setActiveFilter] = useState<MuscleGroup | "all">("all");
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const muscleGroups = useMemo<Array<MuscleGroup | "all">>(
-    () => ["all", ...exerciseService.getFilterCategories()],
+    () => ["all", ...(exerciseService.getFilterCategories() as MuscleGroup[])],
     [],
   );
 
@@ -51,7 +51,21 @@ export default function ActivitiesList({
     return () => document.removeEventListener("keydown", handleKey);
   }, []);
 
-  const allResults = useMemo(() => searchExercises(searchQuery), [searchExercises, searchQuery]);
+  const [allResults, setAllResults] = useState<Exercise[]>([]);
+
+  // Debounced async search
+  useEffect(() => {
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      searchExercises(searchQuery).then((results) => {
+        if (!cancelled) setAllResults(results);
+      });
+    }, 200);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [searchExercises, searchQuery]);
 
   const filtered = useMemo(
     () => (activeFilter === "all" ? allResults : allResults.filter((e) => e.muscleGroup === activeFilter)),
@@ -82,7 +96,7 @@ export default function ActivitiesList({
                 key={exercise.id}
                 exercise={exercise}
                 icon={getIconForMuscleGroup(exercise.muscleGroup)}
-                isSelected={selectedExerciseId === exercise.id}
+                isSelected={String(selectedExerciseId) === String(exercise.id)}
                 onSelect={onSelectExercise}
                 onDelete={onDeleteExercise}
               />

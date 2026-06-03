@@ -107,15 +107,17 @@ export default function Sidebar() {
       ) : null}
 
       <nav className="mt-2 flex flex-1 flex-col gap-1 px-3">
-        <Link
-          to="/home"
-          className={`flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all duration-200 ${
-            location.pathname === "/home" ? activeLinkClasses : idleLinkClasses
-          }`}
-        >
-          <Home className="h-5 w-5" />
-          <span>Dashboard</span>
-        </Link>
+        {!isAdminMode ? (
+          <Link
+            to="/home"
+            className={`flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all duration-200 ${
+              location.pathname === "/home" ? activeLinkClasses : idleLinkClasses
+            }`}
+          >
+            <Home className="h-5 w-5" />
+            <span>Dashboard</span>
+          </Link>
+        ) : null}
 
         {isAdminMode ? (
           <>

@@ -1,8 +1,6 @@
 import {
   CalendarDays,
   Check,
-  ChevronLeft,
-  ChevronRight,
   Clock,
   Dumbbell,
   Flame,
@@ -15,18 +13,18 @@ import { Link } from "react-router-dom";
 import {
   DEFAULT_THEME_IDS,
   getThemeById,
-  readCustomizations,
 } from "./MyPlans";
-import { getDateKey, hasCompletedPlanDay, isPlanDayCompleted, cleanupOldCompletions } from "../utils/planCompletion";
-import { getActivePlan, getWorkoutPlans } from "../utils/planStorage";
+import { getDateKey } from "../utils/planCompletion";
+import { planCompletionApi } from "../services/planCompletionApi";
+import type { PlanCompletionResponseDto } from "../services/planCompletionApi";
+import { planActivationApi, type PlanActivationApi } from "../services/planActivationApi";
+import { workoutPlanApi, type WorkoutPlanApi } from "../services/workoutPlanApi";
+import { mealPlanApi, type MealPlanApi } from "../services/mealPlanApi";
 import {
-  getPlanActivation,
-  getActiveDayForDate,
-  checkAndResetCycle,
-  isDateInRange,
-  getHistoryDays,
-  type ActiveDayInfo,
-} from "../utils/planCycleTracker";
+  planPreferencesApi,
+  toCustomizationMap,
+  type PlanCustomizations,
+} from "../services/planPreferencesApi";
 
 
 /* ── Date helpers ──────────────────────────────────────────────────────────── */
@@ -48,17 +46,35 @@ const getOrdinal = (day: number): string => {
   return `${day}${suffix}`;
 };
 
-const formatDateLabel = (dateKey: string): string => {
-  const date = parseDateKey(dateKey);
-  const todayKey = getDateKey();
-  const yesterdayKey = addDays(todayKey, -1);
-  const month = date.toLocaleDateString("en-GB", { month: "long" });
-  const year = date.getFullYear();
-  const formatted = `${getOrdinal(date.getDate())} ${month}, ${year}`;
-  if (dateKey === todayKey) return `Today, ${formatted}`;
-  if (dateKey === yesterdayKey) return `Yesterday, ${formatted}`;
-  return formatted;
+interface ActiveDayInfo {
+  dayIndex: number;
+  dayNumber: number;
+  dayId: string;
+  dayLabel: string;
+}
+
+const daysBetween = (a: string, b: string): number =>
+  Math.round((parseDateKey(b).getTime() - parseDateKey(a).getTime()) / 86_400_000);
+
+const getActivationStartKey = (activation: PlanActivationApi): string =>
+  activation.lastCycleResetAt ?? activation.activatedAt;
+
+const getActiveDayForDate = (activation: PlanActivationApi, dateKey: string): ActiveDayInfo => {
+  const diff = Math.max(0, daysBetween(getActivationStartKey(activation), dateKey));
+  const totalDays = Math.max(1, activation.totalDays);
+  const dayIndex = diff % totalDays;
+  const dayNumber = dayIndex + 1;
+
+  return {
+    dayIndex,
+    dayNumber,
+    dayId: `day-${dayNumber}`,
+    dayLabel: `Day ${dayNumber}`,
+  };
 };
+
+const getHistoryDays = (count = 7): string[] =>
+  Array.from({ length: count }, (_, index) => addDays(getDateKey(), -index));
 
 /* ── Sub-components ────────────────────────────────────────────────────────── */
 
@@ -135,7 +151,7 @@ function ActivePlanCard({
       {/* Image / header area */}
       <div className={`relative flex h-44 items-center justify-center bg-gradient-to-br ${accent.imgBg}`}>
         {imageUrl ? (
-          <img src={imageUrl} alt={name} className="h-full w-full object-cover opacity-90" />
+          <img src={imageUrl} alt={name} className="h-full w-full object-contain p-2 opacity-90" />
         ) : (
           <Icon className="h-20 w-20 text-white/14" />
         )}
@@ -324,6 +340,7 @@ interface WeeklyActivityChartProps {
   mealPlanId?: string;
   workoutActivatedAt?: string;
   mealActivatedAt?: string;
+  completions: PlanCompletionResponseDto[];
 }
 
 function WeeklyActivityChart({
@@ -331,6 +348,7 @@ function WeeklyActivityChart({
   mealPlanId,
   workoutActivatedAt,
   mealActivatedAt,
+  completions,
 }: WeeklyActivityChartProps) {
   const days = getHistoryDays(7).reverse();
 
@@ -339,8 +357,12 @@ function WeeklyActivityChart({
     const label = date.toLocaleDateString("en-GB", { weekday: "short" });
     const wActive = workoutPlanId && (!workoutActivatedAt || dk >= workoutActivatedAt);
     const mActive = mealPlanId && (!mealActivatedAt || dk >= mealActivatedAt);
-    const wDone = wActive ? hasCompletedPlanDay("workout", workoutPlanId, dk) : false;
-    const mDone = mActive ? hasCompletedPlanDay("meal", mealPlanId, dk) : false;
+    const wDone = wActive
+      ? completions.some((item) => item.planType === "Workout" && item.dateKey === dk && item.dayToken.startsWith(`${workoutPlanId}:`))
+      : false;
+    const mDone = mActive
+      ? completions.some((item) => item.planType === "Meal" && item.dateKey === dk && item.dayToken.startsWith(`${mealPlanId}:`))
+      : false;
     return { dk, label, w: wDone ? 1 : wActive ? 0.08 : 0.04, m: mDone ? 1 : mActive ? 0.08 : 0.04, wDone, mDone };
   });
 
@@ -497,26 +519,53 @@ function WeeklyActivityChart({
 /* ── Main component ────────────────────────────────────────────────────────── */
 
 export default function Home() {
-  const [selectedDateKey, setSelectedDateKey] = useState(() => getDateKey());
+  const selectedDateKey = getDateKey();
 
-  const activeWorkoutPlan = getActivePlan();
-  const workoutPlans = getWorkoutPlans();
-  const customizations = readCustomizations();
+  const [workoutPlans, setWorkoutPlans] = useState<WorkoutPlanApi[]>([]);
+  const [mealPlans, setMealPlans] = useState<MealPlanApi[]>([]);
+  const [workoutActivation, setWorkoutActivation] = useState<PlanActivationApi | null>(null);
+  const [mealActivation, setMealActivation] = useState<PlanActivationApi | null>(null);
+  const [completions, setCompletions] = useState<PlanCompletionResponseDto[]>([]);
+  const [workoutCustomizations, setWorkoutCustomizations] = useState<PlanCustomizations>({});
+  const [mealCustomizations, setMealCustomizations] = useState<PlanCustomizations>({});
 
-  // ── Cycle activations ──────────────────────────────────────────────────
-  const workoutActivation = getPlanActivation("workout");
-
-  // Auto-reset cycles + cleanup old completions on mount
   useEffect(() => {
-    cleanupOldCompletions(8);
-    if (workoutActivation && activeWorkoutPlan) {
-      checkAndResetCycle("workout", (dayId, dateKey) =>
-        isPlanDayCompleted("workout", activeWorkoutPlan.id, dayId, dateKey),
-      );
+    let cancelled = false;
+
+    async function loadDashboardData() {
+      const [wPlans, mPlans, wActivation, mActivation, allCompletions, preferences] = await Promise.all([
+        workoutPlanApi.getMyPlans(),
+        mealPlanApi.getMyPlans(),
+        planActivationApi.getActive("Workout"),
+        planActivationApi.getActive("Meal"),
+        planCompletionApi.getByUser(),
+        planPreferencesApi.getCustomizations(),
+      ]);
+
+      if (cancelled) return;
+      setWorkoutPlans(wPlans);
+      setMealPlans(mPlans);
+      setWorkoutActivation(wActivation);
+      setMealActivation(mActivation);
+      setCompletions(allCompletions);
+      setWorkoutCustomizations(toCustomizationMap(preferences, "Workout"));
+      setMealCustomizations(toCustomizationMap(preferences, "Meal"));
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
+    loadDashboardData();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
+  const activeWorkoutPlan = workoutActivation
+    ? workoutPlans.find((plan) => plan.id.toString() === workoutActivation.planIdentifier) ?? null
+    : null;
+  const activeMealPlan = mealActivation
+    ? mealPlans.find((plan) => plan.id.toString() === mealActivation.planIdentifier) ?? null
+    : null;
+
+  // ── Cycle activations ──────────────────────────────────────────────────
   // ── Guards: plan started on selected date? ─────────────────────────────
   const workoutStartedOnDate =
     activeWorkoutPlan && workoutActivation
@@ -531,21 +580,28 @@ export default function Home() {
 
   // ── Completion status ──────────────────────────────────────────────────
   const workoutCompleted = workoutDayInfo
-    ? isPlanDayCompleted("workout", activeWorkoutPlan!.id, workoutDayInfo.dayId, selectedDateKey)
-    : hasCompletedPlanDay("workout", activeWorkoutPlan?.id, selectedDateKey);
+    ? completions.some(
+      (item) =>
+        item.planType === "Workout" &&
+        item.dayToken === `${activeWorkoutPlan!.id}:${workoutDayInfo.dayId}` &&
+        item.dateKey === selectedDateKey,
+    )
+    : completions.some(
+      (item) =>
+        item.planType === "Workout" &&
+        item.dateKey === selectedDateKey &&
+        item.dayToken.startsWith(`${activeWorkoutPlan?.id}:`),
+    );
 
   // ── Stats ──────────────────────────────────────────────────────────────
   const totalWorkoutExercises =
-    activeWorkoutPlan?.days.reduce((sum, day) => sum + day.exerciseIds.length, 0) ?? 0;
-
-  // ── Navigation limits: max Today, min 6 days back ─────────────────────
-  const { canGoPrev, canGoNext } = isDateInRange(selectedDateKey);
+    activeWorkoutPlan?.days.reduce((sum, day) => sum + (day.dayExercises?.length ?? day.exercises.length), 0) ?? 0;
 
   // ── Theming ────────────────────────────────────────────────────────────
   const activeWorkoutIndex = activeWorkoutPlan
     ? Math.max(0, workoutPlans.findIndex((p) => p.id === activeWorkoutPlan.id))
     : 0;
-  const workoutCustomization = activeWorkoutPlan ? customizations[activeWorkoutPlan.id] : undefined;
+  const workoutCustomization = activeWorkoutPlan ? workoutCustomizations[activeWorkoutPlan.id] : undefined;
   const workoutAccent = getThemeById(
     workoutCustomization?.colorId ?? DEFAULT_THEME_IDS[activeWorkoutIndex % DEFAULT_THEME_IDS.length],
   );
@@ -556,61 +612,33 @@ export default function Home() {
     ? `/gym-plan?planId=${activeWorkoutPlan.id}&date=${selectedDateKey}${workoutDayInfo ? `&dayId=${workoutDayInfo.dayId}` : ""}`
     : "#";
 
+  const mealStartedOnDate =
+    activeMealPlan && mealActivation
+      ? selectedDateKey >= getActivationStartKey(mealActivation)
+      : Boolean(activeMealPlan && !mealActivation);
+  const mealDayInfo: ActiveDayInfo | null =
+    mealActivation && activeMealPlan && mealStartedOnDate
+      ? getActiveDayForDate(mealActivation, selectedDateKey)
+      : null;
+  const mealCompleted = mealDayInfo
+    ? completions.some(
+      (item) =>
+        item.planType === "Meal" &&
+        item.dayToken === `${activeMealPlan!.id}:${mealDayInfo.dayId}` &&
+        item.dateKey === selectedDateKey,
+    )
+    : false;
+  const mealCustomization = activeMealPlan ? mealCustomizations[activeMealPlan.id] : undefined;
+  const mealAccent = getThemeById(mealCustomization?.colorId ?? "orange");
+  const mealImageUrl = mealCustomization?.imageUrl;
+  const mealHref = activeMealPlan
+    ? `/meal-plan?planId=${activeMealPlan.id}&date=${selectedDateKey}${mealDayInfo ? `&dayId=${mealDayInfo.dayId}` : ""}`
+    : "#";
+
   /* ── Render ─────────────────────────────────────────────────────────── */
   return (
     <main className="min-h-screen text-slate-200">
       <div className="mx-auto w-full max-w-[1400px] px-4 py-5 sm:px-6 sm:py-8">
-
-        {/* ── Date navigator ── */}
-        <section className="reveal-up mb-6 rounded-2xl border border-white/10 bg-white/[0.04] p-4 shadow-[0_18px_44px_rgba(0,0,0,0.28)] backdrop-blur-sm">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div className="flex min-w-0 items-center gap-4">
-              <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-white/12 bg-white/[0.05] text-slate-200">
-                <CalendarDays className="h-6 w-6" />
-              </span>
-              <div className="min-w-0">
-                <h1 className="break-words text-2xl font-bold leading-tight text-white sm:text-3xl">
-                  {formatDateLabel(selectedDateKey)}
-                </h1>
-                <p className="mt-1 text-sm text-slate-400">Active plans for the selected date</p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setSelectedDateKey((cur) => addDays(cur, -1))}
-                disabled={!canGoPrev}
-                aria-label="Previous day"
-                className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-white/12 bg-white/[0.04] text-slate-200 transition-all hover:bg-white/[0.09] hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                <ChevronLeft className="h-5 w-5" />
-              </button>
-              <button
-                type="button"
-                onClick={() => setSelectedDateKey(getDateKey())}
-                className="h-11 rounded-xl border border-white/12 bg-white/[0.04] px-4 text-sm font-semibold text-slate-200 transition-all hover:bg-white/[0.09] hover:text-white"
-              >
-                Today
-              </button>
-              <button
-                type="button"
-                onClick={() =>
-                  setSelectedDateKey((cur) => {
-                    const todayKey = getDateKey();
-                    const next = addDays(cur, 1);
-                    return next > todayKey ? todayKey : next;
-                  })
-                }
-                disabled={!canGoNext}
-                aria-label="Next day"
-                className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-white/12 bg-white/[0.04] text-slate-200 transition-all hover:bg-white/[0.09] hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                <ChevronRight className="h-5 w-5" />
-              </button>
-            </div>
-          </div>
-        </section>
 
         {/* ── Quick stats ── */}
         <section className="reveal-up reveal-delay-1 mb-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -624,8 +652,11 @@ export default function Home() {
 
         {/* ── Weekly Activity Chart ── */}
         <WeeklyActivityChart
-          workoutPlanId={activeWorkoutPlan?.id}
+          workoutPlanId={activeWorkoutPlan?.id.toString()}
           workoutActivatedAt={workoutActivation?.activatedAt}
+          mealPlanId={activeMealPlan?.id.toString()}
+          mealActivatedAt={mealActivation?.activatedAt}
+          completions={completions}
         />
 
         {/* ── Active plan cards ── */}
@@ -661,7 +692,33 @@ export default function Home() {
           )}
 
           {/* Meal plan — loads from API in future */}
-          <EmptyPlanCard type="meal" reason="no-plan" />
+          {!activeMealPlan ? (
+            <EmptyPlanCard type="meal" reason="no-plan" />
+          ) : !mealStartedOnDate ? (
+            <div>
+              <ActivePlanHeading type="meal" />
+              <EmptyPlanCard type="meal" reason="not-started" />
+            </div>
+          ) : (
+            <div>
+              <ActivePlanHeading type="meal" />
+              <ActivePlanCard
+                type="meal"
+                name={activeMealPlan.name}
+                href={mealHref}
+                completed={mealCompleted}
+                imageUrl={mealImageUrl}
+                accent={mealAccent}
+                dayInfo={mealDayInfo}
+                totalDays={mealActivation?.totalDays ?? 7}
+                stats={[
+                  { icon: "calendar", label: `${mealActivation?.totalDays ?? 7} plan days` },
+                  { icon: "flame", label: `${activeMealPlan.meals} meals / day` },
+                  { icon: "target", label: "Nutrition plan" },
+                ]}
+              />
+            </div>
+          )}
 
         </section>
       </div>

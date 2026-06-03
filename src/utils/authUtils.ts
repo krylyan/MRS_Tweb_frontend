@@ -3,12 +3,9 @@
 // Nu se mai salveaza niciun cont sau parola in localStorage
 const SESSION_KEY              = "fitlife_session";
 const ADMIN_MODE_KEY           = "fitlife_admin_mode";
-const QUESTIONNAIRE_KEY        = "fitlife_questionnaire";
 const QUESTIONNAIRE_PENDING_KEY = "fitlife_questionnaire_pending";
 
 // ─── Tipuri ───────────────────────────────────────────────────────────────────
-type AnswersMap = Record<string, string>;
-
 // Rolul vine din backend ca string: "Admin" | "User"
 export type UserRole = "Admin" | "User";
 
@@ -26,14 +23,6 @@ export interface ManagedUser {
   role:     UserRole;
   blocked:  boolean;
 }
-
-interface QuestionnaireEntry {
-  skipped:     boolean;
-  answers:     AnswersMap | null;
-  completedAt: string;
-}
-
-type QuestionnaireData = Record<string, QuestionnaireEntry>;
 
 // ─── Session helpers ──────────────────────────────────────────────────────────
 const readSession = (): SessionData | null => {
@@ -57,20 +46,6 @@ const clearSession = (): void => {
 };
 
 // ─── Questionnaire helpers ────────────────────────────────────────────────────
-const readQuestionnaireData = (): QuestionnaireData => {
-  const raw = localStorage.getItem(QUESTIONNAIRE_KEY);
-  if (!raw) return {};
-  try {
-    return JSON.parse(raw) as QuestionnaireData;
-  } catch {
-    return {};
-  }
-};
-
-const writeQuestionnaireData = (data: QuestionnaireData): void => {
-  localStorage.setItem(QUESTIONNAIRE_KEY, JSON.stringify(data));
-};
-
 // ─── AuthUtils ────────────────────────────────────────────────────────────────
 const AuthUtils = {
   // ─── Stare autentificare ─────────────────────────────────────────────────────
@@ -145,29 +120,15 @@ const AuthUtils = {
   isQuestionnaireRequired: (): boolean =>
     sessionStorage.getItem(QUESTIONNAIRE_PENDING_KEY) === "true",
 
-  saveQuestionnaireAnswers: (answers: AnswersMap): void => {
+  saveQuestionnaireAnswers: (): void => {
     const session = readSession();
     if (!session) return;
-    const data = readQuestionnaireData();
-    data[String(session.userId)] = {
-      skipped: false,
-      answers,
-      completedAt: new Date().toISOString(),
-    };
-    writeQuestionnaireData(data);
     sessionStorage.removeItem(QUESTIONNAIRE_PENDING_KEY);
   },
 
   skipQuestionnaire: (): void => {
     const session = readSession();
     if (!session) return;
-    const data = readQuestionnaireData();
-    data[String(session.userId)] = {
-      skipped: true,
-      answers: null,
-      completedAt: new Date().toISOString(),
-    };
-    writeQuestionnaireData(data);
     sessionStorage.removeItem(QUESTIONNAIRE_PENDING_KEY);
   },
 

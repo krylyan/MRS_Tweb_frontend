@@ -1,5 +1,6 @@
 import {
   AlertCircle,
+  Loader2,
   Search,
   Shield,
   ShieldCheck,
@@ -7,62 +8,77 @@ import {
   UserCog,
   Users,
 } from "lucide-react";
-import { useMemo, useState, type ReactNode } from "react";
-import AuthUtils, { type ManagedUser, type UserRole } from "../utils/authUtils";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { adminApi, type AdminUser, type UserRole } from "../services/adminApi";
+import AuthUtils from "../utils/authUtils";
 
 export default function AdminUsers() {
+  const currentUserId = AuthUtils.getSession()?.userId;
+
   const [searchQuery, setSearchQuery] = useState("");
-  const [users, setUsers] = useState<ManagedUser[]>(() => AuthUtils.getAllUsers());
+  const [users, setUsers] = useState<AdminUser[]>([]);
+  const [loading, setLoading] = useState(true);
   const [statusMessage, setStatusMessage] = useState("");
   const [statusTone, setStatusTone] = useState<"success" | "error">("success");
 
+  // ── Fetch useri la mount ────────────────────────────────────────────────────
+  useEffect(() => {
+    setLoading(true);
+    adminApi.getAll().then((data) => {
+      setUsers(data);
+      setLoading(false);
+    });
+  }, []);
+
   const filteredUsers = useMemo(() => {
     const normalized = searchQuery.trim().toLowerCase();
-
-    if (!normalized) {
-      return users;
-    }
-
-    return users.filter((user) =>
-      user.username.toLowerCase().includes(normalized) ||
-      user.fullName.toLowerCase().includes(normalized),
+    if (!normalized) return users;
+    return users.filter(
+      (user) =>
+        user.username.toLowerCase().includes(normalized) ||
+        user.fullName.toLowerCase().includes(normalized),
     );
   }, [searchQuery, users]);
-
-  const refreshUsers = () => {
-    setUsers(AuthUtils.getAllUsers());
-  };
 
   const showResult = (ok: boolean, successMessage: string, errorMessage?: string) => {
     setStatusTone(ok ? "success" : "error");
     setStatusMessage(ok ? successMessage : errorMessage ?? "Action failed");
   };
 
-  const handleRoleChange = (username: string, role: UserRole) => {
-    const result = AuthUtils.updateUserRole(username, role);
-    showResult(result.ok, `${username} is now ${role}.`, result.message);
-    if (result.ok) {
-      refreshUsers();
+  const handleRoleChange = async (user: AdminUser) => {
+    const newRole: UserRole = user.role === "Admin" ? "User" : "Admin";
+    const updated = await adminApi.setRole(user.id, newRole);
+    if (updated) {
+      setUsers((prev) => prev.map((u) => (u.id === user.id ? updated : u)));
+      showResult(true, `${user.fullName} is now ${newRole}.`);
+    } else {
+      showResult(false, "", "Failed to update role.");
     }
   };
 
-  const handleToggleBlocked = (username: string, blocked: boolean) => {
-    const result = AuthUtils.toggleUserBlocked(username);
-    showResult(
-      result.ok,
-      blocked ? `${username} has been unblocked.` : `${username} has been blocked.`,
-      result.message,
-    );
-    if (result.ok) {
-      refreshUsers();
+  const handleToggleBlocked = async (user: AdminUser) => {
+    const updated = await adminApi.toggleBlocked(user.id);
+    if (updated) {
+      setUsers((prev) => prev.map((u) => (u.id === user.id ? updated : u)));
+      showResult(
+        true,
+        updated.blocked
+          ? `${user.fullName} has been blocked.`
+          : `${user.fullName} has been unblocked.`,
+      );
+    } else {
+      showResult(false, "", "Failed to update block status.");
     }
   };
 
-  const handleDeleteUser = (username: string) => {
-    const result = AuthUtils.deleteUser(username);
-    showResult(result.ok, `${username} has been deleted.`, result.message);
-    if (result.ok) {
-      refreshUsers();
+  const handleDeleteUser = async (user: AdminUser) => {
+    if (!window.confirm(`Delete account for ${user.fullName}? This cannot be undone.`)) return;
+    const ok = await adminApi.delete(user.id);
+    if (ok) {
+      setUsers((prev) => prev.filter((u) => u.id !== user.id));
+      showResult(true, `${user.fullName} has been deleted.`);
+    } else {
+      showResult(false, "", "Failed to delete user.");
     }
   };
 
@@ -87,12 +103,12 @@ export default function AdminUsers() {
               <StatCard
                 icon={<ShieldCheck className="h-5 w-5" />}
                 label="Admins"
-                value={users.filter((user) => user.role === "Admin").length.toString()}
+                value={users.filter((u) => u.role === "Admin").length.toString()}
               />
               <StatCard
                 icon={<AlertCircle className="h-5 w-5" />}
                 label="Blocked"
-                value={users.filter((user) => user.blocked).length.toString()}
+                value={users.filter((u) => u.blocked).length.toString()}
               />
             </div>
           </div>
@@ -112,10 +128,11 @@ export default function AdminUsers() {
 
           {statusMessage ? (
             <p
-              className={`mt-4 rounded-xl border px-3 py-2 text-sm ${statusTone === "success"
+              className={`mt-4 rounded-xl border px-3 py-2 text-sm ${
+                statusTone === "success"
                   ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
                   : "border-rose-500/30 bg-rose-500/10 text-rose-300"
-                }`}
+              }`}
             >
               {statusMessage}
             </p>
@@ -128,80 +145,92 @@ export default function AdminUsers() {
             <span className="text-sm text-slate-400">{filteredUsers.length} visible</span>
           </div>
 
-          <div className="space-y-3">
-            {filteredUsers.map((user) => (
-              <article
-                key={user.username}
-                className="rounded-2xl border border-white/8 bg-slate-950/40 p-4 shadow-[0_12px_30px_rgba(0,0,0,0.2)]"
-              >
-                <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-                  <div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <h3 className="text-lg font-semibold text-white">{user.fullName}</h3>
-                      <span
-                        className={`rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide ${user.role === "Admin"
-                            ? "bg-amber-400/20 text-amber-200"
-                            : "bg-emerald-500/20 text-emerald-200"
+          {loading ? (
+            <div className="flex items-center justify-center py-16 text-slate-400">
+              <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+              Loading users...
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {filteredUsers.map((user) => (
+                <article
+                  key={user.id}
+                  className="rounded-2xl border border-white/8 bg-slate-950/40 p-4 shadow-[0_12px_30px_rgba(0,0,0,0.2)]"
+                >
+                  <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+                    <div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="text-lg font-semibold text-white">{user.fullName}</h3>
+                        <span
+                          className={`rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide ${
+                            user.role === "Admin"
+                              ? "bg-amber-400/20 text-amber-200"
+                              : "bg-emerald-500/20 text-emerald-200"
                           }`}
-                      >
-                        {user.role}
-                      </span>
-                      {user.blocked ? (
-                        <span className="rounded-full bg-rose-500/20 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-rose-200">
-                          blocked
+                        >
+                          {user.role}
                         </span>
-                      ) : (
-                        <span className="rounded-full bg-sky-500/20 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-sky-200">
-                          active
-                        </span>
-                      )}
+                        {user.blocked ? (
+                          <span className="rounded-full bg-rose-500/20 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-rose-200">
+                            blocked
+                          </span>
+                        ) : (
+                          <span className="rounded-full bg-sky-500/20 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-sky-200">
+                            active
+                          </span>
+                        )}
+                      </div>
+                      <p className="mt-1 text-sm text-slate-400">{user.username}</p>
                     </div>
-                    <p className="mt-1 text-sm text-slate-400">{user.username}</p>
-                  </div>
 
-                  <div className="flex flex-col gap-3 xl:min-w-[420px]">
-                    <div className="flex flex-wrap gap-2">
-                      <button
-                        type="button"
-                        onClick={() => handleRoleChange(user.username, user.role === "Admin" ? "User" : "Admin")}
-                        className="inline-flex items-center gap-2 rounded-xl border border-amber-400/25 bg-amber-400/10 px-3 py-2 text-sm font-semibold text-amber-100 transition-colors hover:bg-amber-400/20"
-                      >
-                        <UserCog className="h-4 w-4" />
-                        {user.role === "Admin" ? "Set as user" : "Set as admin"}
-                      </button>
+                    <div className="flex flex-col gap-3 xl:min-w-[420px]">
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() => handleRoleChange(user)}
+                          disabled={user.id === currentUserId}
+                          className="inline-flex items-center gap-2 rounded-xl border border-amber-400/25 bg-amber-400/10 px-3 py-2 text-sm font-semibold text-amber-100 transition-colors hover:bg-amber-400/20 disabled:cursor-not-allowed disabled:opacity-40"
+                        >
+                          <UserCog className="h-4 w-4" />
+                          {user.role === "Admin" ? "Set as user" : "Set as admin"}
+                        </button>
 
-                      <button
-                        type="button"
-                        onClick={() => handleToggleBlocked(user.username, user.blocked)}
-                        className={`inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold transition-colors ${user.blocked
-                            ? "border border-emerald-400/25 bg-emerald-400/10 text-emerald-100 hover:bg-emerald-400/20"
-                            : "border border-rose-400/25 bg-rose-400/10 text-rose-100 hover:bg-rose-400/20"
+                        <button
+                          type="button"
+                          onClick={() => handleToggleBlocked(user)}
+                          disabled={user.id === currentUserId}
+                          className={`inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
+                            user.blocked
+                              ? "border border-emerald-400/25 bg-emerald-400/10 text-emerald-100 hover:bg-emerald-400/20"
+                              : "border border-rose-400/25 bg-rose-400/10 text-rose-100 hover:bg-rose-400/20"
                           }`}
-                      >
-                        <Shield className="h-4 w-4" />
-                        {user.blocked ? "Unblock account" : "Block account"}
-                      </button>
+                        >
+                          <Shield className="h-4 w-4" />
+                          {user.blocked ? "Unblock account" : "Block account"}
+                        </button>
 
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteUser(user.username)}
-                        className="inline-flex items-center gap-2 rounded-xl border border-white/12 bg-white/6 px-3 py-2 text-sm font-semibold text-slate-200 transition-colors hover:bg-rose-500/15 hover:text-rose-100"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                        Delete account
-                      </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteUser(user)}
+                          disabled={user.id === currentUserId}
+                          className="inline-flex items-center gap-2 rounded-xl border border-white/12 bg-white/6 px-3 py-2 text-sm font-semibold text-slate-200 transition-colors hover:bg-rose-500/15 hover:text-rose-100 disabled:cursor-not-allowed disabled:opacity-40"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                          Delete account
+                        </button>
+                      </div>
                     </div>
                   </div>
+                </article>
+              ))}
+
+              {filteredUsers.length === 0 && !loading ? (
+                <div className="rounded-2xl border border-dashed border-white/12 bg-white/[0.03] px-4 py-10 text-center text-slate-400">
+                  No users match your search.
                 </div>
-              </article>
-            ))}
-
-            {filteredUsers.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-white/12 bg-white/[0.03] px-4 py-10 text-center text-slate-400">
-                No users match your search.
-              </div>
-            ) : null}
-          </div>
+              ) : null}
+            </div>
+          )}
         </section>
       </div>
     </main>
@@ -227,3 +256,4 @@ function StatCard({
     </div>
   );
 }
+

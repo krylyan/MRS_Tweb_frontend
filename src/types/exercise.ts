@@ -1,11 +1,11 @@
-export type MuscleGroup = string;
+export type MuscleGroup = "Chest" | "Back" | "Legs" | "Arms" | "Core" | "Cardio";
 
 export interface Exercise {
-  id: string;
+  id: number;
   name: string;
   muscleGroup: MuscleGroup;
   gifUrl: string;
   instructions: string;
-  recommended?: boolean;
-  hidden?: boolean;
 }
+
+export const MUSCLE_GROUPS: MuscleGroup[] = ["Chest", "Back", "Legs", "Arms", "Core", "Cardio"];
