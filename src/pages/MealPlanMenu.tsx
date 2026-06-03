@@ -62,6 +62,9 @@ const daysBetween = (startKey: string, endKey: string): number =>
 const getActivationStartKey = (activation: PlanActivationApi): string =>
   activation.lastCycleResetAt ?? activation.activatedAt;
 
+const getPlanDayToken = (planIdentifier: string, activationId: number, dayId: string): string =>
+  `${planIdentifier}:${activationId}:${dayId}`;
+
 const getScheduledDayForDate = (activation: PlanActivationApi, dateKey: string) => {
   const diff = Math.max(0, daysBetween(getActivationStartKey(activation), dateKey));
   const totalDays = Math.max(1, activation.totalDays || 7);
@@ -725,7 +728,7 @@ export default function MealPlanMenu() {
       .filter((day) => {
         const dayDate = getScheduledDateForDayInCycle(activeMealActivation, day.id, todayKey);
         return mealCompletions.some(
-          (item) => item.dayToken === `${activeMealPlanId}:${day.id}` && item.dateKey === dayDate,
+          (item) => item.dayToken === getPlanDayToken(activeMealPlanId, activeMealActivation.id, day.id) && item.dateKey === dayDate,
         );
       })
       .map((day) => day.id);
@@ -737,13 +740,15 @@ export default function MealPlanMenu() {
     return getScheduledDayForDate(activeMealActivation, todayKey).dayId;
   }, [activeMealActivation, activeMealPlanId, todayKey]);
   const isCompletedForDate = useMemo(
-    () =>
-      canMarkCompleted && activeMealPlanId
-        ? mealCompletions.some(
-            (item) => item.dayToken === `${activeMealPlanId}:${activeDayId}` && item.dateKey === todayKey,
-          )
-        : false,
-    [activeDayId, activeMealPlanId, canMarkCompleted, mealCompletions, todayKey],
+    () => {
+      if (!canMarkCompleted || !activeMealPlanId || !activeMealActivation) return false;
+      return mealCompletions.some(
+        (item) =>
+          item.dayToken === getPlanDayToken(activeMealPlanId, activeMealActivation.id, activeDayId) &&
+          item.dateKey === todayKey,
+      );
+    },
+    [activeDayId, activeMealActivation, activeMealPlanId, canMarkCompleted, mealCompletions, todayKey],
   );
 
   const markDirty = () => {
@@ -774,8 +779,8 @@ export default function MealPlanMenu() {
     setCollapsed((prev) => ({ ...prev, [slot]: !prev[slot] }));
   };
 
-  const handleSave = async () => {
-    if (saveState === "saving") return;
+  const saveCurrentMealPlan = async (): Promise<boolean> => {
+    if (saveState === "saving") return false;
     setSaveState("saving");
 
     const payload = buildMealPlanPayload(allMeals);
@@ -787,7 +792,7 @@ export default function MealPlanMenu() {
 
     if (!savedPlan) {
       setSaveState("error");
-      return;
+      return false;
     }
 
     setCurrentPlanId(String(savedPlan.id));
@@ -799,6 +804,11 @@ export default function MealPlanMenu() {
     if (!numericPlanId) {
       navigate(`/meal-plan?planId=${savedPlan.id}`, { replace: true });
     }
+    return true;
+  };
+
+  const handleSave = async () => {
+    await saveCurrentMealPlan();
   };
 
   const handleSaveQuantity = async (quantityGrams: number) => {
@@ -829,10 +839,16 @@ export default function MealPlanMenu() {
   };
 
   const handleMarkCompleted = async () => {
-    if (!activeMealPlanId || !canMarkCompleted || activeDayId !== todayPlanDayId) return;
+    if (!activeMealPlanId || !activeMealActivation || !canMarkCompleted || activeDayId !== todayPlanDayId) return;
+
+    if (isDirty || !currentPlanId) {
+      const saved = await saveCurrentMealPlan();
+      if (!saved) return;
+    }
+
     const completed = await planCompletionApi.markComplete({
       planType: "Meal",
-      dayToken: `${activeMealPlanId}:${activeDayId}`,
+      dayToken: getPlanDayToken(activeMealPlanId, activeMealActivation.id, activeDayId),
       dateKey: todayKey,
     });
     if (completed) {
@@ -908,12 +924,10 @@ export default function MealPlanMenu() {
               const isCompleted = completedDayIds.includes(day.id);
 
               let dayClass = "flex-1 min-w-0 rounded-[10px] border px-2 py-2 text-sm font-semibold transition-colors text-center ";
-              if (isCompleted && isToday) {
-                dayClass += "border-rose-400/70 bg-blue-500/25 text-blue-100 shadow-[0_0_14px_rgba(244,63,94,0.25)]";
+              if (isToday) {
+                dayClass += "border-blue-400/50 bg-blue-500/25 text-blue-100 shadow-[0_0_16px_rgba(59,130,246,0.22)]";
               } else if (isCompleted) {
                 dayClass += "border-rose-400/60 bg-rose-500/10 text-rose-200 shadow-[0_0_10px_rgba(244,63,94,0.15)]";
-              } else if (isToday) {
-                dayClass += "border-blue-400/50 bg-blue-500/25 text-blue-100 shadow-[0_0_16px_rgba(59,130,246,0.22)]";
               } else if (isSelected) {
                 dayClass += "border-emerald-400/40 bg-emerald-500/20 text-emerald-200";
               } else {

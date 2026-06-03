@@ -60,7 +60,8 @@ const getYesterdayKey = () => {
 const getPlanIdFromToken = (dayToken: string) => dayToken.split(":")[0] ?? "";
 
 const getDayNumberFromToken = (dayToken: string) => {
-  const dayPart = dayToken.split(":")[1] ?? "";
+  const parts = dayToken.split(":");
+  const dayPart = parts[parts.length - 1] ?? "";
   const match = dayPart.match(/\d+/);
   return match ? Number(match[0]) : null;
 };

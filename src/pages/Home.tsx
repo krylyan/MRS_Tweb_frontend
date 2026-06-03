@@ -53,6 +53,12 @@ const daysBetween = (a: string, b: string): number =>
 const getActivationStartKey = (activation: PlanActivationApi): string =>
   activation.lastCycleResetAt ?? activation.activatedAt;
 
+const getPlanDayToken = (planIdentifier: string | number, activationId: number, dayId: string): string =>
+  `${planIdentifier}:${activationId}:${dayId}`;
+
+const getActivationTokenPrefix = (planIdentifier: string | number, activationId?: number): string =>
+  activationId ? `${planIdentifier}:${activationId}:` : `${planIdentifier}:`;
+
 const getActiveDayForDate = (activation: PlanActivationApi, dateKey: string): ActiveDayInfo => {
   const diff = Math.max(0, daysBetween(getActivationStartKey(activation), dateKey));
   const totalDays = Math.max(1, activation.totalDays);
@@ -332,6 +338,8 @@ function toY(value: number): number {
 interface WeeklyActivityChartProps {
   workoutPlanId?: string;
   mealPlanId?: string;
+  workoutActivationId?: number;
+  mealActivationId?: number;
   workoutActivatedAt?: string;
   mealActivatedAt?: string;
   completions: PlanCompletionResponseDto[];
@@ -340,6 +348,8 @@ interface WeeklyActivityChartProps {
 function WeeklyActivityChart({
   workoutPlanId,
   mealPlanId,
+  workoutActivationId,
+  mealActivationId,
   workoutActivatedAt,
   mealActivatedAt,
   completions,
@@ -352,10 +362,10 @@ function WeeklyActivityChart({
     const wActive = workoutPlanId && (!workoutActivatedAt || dk >= workoutActivatedAt);
     const mActive = mealPlanId && (!mealActivatedAt || dk >= mealActivatedAt);
     const wDone = wActive
-      ? completions.some((item) => item.planType === "Workout" && item.dateKey === dk && item.dayToken.startsWith(`${workoutPlanId}:`))
+      ? completions.some((item) => item.planType === "Workout" && item.dateKey === dk && item.dayToken.startsWith(getActivationTokenPrefix(workoutPlanId, workoutActivationId)))
       : false;
     const mDone = mActive
-      ? completions.some((item) => item.planType === "Meal" && item.dateKey === dk && item.dayToken.startsWith(`${mealPlanId}:`))
+      ? completions.some((item) => item.planType === "Meal" && item.dateKey === dk && item.dayToken.startsWith(getActivationTokenPrefix(mealPlanId, mealActivationId)))
       : false;
     return { dk, label, w: wDone ? 1 : wActive ? 0.08 : 0.04, m: mDone ? 1 : mActive ? 0.08 : 0.04, wDone, mDone };
   });
@@ -577,14 +587,14 @@ export default function Home() {
     ? completions.some(
       (item) =>
         item.planType === "Workout" &&
-        item.dayToken === `${activeWorkoutPlan!.id}:${workoutDayInfo.dayId}` &&
+        item.dayToken === getPlanDayToken(activeWorkoutPlan!.id, workoutActivation!.id, workoutDayInfo.dayId) &&
         item.dateKey === selectedDateKey,
     )
     : completions.some(
       (item) =>
         item.planType === "Workout" &&
         item.dateKey === selectedDateKey &&
-        item.dayToken.startsWith(`${activeWorkoutPlan?.id}:`),
+        item.dayToken.startsWith(getActivationTokenPrefix(activeWorkoutPlan?.id ?? "", workoutActivation?.id)),
     );
 
   // ── Stats ──────────────────────────────────────────────────────────────
@@ -618,7 +628,7 @@ export default function Home() {
     ? completions.some(
       (item) =>
         item.planType === "Meal" &&
-        item.dayToken === `${activeMealPlan!.id}:${mealDayInfo.dayId}` &&
+        item.dayToken === getPlanDayToken(activeMealPlan!.id, mealActivation!.id, mealDayInfo.dayId) &&
         item.dateKey === selectedDateKey,
     )
     : false;
@@ -647,8 +657,10 @@ export default function Home() {
         {/* ── Weekly Activity Chart ── */}
         <WeeklyActivityChart
           workoutPlanId={activeWorkoutPlan?.id.toString()}
+          workoutActivationId={workoutActivation?.id}
           workoutActivatedAt={workoutActivation?.activatedAt}
           mealPlanId={activeMealPlan?.id.toString()}
+          mealActivationId={mealActivation?.id}
           mealActivatedAt={mealActivation?.activatedAt}
           completions={completions}
         />

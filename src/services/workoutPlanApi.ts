@@ -5,6 +5,7 @@ export interface DayPlanApi {
   id: number;
   label: string;
   dayNumber: number;
+  isRestDay?: boolean;
   exercises: WorkoutExerciseApi[];
   dayExercises: WorkoutDayExerciseApi[];
 }
@@ -56,6 +57,7 @@ export interface WorkoutPlanApi {
 export interface DayPlanCreateBody {
   label: string;
   dayNumber?: number;
+  isRestDay?: boolean;
   exerciseIds?: number[];
   exercises?: {
     exerciseId: number;

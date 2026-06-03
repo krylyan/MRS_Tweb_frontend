@@ -65,7 +65,6 @@ interface ActivityDetailsProps {
   onSetChange: (index: number, field: keyof WorkoutSet, value: number) => void;
   onAddSet: () => void;
   onRemoveSet: (index: number) => void;
-  onMarkRestDay: () => void;
 }
 
 const EXERCISE_ICON_BY_GROUP: Record<string, LucideIcon> = {
@@ -94,6 +93,7 @@ const createEmptyDays = (): DayPlan[] =>
     id: `day-${index + 1}`,
     label: `Day ${index + 1}`,
     exercises: [],
+    isRestDay: false,
   }));
 
 const createEmptySelectedExerciseMap = (): Record<string, string | null> =>
@@ -134,6 +134,9 @@ const parsePauseTimeInput = (value: string): PauseTime => {
 
 const getPlanExerciseKey = (dayId: string, exerciseId: string | number): string =>
   `${dayId}:${exerciseId}`;
+
+const getPlanDayToken = (planIdentifier: string, activationId: number, dayId: string): string =>
+  `${planIdentifier}:${activationId}:${dayId}`;
 
 const parseDateKey = (dateKey: string): Date => {
   const [year, month, day] = dateKey.split("-").map(Number);
@@ -181,6 +184,7 @@ const createDaysFromApiPlan = (plan: WorkoutPlanApi): DayPlan[] => {
   const hydrated = plan.days.slice(0, WORKOUT_DAY_COUNT).map((day, index) => ({
     id: `day-${day.dayNumber || index + 1}`,
     label: day.label || `Day ${index + 1}`,
+    isRestDay: Boolean(day.isRestDay),
     exercises: (day.dayExercises?.length ? day.dayExercises.map((item) => item.exercise) : day.exercises).map(
       (exercise) => ({
         id: exercise.id,
@@ -237,6 +241,7 @@ const createPlanPayload = (
   days: days.map((day, dayIndex) => ({
     label: day.label,
     dayNumber: dayIndex + 1,
+    isRestDay: Boolean(day.isRestDay),
     exercises: day.exercises.map((exercise, exerciseIndex) => ({
       exerciseId: Number(exercise.id),
       order: exerciseIndex,
@@ -255,27 +260,21 @@ function DaysSelector({ days, activeDayId, todayPlanDayId, completedDayIds, rest
     <section className="reveal-up reveal-delay-2 mb-4 rounded-[14px] border border-white/12 bg-white/4 px-4 py-3 shadow-[0_14px_28px_rgba(0,0,0,0.25)] backdrop-blur-[6px]">
       <div className="flex w-full items-center gap-1.5">
         {days.map((day) => {
-          const isSelected = day.id === activeDayId;      // currently viewed tab
-          const isToday = day.id === todayPlanDayId;      // today's plan day → blue
-          const isCompleted = completedDayIds.includes(day.id); // completed → red border
+          const isSelected = day.id === activeDayId;
+          const isToday = day.id === todayPlanDayId;
+          const isCompleted = completedDayIds.includes(day.id);
           const isRest = restDayIds.includes(day.id);
 
           let className = "flex-1 min-w-0 rounded-[10px] border px-2 py-2 text-sm font-semibold transition-colors text-center ";
-          if (isRest && isSelected) {
+          if (isToday) {
+            className += "border-blue-400/50 bg-blue-500/25 text-blue-100 shadow-[0_0_16px_rgba(59,130,246,0.22)] hover:bg-blue-500/30";
+          } else if (isRest && isSelected) {
             className += "border-violet-400/60 bg-violet-500/20 text-violet-200 hover:bg-violet-500/25";
           } else if (isRest) {
             className += "border-violet-400/30 bg-violet-500/10 text-violet-300 hover:bg-violet-500/15";
-          } else if (isCompleted && isToday) {
-            // completed AND today: red border + blue background
-            className += "border-rose-400/70 bg-blue-500/25 text-blue-100 shadow-[0_0_14px_rgba(244,63,94,0.25)] hover:bg-blue-500/30";
           } else if (isCompleted) {
-            // completed but not today: red border, dim bg
             className += "border-rose-400/60 bg-rose-500/10 text-rose-200 shadow-[0_0_10px_rgba(244,63,94,0.15)] hover:bg-rose-500/15";
-          } else if (isToday) {
-            // today's day (active in plan) → blue
-            className += "border-blue-400/50 bg-blue-500/25 text-blue-100 shadow-[0_0_16px_rgba(59,130,246,0.22)] hover:bg-blue-500/30";
           } else if (isSelected) {
-            // just selected/viewed tab (not today, not completed)
             className += "border-emerald-400/40 bg-emerald-500/20 text-emerald-200 hover:bg-emerald-500/25";
           } else {
             className += "border-white/10 bg-white/[0.02] text-slate-200 hover:bg-white/[0.08]";
@@ -289,9 +288,7 @@ function DaysSelector({ days, activeDayId, todayPlanDayId, completedDayIds, rest
               className={className}
               title={isRest ? `${day.label} — Rest Day` : day.label}
             >
-              <span className="block truncate">
-                {isRest ? "Rest" : day.label}
-              </span>
+              <span className="block truncate">{isRest ? "Rest" : day.label}</span>
             </button>
           );
         })}
@@ -309,11 +306,9 @@ function ActivityDetails({
   onSetChange,
   onAddSet,
   onRemoveSet,
-  onMarkRestDay,
 }: ActivityDetailsProps) {
   const title = selectedExerciseName ?? "No exercise selected";
   const [pauseInput, setPauseInput] = useState<string>(formatPauseTime(pauseTime));
-  // Per-set local string values so users can fully clear before typing a new number
   const [weightInputs, setWeightInputs] = useState<string[]>(() => sets.map((s) => String(s.weight)));
   const [repsInputs, setRepsInputs] = useState<string[]>(() => sets.map((s) => String(s.reps)));
   const inputClassName =
@@ -326,7 +321,6 @@ function ActivityDetails({
     setPauseInput(formatPauseTime(pauseTime));
   }, [pauseTime]);
 
-  // Sync local string arrays when sets length changes (add/remove)
   useEffect(() => {
     setWeightInputs(sets.map((s) => String(s.weight)));
     setRepsInputs(sets.map((s) => String(s.reps)));
@@ -375,183 +369,172 @@ function ActivityDetails({
 
   return (
     <section className="reveal-up reveal-delay-5 rounded-[14px] border border-white/12 bg-white/4 p-4 shadow-[0_14px_28px_rgba(0,0,0,0.25)] backdrop-blur-[6px]">
-      <h2 className="mb-3 text-lg font-semibold text-slate-50">{title}</h2>
+      {/* Content faded when Rest Day */}
+      <div className={isRestDay ? "pointer-events-none select-none opacity-40" : ""}>
+        <h2 className="mb-3 text-lg font-semibold text-slate-50">{title}</h2>
 
-      <div className="mb-4">
-        <h3 className="mb-2 text-sm font-semibold text-slate-200">Pause between sets</h3>
+        <div className="mb-4">
+          <h3 className="mb-2 text-sm font-semibold text-slate-200">Pause between sets</h3>
 
-        <div className="relative">
-          <input
-            type="text"
-            inputMode="numeric"
-            value={pauseInput}
-            onChange={(event) => handlePauseInputChange(event.target.value)}
-            onBlur={(event) => commitPauseInput(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") {
-                event.currentTarget.blur();
-              }
-            }}
-            placeholder="02:00"
-            aria-label="Pause between sets"
-            className={`${inputClassName} pr-10 text-center font-semibold tracking-wide`}
-          />
+          <div className="relative">
+            <input
+              type="text"
+              inputMode="numeric"
+              value={pauseInput}
+              onChange={(event) => handlePauseInputChange(event.target.value)}
+              onBlur={(event) => commitPauseInput(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.currentTarget.blur();
+                }
+              }}
+              placeholder="02:00"
+              aria-label="Pause between sets"
+              className={`${inputClassName} pr-10 text-center font-semibold tracking-wide`}
+            />
 
-          <div className="absolute inset-y-0 right-0 flex w-9 flex-col overflow-hidden rounded-r-[10px] border-l border-white/12">
-            <button
-              type="button"
-              onClick={() => handlePauseTimeStep(1)}
-              className="flex flex-1 items-center justify-center bg-white/[0.03] text-slate-300 transition-colors hover:bg-white/[0.08] hover:text-slate-100"
-              aria-label="Increase pause time by one minute"
-            >
-              <ChevronUp className="h-3.5 w-3.5" />
-            </button>
-            <button
-              type="button"
-              onClick={() => handlePauseTimeStep(-1)}
-              className="flex flex-1 items-center justify-center border-t border-white/12 bg-white/[0.03] text-slate-300 transition-colors hover:bg-white/[0.08] hover:text-slate-100"
-              aria-label="Decrease pause time by one minute"
-            >
-              <ChevronDown className="h-3.5 w-3.5" />
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <div>
-        <div className="mb-2 flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-slate-200">Sets</h3>
-          <span className="text-xs font-medium text-slate-400">{sets.length} tracked</span>
-        </div>
-
-        <div className="grid grid-cols-[56px_minmax(0,1fr)_88px_32px] items-center gap-2.5 px-1 pb-2">
-          <p className={headerCellClassName}>Set</p>
-          <p className={headerCellClassName}>Weight</p>
-          <p className={headerCellClassName}>Reps</p>
-          <span />
-        </div>
-
-        <div className="space-y-2.5">
-          {sets.map((set, index) => (
-            <div
-              key={`set-${index}`}
-              className="grid grid-cols-[56px_minmax(0,1fr)_88px_32px] items-center gap-2.5 rounded-[10px] border border-white/10 bg-white/[0.03] p-2.5"
-            >
-              <div className="flex h-10 items-center justify-center rounded-[10px] border border-white/10 bg-white/[0.02] text-sm font-semibold text-slate-100">
-                {index + 1}
-              </div>
-
-              <div className="relative">
-                <input
-                  type="text"
-                  inputMode="decimal"
-                  value={weightInputs[index] ?? String(set.weight)}
-                  onChange={(event) => {
-                    const raw = event.target.value.replace(/[^\d.]/g, "");
-                    setWeightInputs((prev) => prev.map((v, i) => (i === index ? raw : v)));
-                  }}
-                  onBlur={() => {
-                    const parsed = Math.max(0, Number(weightInputs[index] ?? "") || 0);
-                    onSetChange(index, "weight", parsed);
-                    setWeightInputs((prev) => prev.map((v, i) => (i === index ? String(parsed) : v)));
-                  }}
-                  className={`${inputClassName} ${spinnerInputClassName} pr-16`}
-                />
-                <span className="pointer-events-none absolute right-11 top-1/2 -translate-y-1/2 text-xs text-slate-400">
-                  kg
-                </span>
-                <div className="absolute inset-y-0 right-0 flex w-9 flex-col overflow-hidden rounded-r-[10px] border-l border-white/12">
-                  <button
-                    type="button"
-                    onClick={() => handleSetStep(index, "weight", 0.5)}
-                    className="flex flex-1 items-center justify-center bg-white/[0.03] text-slate-300 transition-colors hover:bg-white/[0.08] hover:text-slate-100"
-                    aria-label={`Increase weight for set ${index + 1}`}
-                  >
-                    <ChevronUp className="h-3.5 w-3.5" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleSetStep(index, "weight", -0.5)}
-                    className="flex flex-1 items-center justify-center border-t border-white/12 bg-white/[0.03] text-slate-300 transition-colors hover:bg-white/[0.08] hover:text-slate-100"
-                    aria-label={`Decrease weight for set ${index + 1}`}
-                  >
-                    <ChevronDown className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-              </div>
-
-              <div className="relative">
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  value={repsInputs[index] ?? String(set.reps)}
-                  onChange={(event) => {
-                    const raw = event.target.value.replace(/[^\d]/g, "");
-                    setRepsInputs((prev) => prev.map((v, i) => (i === index ? raw : v)));
-                  }}
-                  onBlur={() => {
-                    const parsed = Math.max(0, Math.floor(Number(repsInputs[index] ?? "") || 0));
-                    onSetChange(index, "reps", parsed);
-                    setRepsInputs((prev) => prev.map((v, i) => (i === index ? String(parsed) : v)));
-                  }}
-                  className={`${inputClassName} ${spinnerInputClassName} pr-10 text-center`}
-                />
-                <div className="absolute inset-y-0 right-0 flex w-9 flex-col overflow-hidden rounded-r-[10px] border-l border-white/12">
-                  <button
-                    type="button"
-                    onClick={() => handleSetStep(index, "reps", 1)}
-                    className="flex flex-1 items-center justify-center bg-white/[0.03] text-slate-300 transition-colors hover:bg-white/[0.08] hover:text-slate-100"
-                    aria-label={`Increase reps for set ${index + 1}`}
-                  >
-                    <ChevronUp className="h-3.5 w-3.5" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleSetStep(index, "reps", -1)}
-                    className="flex flex-1 items-center justify-center border-t border-white/12 bg-white/[0.03] text-slate-300 transition-colors hover:bg-white/[0.08] hover:text-slate-100"
-                    aria-label={`Decrease reps for set ${index + 1}`}
-                  >
-                    <ChevronDown className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-              </div>
-
+            <div className="absolute inset-y-0 right-0 flex w-9 flex-col overflow-hidden rounded-r-[10px] border-l border-white/12">
               <button
                 type="button"
-                onClick={() => onRemoveSet(index)}
-                disabled={sets.length === 1}
-                className="inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-[8px] text-slate-300 transition-all hover:bg-rose-500/15 hover:text-rose-300 disabled:cursor-not-allowed disabled:opacity-45"
-                aria-label={`Remove set ${index + 1}`}
+                onClick={() => handlePauseTimeStep(1)}
+                className="flex flex-1 items-center justify-center bg-white/[0.03] text-slate-300 transition-colors hover:bg-white/[0.08] hover:text-slate-100"
+                aria-label="Increase pause time by one minute"
               >
-                <Trash2 className="h-4 w-4" />
+                <ChevronUp className="h-3.5 w-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => handlePauseTimeStep(-1)}
+                className="flex flex-1 items-center justify-center border-t border-white/12 bg-white/[0.03] text-slate-300 transition-colors hover:bg-white/[0.08] hover:text-slate-100"
+                aria-label="Decrease pause time by one minute"
+              >
+                <ChevronDown className="h-3.5 w-3.5" />
               </button>
             </div>
-          ))}
+          </div>
         </div>
 
-        <div className="mt-4 flex items-center justify-center gap-3">
-          <button
-            type="button"
-            onClick={onAddSet}
-            className="flex items-center justify-center gap-2 rounded-[10px] border border-white/20 bg-white/[0.03] px-4 py-2 text-sm font-semibold text-slate-100 transition-all hover:bg-white/[0.08]"
-          >
-            <Plus className="h-4 w-4" />
-            Add set
-          </button>
+        <div>
+          <div className="mb-2 flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-slate-200">Sets</h3>
+            <span className="text-xs font-medium text-slate-400">{sets.length} tracked</span>
+          </div>
 
-          <button
-            type="button"
-            onClick={onMarkRestDay}
-            className={`flex items-center justify-center gap-2 rounded-[10px] border px-4 py-2 text-sm font-semibold transition-all ${
-              isRestDay
-                ? "border-violet-400/60 bg-violet-500/20 text-violet-200 shadow-[0_0_14px_rgba(139,92,246,0.25)] hover:bg-violet-500/25"
-                : "border-white/20 bg-white/[0.03] text-slate-300 hover:border-violet-400/40 hover:bg-violet-500/10 hover:text-violet-200"
-            }`}
-            aria-label="Mark this day as a rest day"
-          >
-            <Moon className="h-4 w-4" />
-            {isRestDay ? "Rest Day ✓" : "Rest Day"}
-          </button>
+          <div className="grid grid-cols-[56px_minmax(0,1fr)_88px_32px] items-center gap-2.5 px-1 pb-2">
+            <p className={headerCellClassName}>Set</p>
+            <p className={headerCellClassName}>Weight</p>
+            <p className={headerCellClassName}>Reps</p>
+            <span />
+          </div>
+
+          <div className="space-y-2.5">
+            {sets.map((set, index) => (
+              <div
+                key={`set-${index}`}
+                className="grid grid-cols-[56px_minmax(0,1fr)_88px_32px] items-center gap-2.5 rounded-[10px] border border-white/10 bg-white/[0.03] p-2.5"
+              >
+                <div className="flex h-10 items-center justify-center rounded-[10px] border border-white/10 bg-white/[0.02] text-sm font-semibold text-slate-100">
+                  {index + 1}
+                </div>
+
+                <div className="relative">
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={weightInputs[index] ?? String(set.weight)}
+                    onChange={(event) => {
+                      const raw = event.target.value.replace(/[^\d.]/g, "");
+                      setWeightInputs((prev) => prev.map((v, i) => (i === index ? raw : v)));
+                    }}
+                    onBlur={() => {
+                      const parsed = Math.max(0, Number(weightInputs[index] ?? "") || 0);
+                      onSetChange(index, "weight", parsed);
+                      setWeightInputs((prev) => prev.map((v, i) => (i === index ? String(parsed) : v)));
+                    }}
+                    className={`${inputClassName} ${spinnerInputClassName} pr-16`}
+                  />
+                  <span className="pointer-events-none absolute right-11 top-1/2 -translate-y-1/2 text-xs text-slate-400">
+                    kg
+                  </span>
+                  <div className="absolute inset-y-0 right-0 flex w-9 flex-col overflow-hidden rounded-r-[10px] border-l border-white/12">
+                    <button
+                      type="button"
+                      onClick={() => handleSetStep(index, "weight", 0.5)}
+                      className="flex flex-1 items-center justify-center bg-white/[0.03] text-slate-300 transition-colors hover:bg-white/[0.08] hover:text-slate-100"
+                      aria-label={`Increase weight for set ${index + 1}`}
+                    >
+                      <ChevronUp className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleSetStep(index, "weight", -0.5)}
+                      className="flex flex-1 items-center justify-center border-t border-white/12 bg-white/[0.03] text-slate-300 transition-colors hover:bg-white/[0.08] hover:text-slate-100"
+                      aria-label={`Decrease weight for set ${index + 1}`}
+                    >
+                      <ChevronDown className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="relative">
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={repsInputs[index] ?? String(set.reps)}
+                    onChange={(event) => {
+                      const raw = event.target.value.replace(/[^\d]/g, "");
+                      setRepsInputs((prev) => prev.map((v, i) => (i === index ? raw : v)));
+                    }}
+                    onBlur={() => {
+                      const parsed = Math.max(0, Math.floor(Number(repsInputs[index] ?? "") || 0));
+                      onSetChange(index, "reps", parsed);
+                      setRepsInputs((prev) => prev.map((v, i) => (i === index ? String(parsed) : v)));
+                    }}
+                    className={`${inputClassName} ${spinnerInputClassName} pr-10 text-center`}
+                  />
+                  <div className="absolute inset-y-0 right-0 flex w-9 flex-col overflow-hidden rounded-r-[10px] border-l border-white/12">
+                    <button
+                      type="button"
+                      onClick={() => handleSetStep(index, "reps", 1)}
+                      className="flex flex-1 items-center justify-center bg-white/[0.03] text-slate-300 transition-colors hover:bg-white/[0.08] hover:text-slate-100"
+                      aria-label={`Increase reps for set ${index + 1}`}
+                    >
+                      <ChevronUp className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleSetStep(index, "reps", -1)}
+                      className="flex flex-1 items-center justify-center border-t border-white/12 bg-white/[0.03] text-slate-300 transition-colors hover:bg-white/[0.08] hover:text-slate-100"
+                      aria-label={`Decrease reps for set ${index + 1}`}
+                    >
+                      <ChevronDown className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => onRemoveSet(index)}
+                  disabled={sets.length === 1}
+                  className="inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-[8px] text-slate-300 transition-all hover:bg-rose-500/15 hover:text-rose-300 disabled:cursor-not-allowed disabled:opacity-45"
+                  aria-label={`Remove set ${index + 1}`}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-4 flex items-center justify-center">
+            <button
+              type="button"
+              onClick={onAddSet}
+              className="flex items-center justify-center gap-2 rounded-[10px] border border-white/20 bg-white/[0.03] px-4 py-2 text-sm font-semibold text-slate-100 transition-all hover:bg-white/[0.08]"
+            >
+              <Plus className="h-4 w-4" />
+              Add set
+            </button>
+          </div>
         </div>
       </div>
     </section>
@@ -643,6 +626,7 @@ export default function GymPlanMenu() {
 
         setPlanName(apiPlan.name);
         setDays(hydratedDays);
+        setRestDayIds(hydratedDays.filter((day) => day.isRestDay).map((day) => day.id));
         setActiveDayId(targetDayId);
         setSelectedExerciseByDay(createSelectedExerciseMapFromDays(hydratedDays));
         setSetsByExercise(createSetsByExerciseFromApiPlan(apiPlan));
@@ -655,6 +639,7 @@ export default function GymPlanMenu() {
       if (isNewDraft) {
         setPlanName("");
         setDays(createEmptyDays());
+        setRestDayIds([]);
         setActiveDayId("day-1");
         setSelectedExerciseByDay(createEmptySelectedExerciseMap());
         setSetsByExercise({});
@@ -700,7 +685,7 @@ export default function GymPlanMenu() {
         const scheduledDate = getScheduledDateForDayInCycle(activeWorkoutActivation, day.id, todayKey);
         return workoutCompletions.some(
           (completion) =>
-            completion.dayToken === `${planId}:${day.id}` &&
+            completion.dayToken === getPlanDayToken(planId, activeWorkoutActivation.id, day.id) &&
             completion.dateKey === scheduledDate,
         );
       })
@@ -716,17 +701,15 @@ export default function GymPlanMenu() {
   );
 
   const isCompletedForDate = useMemo(
-    () =>
-      Boolean(
-        canMarkCompleted &&
-        planId &&
-        workoutCompletions.some(
-          (completion) =>
-            completion.dayToken === `${planId}:${activeDayId}` &&
-            completion.dateKey === todayKey,
-        ),
-      ),
-    [activeDayId, canMarkCompleted, planId, todayKey, workoutCompletions],
+    () => {
+      if (!canMarkCompleted || !planId || !activeWorkoutActivation) return false;
+      return workoutCompletions.some(
+        (completion) =>
+          completion.dayToken === getPlanDayToken(planId, activeWorkoutActivation.id, activeDayId) &&
+          completion.dateKey === todayKey,
+      );
+    },
+    [activeDayId, activeWorkoutActivation, canMarkCompleted, planId, todayKey, workoutCompletions],
   );
 
   // Track unsaved changes — skip the first run after the plan loads
@@ -742,7 +725,7 @@ export default function GymPlanMenu() {
     }
     setSaveState("idle");
     setIsDirty(true);
-  }, [planName, days, setsByExercise, pauseByExercise, hasLoadedPlan]);
+  }, [planName, days, setsByExercise, pauseByExercise, restDayIds, hasLoadedPlan]);
 
   const getIconForMuscleGroup = (muscleGroup: MuscleGroup): LucideIcon =>
     EXERCISE_ICON_BY_GROUP[muscleGroup] ?? Dumbbell;
@@ -751,8 +734,8 @@ export default function GymPlanMenu() {
     setPlanName(value);
   };
 
-  const handleSavePlan = async (): Promise<void> => {
-    if (!planId || !isEditorReady || saveState === "saving") return;
+  const saveCurrentPlan = async (): Promise<boolean> => {
+    if (!planId || !isEditorReady || saveState === "saving") return false;
     setSaveState("saving");
     const payload = createPlanPayload(planName, days, setsByExercise, pauseByExercise);
     const savedPlan = await workoutPlanApi.update(Number(planId), payload.name, payload.days);
@@ -762,23 +745,34 @@ export default function GymPlanMenu() {
       suppressNextDirtyRef.current = true;
       setPlanName(savedPlan.name);
       setDays(hydratedDays);
+      setRestDayIds(hydratedDays.filter((day) => day.isRestDay).map((day) => day.id));
       setSetsByExercise(createSetsByExerciseFromApiPlan(savedPlan));
       setPauseByExercise(createPauseByExerciseFromApiPlan(savedPlan));
       setSelectedExerciseByDay(createSelectedExerciseMapFromDays(hydratedDays));
       setIsDirty(false);
       setSaveState("saved");
       window.setTimeout(() => setSaveState((current) => (current === "saved" ? "idle" : current)), 1800);
-      return;
+      return true;
     }
     setSaveState("error");
+    return false;
+  };
+
+  const handleSavePlan = async (): Promise<void> => {
+    await saveCurrentPlan();
   };
 
   const handleCompleteWorkout = async (): Promise<void> => {
-    if (!planId || !canMarkCompleted) return;
-    // 1. Salvare locală — feedback vizual imediat
+    if (!planId || !canMarkCompleted || !activeWorkoutActivation) return;
+
+    if (isDirty) {
+      const saved = await saveCurrentPlan();
+      if (!saved) return;
+    }
+
     const completed = await planCompletionApi.markComplete({
       planType: "Workout",
-      dayToken: `${planId}:${activeDayId}`,
+      dayToken: getPlanDayToken(planId, activeWorkoutActivation.id, activeDayId),
       dateKey: todayKey,
     });
 
@@ -806,6 +800,7 @@ export default function GymPlanMenu() {
     const hydratedDays = createDaysFromApiPlan(apiPlan);
     setPlanName(apiPlan.name);
     setDays(hydratedDays);
+    setRestDayIds(hydratedDays.filter((day) => day.isRestDay).map((day) => day.id));
     setSelectedExerciseByDay(createSelectedExerciseMapFromDays(hydratedDays));
     setSetsByExercise(createSetsByExerciseFromApiPlan(apiPlan));
     setPauseByExercise(createPauseByExerciseFromApiPlan(apiPlan));
@@ -855,7 +850,7 @@ export default function GymPlanMenu() {
     setSelectedExerciseByDay((prev) => ({ ...prev, [activeDayId]: String(exercise.id) }));
   };
 
-    const handleDeleteExerciseFromActiveDay = (exerciseId: string | number): void => {
+  const handleDeleteExerciseFromActiveDay = (exerciseId: string | number): void => {
     const deletedExercise = activeDayExercises.find((exercise) => String(exercise.id) === String(exerciseId));
     if (!deletedExercise) {
       return;
@@ -981,13 +976,12 @@ export default function GymPlanMenu() {
                           type="button"
                           onClick={handleCompleteWorkout}
                           disabled={isCompletedForDate}
-                          className={`inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-semibold transition-all duration-200 ${
-                            isCompletedForDate
+                          className={`inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-semibold transition-all duration-200 ${isCompletedForDate
                               ? "cursor-default border-emerald-300/30 bg-emerald-500/15 text-emerald-200"
                               : "border-cyan-300/25 bg-cyan-400/10 text-cyan-100 hover:bg-cyan-400/20"
-                          }`}
-                      >
-                        {isCompletedForDate ? <Check className="h-4 w-4" /> : null}
+                            }`}
+                        >
+                          {isCompletedForDate ? <Check className="h-4 w-4" /> : null}
                           {isCompletedForDate ? "Completed" : "Complete"}
                         </button>
                       ) : null}
@@ -995,15 +989,14 @@ export default function GymPlanMenu() {
                         type="button"
                         onClick={handleSavePlan}
                         disabled={!isDirty || saveState === "saving"}
-                        className={`inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-semibold transition-all duration-300 ${
-                          saveState === "saved"
+                        className={`inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-semibold transition-all duration-300 ${saveState === "saved"
                             ? "scale-100 border-emerald-300/60 bg-emerald-400/25 text-emerald-50 shadow-[0_0_26px_rgba(16,185,129,0.35)]"
                             : saveState === "error"
                               ? "scale-100 border-rose-300/50 bg-rose-500/15 text-rose-100"
                               : isDirty
                                 ? "scale-100 border-emerald-400/50 bg-emerald-500/20 text-emerald-100 shadow-[0_0_18px_rgba(16,185,129,0.25)] hover:bg-emerald-500/30 hover:shadow-[0_0_24px_rgba(16,185,129,0.35)]"
                                 : "scale-95 cursor-not-allowed border-white/10 bg-white/[0.03] text-slate-500"
-                        }`}
+                          }`}
                       >
                         {saveState === "saving" ? (
                           <Loader2 className="h-4 w-4 animate-spin" />
@@ -1036,7 +1029,33 @@ export default function GymPlanMenu() {
                 onSelectDay={handleSelectDay}
               />
 
-              <div className="grid w-full gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)]">
+              {/* Rest Day button — OUTSIDE the faded grid, always active */}
+              <div className="mb-3 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDays((prev) =>
+                      prev.map((day) =>
+                        day.id === activeDayId ? { ...day, isRestDay: !day.isRestDay } : day,
+                      ),
+                    );
+                    setRestDayIds((prev) =>
+                      prev.includes(activeDayId) ? prev.filter((id) => id !== activeDayId) : [...prev, activeDayId],
+                    );
+                  }}
+                  className={`flex items-center gap-2 rounded-[10px] border px-4 py-2 text-sm font-semibold transition-all ${
+                    restDayIds.includes(activeDayId)
+                      ? "border-violet-400/60 bg-violet-500/20 text-violet-200 shadow-[0_0_14px_rgba(139,92,246,0.25)] hover:bg-violet-500/25"
+                      : "border-white/20 bg-white/[0.03] text-slate-300 hover:border-violet-400/40 hover:bg-violet-500/10 hover:text-violet-200"
+                  }`}
+                >
+                  <Moon className="h-4 w-4" />
+                  {restDayIds.includes(activeDayId) ? "Rest Day ✓" : "Rest Day"}
+                </button>
+              </div>
+
+              {/* Grid — fully faded when Rest Day */}
+              <div className={`grid w-full gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)] ${restDayIds.includes(activeDayId) ? "pointer-events-none opacity-40 select-none" : ""}`}>
                 <div className="reveal-up reveal-delay-3">
                   <WorkoutPreview selectedExercise={selectedExercise} />
                 </div>
@@ -1062,13 +1081,6 @@ export default function GymPlanMenu() {
                   onSetChange={handleSetChange}
                   onAddSet={handleAddSet}
                   onRemoveSet={handleRemoveSet}
-                  onMarkRestDay={() => {
-                    setRestDayIds((prev) =>
-                      prev.includes(activeDayId)
-                        ? prev.filter((id) => id !== activeDayId)
-                        : [...prev, activeDayId]
-                    );
-                  }}
                 />
               </div>
             </div>
