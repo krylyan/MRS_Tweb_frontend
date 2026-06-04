@@ -59,14 +59,14 @@ export default function AdminExercises() {
     const q = searchQuery.trim().toLowerCase();
     return exercises.filter((ex) => {
       const matchesFilter = activeFilter === "all" || ex.muscleGroup === activeFilter;
-      const matchesQuery =
-        !q || ex.name.toLowerCase().includes(q) || ex.instructions.toLowerCase().includes(q);
+      const matchesQuery = !q || ex.name.toLowerCase().includes(q);
       return matchesFilter && matchesQuery;
     });
   }, [activeFilter, exercises, searchQuery]);
 
-  const refreshExercises = () => {
-    exerciseService.getAllExercises().then(setExercises);
+  const refreshExercises = async () => {
+    const data = await exerciseService.getAllExercises();
+    setExercises(data);
   };
 
   const setResultMessage = (ok: boolean, successMsg: string, errorMsg?: string) => {
@@ -92,11 +92,15 @@ export default function AdminExercises() {
     setResultMessage(
       result.ok,
       form.id ? "Exercise updated successfully." : "Exercise added successfully.",
-      result.message,
+      result.ok ? undefined : result.message,
     );
     if (result.ok) {
       setForm(createEmptyForm());
-      refreshExercises();
+      setExercises((prev) => {
+        const withoutSavedExercise = prev.filter((exercise) => exercise.id !== result.exercise.id);
+        return [result.exercise, ...withoutSavedExercise];
+      });
+      await refreshExercises();
     }
     setSubmitting(false);
   };
@@ -116,7 +120,7 @@ export default function AdminExercises() {
     const result = await exerciseService.deleteExercise(exercise.id);
     setResultMessage(result.ok, `${exercise.name} deleted.`, result.message);
     if (result.ok) {
-      refreshExercises();
+      await refreshExercises();
     }
     setExerciseToDelete(null);
   };

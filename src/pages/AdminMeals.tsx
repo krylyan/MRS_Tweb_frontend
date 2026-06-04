@@ -95,13 +95,13 @@ export default function AdminMeals() {
     });
   }, [activeFilter, meals, searchQuery]);
 
-  const refreshMeals = () => {
-    Promise.all([mealService.getAllMeals(), mealService.getFilterCategories()]).then(
-      ([data, cats]) => {
-        setMeals(data);
-        setCategories(cats);
-      },
-    );
+  const refreshMeals = async () => {
+    const [data, cats] = await Promise.all([
+      mealService.getAllMeals(),
+      mealService.getFilterCategories(),
+    ]);
+    setMeals(data);
+    setCategories(cats);
   };
 
   const setResultMessage = (ok: boolean, successMsg: string, errorMsg?: string) => {
@@ -141,11 +141,15 @@ export default function AdminMeals() {
     setResultMessage(
       result.ok,
       form.id ? "Meal updated successfully." : "Meal created successfully.",
-      result.message,
+      result.ok ? undefined : result.message,
     );
     if (result.ok) {
       setForm(createEmptyForm());
-      refreshMeals();
+      setMeals((prev) => {
+        const withoutSavedMeal = prev.filter((meal) => meal.id !== result.meal.id);
+        return [result.meal, ...withoutSavedMeal];
+      });
+      await refreshMeals();
     }
     setSubmitting(false);
   };
@@ -172,7 +176,7 @@ export default function AdminMeals() {
     setResultMessage(result.ok, `${meal.name} deleted.`, result.message);
     if (result.ok) {
       if (form.id === meal.id) setForm(createEmptyForm());
-      refreshMeals();
+      await refreshMeals();
     }
     setMealToDelete(null);
   };

@@ -29,12 +29,7 @@ const searchExercises = async (query: string): Promise<Exercise[]> => {
   const all = await getAllExercises();
   if (!query.trim()) return all;
   const q = query.trim().toLowerCase();
-  return all.filter(
-    (e) =>
-      e.name.toLowerCase().includes(q) ||
-      e.muscleGroup.toLowerCase().includes(q) ||
-      e.instructions.toLowerCase().includes(q),
-  );
+  return all.filter((e) => e.name.toLowerCase().includes(q));
 };
 
 const getExercisesByMuscleGroup = async (muscleGroup: MuscleGroup): Promise<Exercise[]> => {
@@ -50,9 +45,10 @@ const createExercise = async (dto: {
   muscleGroup: string;
   gifUrl: string;
   instructions: string;
-}): Promise<{ ok: boolean; message?: string }> => {
+}): Promise<{ ok: true; exercise: Exercise } | { ok: false; message: string }> => {
   const result = await apiClient.post<ApiExercise>("/exercise", dto);
-  if (result.ok) return { ok: true };
+  if (result.ok && result.data.id > 0) return { ok: true, exercise: mapApiExercise(result.data) };
+  if (result.ok) return { ok: false, message: "Exercise was not saved with a valid database id." };
   return { ok: false, message: (result as { ok: false; message: string }).message };
 };
 
@@ -64,9 +60,10 @@ const updateExercise = async (
     gifUrl: string;
     instructions: string;
   },
-): Promise<{ ok: boolean; message?: string }> => {
+): Promise<{ ok: true; exercise: Exercise } | { ok: false; message: string }> => {
   const result = await apiClient.put<ApiExercise>(`/exercise/${id}`, dto);
-  if (result.ok) return { ok: true };
+  if (result.ok && result.data.id > 0) return { ok: true, exercise: mapApiExercise(result.data) };
+  if (result.ok) return { ok: false, message: "Exercise was not saved with a valid database id." };
   return { ok: false, message: (result as { ok: false; message: string }).message };
 };
 

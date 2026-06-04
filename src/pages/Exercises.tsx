@@ -54,12 +54,7 @@ export default function Exercises() {
     }
     if (searchQuery.trim()) {
       const q = searchQuery.trim().toLowerCase();
-      result = result.filter(
-        (e) =>
-          e.name.toLowerCase().includes(q) ||
-          e.muscleGroup.toLowerCase().includes(q) ||
-          e.instructions.toLowerCase().includes(q),
-      );
+      result = result.filter((e) => e.name.toLowerCase().includes(q));
     }
     return result;
   }, [exercises, activeFilter, searchQuery]);

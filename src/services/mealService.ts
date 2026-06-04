@@ -76,18 +76,20 @@ export interface FoodItemPayload {
   preparationSteps?: string | null;
 }
 
-const createMeal = async (dto: FoodItemPayload): Promise<{ ok: boolean; message?: string }> => {
+const createMeal = async (dto: FoodItemPayload): Promise<{ ok: true; meal: FoodItem } | { ok: false; message: string }> => {
   const result = await apiClient.post<ApiFoodItem>("/fooditem", dto);
-  if (result.ok) return { ok: true };
+  if (result.ok && result.data.id > 0) return { ok: true, meal: mapApiFoodItem(result.data) };
+  if (result.ok) return { ok: false, message: "Meal was not saved with a valid database id." };
   return { ok: false, message: (result as { ok: false; message: string }).message };
 };
 
 const updateMeal = async (
   id: number,
   dto: FoodItemPayload,
-): Promise<{ ok: boolean; message?: string }> => {
+): Promise<{ ok: true; meal: FoodItem } | { ok: false; message: string }> => {
   const result = await apiClient.put<ApiFoodItem>(`/fooditem/${id}`, dto);
-  if (result.ok) return { ok: true };
+  if (result.ok && result.data.id > 0) return { ok: true, meal: mapApiFoodItem(result.data) };
+  if (result.ok) return { ok: false, message: "Meal was not saved with a valid database id." };
   return { ok: false, message: (result as { ok: false; message: string }).message };
 };
 
