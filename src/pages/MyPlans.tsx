@@ -2,9 +2,9 @@ import { AlertTriangle, CalendarDays, Check, Clock, Dumbbell, Flame, ImageIcon, 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { workoutPlanApi } from "../services/workoutPlanApi";
-import type { WorkoutPlanApi } from "../services/workoutPlanApi";
+import type { WorkoutPlanSummaryApi } from "../services/workoutPlanApi";
 import { mealPlanApi } from "../services/mealPlanApi";
-import type { MealPlanApi } from "../services/mealPlanApi";
+import type { MealPlanSummaryApi } from "../services/mealPlanApi";
 import { planActivationApi } from "../services/planActivationApi";
 import {
   planPreferencesApi,
@@ -77,8 +77,8 @@ export default function MyPlans() {
   const menuAreaRef = useRef<HTMLDivElement | null>(null);
 
   // â”€â”€ API data â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  const [workoutPlans, setWorkoutPlans] = useState<WorkoutPlanApi[]>([]);
-  const [mealPlans, setMealPlans] = useState<MealPlanApi[]>([]);
+  const [workoutPlans, setWorkoutPlans] = useState<WorkoutPlanSummaryApi[]>([]);
+  const [mealPlans, setMealPlans] = useState<MealPlanSummaryApi[]>([]);
   const [_isLoading, setIsLoading] = useState(true);
 
   // â”€â”€ UI state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -99,27 +99,40 @@ export default function MyPlans() {
 
   // â”€â”€ Load plans from API on mount â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   useEffect(() => {
+    let cancelled = false;
+
     async function loadData() {
       setIsLoading(true);
-      const [wPlans, mPlans, wActivation, mActivation, favorites, planCustomizations] = await Promise.all([
-        workoutPlanApi.getMyPlans(),
-        mealPlanApi.getMyPlans(),
+      const [wPlans, mPlans] = await Promise.all([
+        workoutPlanApi.getMyPlanSummaries(),
+        mealPlanApi.getMyPlanSummaries(),
+      ]);
+
+      if (cancelled) return;
+      setWorkoutPlans(wPlans);
+      setMealPlans(mPlans);
+      setIsLoading(false);
+
+      const [wActivation, mActivation, favorites, planCustomizations] = await Promise.all([
         planActivationApi.getActive("Workout"),
         planActivationApi.getActive("Meal"),
         planPreferencesApi.getFavorites(),
         planPreferencesApi.getCustomizations(),
       ]);
-      setWorkoutPlans(wPlans);
-      setMealPlans(mPlans);
+
+      if (cancelled) return;
       if (wActivation) setActivePlanIdState(wActivation.planIdentifier);
       if (mActivation) setActiveMealPlanId(mActivation.planIdentifier);
       setFavoriteIds(toFavoriteIds(favorites, "Workout"));
       setFavoriteMealIds(toFavoriteIds(favorites, "Meal"));
       setCustomizations(toCustomizationMap(planCustomizations, "Workout"));
       setMealCustomizations(toCustomizationMap(planCustomizations, "Meal"));
-      setIsLoading(false);
     }
+
     loadData();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -174,7 +187,7 @@ export default function MyPlans() {
     setOpenMealMenuId(null);
   };
 
-  const requestDeleteMealPlan = (plan: MealPlanApi) => {
+  const requestDeleteMealPlan = (plan: MealPlanSummaryApi) => {
     setPendingDelete({ type: "meal", id: plan.id.toString(), name: plan.name });
     setOpenMealMenuId(null);
   };
@@ -201,8 +214,8 @@ export default function MyPlans() {
         name: plan.name,
         updatedAt: plan.updatedAt,
         statLabel: "Days",
-        statValue: plan.days.length,
-        exerciseCount: plan.days.reduce((sum, d) => sum + d.exercises.length, 0),
+        statValue: plan.dayCount,
+        exerciseCount: plan.exerciseCount,
         detailsEnabled: true,
         favoriteEnabled: true,
         deleteEnabled: true,
@@ -439,7 +452,7 @@ export default function MyPlans() {
     );
   };
 
-  const renderMealCard = (plan: MealPlanApi, index: number) => {
+  const renderMealCard = (plan: MealPlanSummaryApi, index: number) => {
     const planIdStr = plan.id.toString();
     const isMealFavorite = favoriteMealIds.includes(planIdStr);
     const isMealActive = activeMealPlanId === planIdStr;
@@ -608,7 +621,7 @@ export default function MyPlans() {
               ...mealPlans.filter((p) => p.id.toString() === activeMealPlanId),
               ...[...favoriteMealIds].reverse()
                 .map((id) => mealPlans.find((p) => p.id.toString() === id && p.id.toString() !== activeMealPlanId))
-                .filter((p): p is MealPlanApi => p !== undefined),
+                .filter((p): p is MealPlanSummaryApi => p !== undefined),
               ...mealPlans.filter((p) => p.id.toString() !== activeMealPlanId && !favoriteMealIds.includes(p.id.toString())),
             ];
             return (

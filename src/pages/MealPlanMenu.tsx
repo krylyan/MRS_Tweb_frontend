@@ -640,7 +640,7 @@ export default function MealPlanMenu() {
           return;
         }
 
-        const plans = await mealPlanApi.getMyPlans();
+        const plans = await mealPlanApi.getMyPlanSummaries();
         if (cancelled) return;
         const fallbackPlan = plans[0];
         setCurrentPlanId(fallbackPlan ? String(fallbackPlan.id) : null);

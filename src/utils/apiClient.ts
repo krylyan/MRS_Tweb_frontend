@@ -18,6 +18,26 @@ export interface ApiError {
 
 export type ApiResult<T> = ApiResponse<T> | ApiError;
 
+const GET_CACHE_TTL_MS = 30_000;
+
+type CacheEntry = {
+  expiresAt: number;
+  result: ApiResult<unknown>;
+};
+
+const getCache = new Map<string, CacheEntry>();
+const pendingGets = new Map<string, Promise<ApiResult<unknown>>>();
+
+function getCacheKey(path: string) {
+  const token = AuthUtils.getToken() ?? "";
+  return `${token}:${path}`;
+}
+
+function clearGetCache() {
+  getCache.clear();
+  pendingGets.clear();
+}
+
 // ─── Core fetch cu JWT automat ────────────────────────────────────────────────
 async function apiFetch(
   path: string,
@@ -83,13 +103,43 @@ async function parseResponse<T>(response: Response): Promise<ApiResult<T>> {
 
 // ─── Metode HTTP convenabile ──────────────────────────────────────────────────
 async function get<T>(path: string): Promise<ApiResult<T>> {
-  try {
-    const response = await apiFetch(path, { method: "GET" });
-    return parseResponse<T>(response);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Network error";
-    return { ok: false, message: `Cannot reach server: ${message}`, status: 0 };
+  const cacheKey = getCacheKey(path);
+  const cached = getCache.get(cacheKey);
+
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.result as ApiResult<T>;
   }
+
+  const pending = pendingGets.get(cacheKey);
+  if (pending) {
+    return pending as Promise<ApiResult<T>>;
+  }
+
+  const request: Promise<ApiResult<T>> = (async () => {
+    try {
+      const response = await apiFetch(path, { method: "GET" });
+      const result = await parseResponse<T>(response);
+
+      if (result.ok) {
+        getCache.set(cacheKey, {
+          expiresAt: Date.now() + GET_CACHE_TTL_MS,
+          result,
+        });
+      } else {
+        getCache.delete(cacheKey);
+      }
+
+      return result;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Network error";
+      return { ok: false as const, message: `Cannot reach server: ${message}`, status: 0 };
+    } finally {
+      pendingGets.delete(cacheKey);
+    }
+  })();
+
+  pendingGets.set(cacheKey, request as Promise<ApiResult<unknown>>);
+  return request;
 }
 
 async function post<T>(path: string, body: unknown): Promise<ApiResult<T>> {
@@ -98,7 +148,9 @@ async function post<T>(path: string, body: unknown): Promise<ApiResult<T>> {
       method: "POST",
       body: JSON.stringify(body),
     });
-    return parseResponse<T>(response);
+    const result = await parseResponse<T>(response);
+    if (result.ok) clearGetCache();
+    return result;
   } catch (error) {
     const message = error instanceof Error ? error.message : "Network error";
     return { ok: false, message: `Cannot reach server: ${message}`, status: 0 };
@@ -111,7 +163,9 @@ async function postForm<T>(path: string, body: FormData): Promise<ApiResult<T>> 
       method: "POST",
       body,
     });
-    return parseResponse<T>(response);
+    const result = await parseResponse<T>(response);
+    if (result.ok) clearGetCache();
+    return result;
   } catch (error) {
     const message = error instanceof Error ? error.message : "Network error";
     return { ok: false, message: `Cannot reach server: ${message}`, status: 0 };
@@ -124,7 +178,9 @@ async function put<T>(path: string, body: unknown): Promise<ApiResult<T>> {
       method: "PUT",
       body: JSON.stringify(body),
     });
-    return parseResponse<T>(response);
+    const result = await parseResponse<T>(response);
+    if (result.ok) clearGetCache();
+    return result;
   } catch (error) {
     const message = error instanceof Error ? error.message : "Network error";
     return { ok: false, message: `Cannot reach server: ${message}`, status: 0 };
@@ -134,7 +190,9 @@ async function put<T>(path: string, body: unknown): Promise<ApiResult<T>> {
 async function del<T>(path: string): Promise<ApiResult<T>> {
   try {
     const response = await apiFetch(path, { method: "DELETE" });
-    return parseResponse<T>(response);
+    const result = await parseResponse<T>(response);
+    if (result.ok) clearGetCache();
+    return result;
   } catch (error) {
     const message = error instanceof Error ? error.message : "Network error";
     return { ok: false, message: `Cannot reach server: ${message}`, status: 0 };

@@ -18,8 +18,8 @@ import {
 import AuthUtils from "../utils/authUtils";
 import { getThemeById, DEFAULT_THEME_IDS } from "./MyPlans";
 import { profileApi } from "../services/profileApi";
-import { workoutPlanApi, type WorkoutPlanApi } from "../services/workoutPlanApi";
-import { mealPlanApi, type MealPlanApi } from "../services/mealPlanApi";
+import { workoutPlanApi, type WorkoutPlanSummaryApi } from "../services/workoutPlanApi";
+import { mealPlanApi, type MealPlanSummaryApi } from "../services/mealPlanApi";
 import { planActivationApi } from "../services/planActivationApi";
 import { planCompletionApi, type PlanCompletionResponseDto } from "../services/planCompletionApi";
 import { planPreferencesApi, toCustomizationMap, type PlanCustomizations } from "../services/planPreferencesApi";
@@ -89,37 +89,19 @@ const calculateStreaks = (completions: PlanCompletionResponseDto[]) => {
   return { current, best };
 };
 
-const totalCompletedWeight = (plans: WorkoutPlanApi[], completions: PlanCompletionResponseDto[]) => {
+const totalCompletedWeight = (plans: WorkoutPlanSummaryApi[], completions: PlanCompletionResponseDto[]) => {
   let t = 0;
   for (const completion of completions.filter((item) => item.planType === "Workout")) {
     const planId = getPlanIdFromToken(completion.dayToken);
     const dayNumber = getDayNumberFromToken(completion.dayToken);
     const plan = plans.find((item) => item.id.toString() === planId);
     const day = plan?.days.find((item) => item.dayNumber === dayNumber);
-    if (!day) continue;
-
-    for (const exercise of day.dayExercises ?? []) {
-      for (const set of exercise.sets) {
-        t += set.weight * set.reps;
-      }
-    }
+    t += day?.totalWeight ?? 0;
   }
   return Math.round(t);
 };
 
-const mealKcalPerDay = (mealPlan: MealPlanApi | null) => {
-  if (!mealPlan || mealPlan.days.length === 0) return 0;
-  const total = mealPlan.days.reduce(
-    (planSum, day) =>
-      planSum +
-      day.categories.reduce(
-        (daySum, category) => daySum + category.items.reduce((sum, item) => sum + item.kcal, 0),
-        0,
-      ),
-    0,
-  );
-  return Math.round(total / mealPlan.days.length);
-};
+const mealKcalPerDay = (mealPlan: MealPlanSummaryApi | null) => mealPlan?.kcalPerDay ?? 0;
 
 const fmtWeight = (kg: number) => `${kg.toLocaleString()} kg`;
 
@@ -195,8 +177,8 @@ export default function Profile() {
   const [isEditingBody, setIsEditingBody] = useState(false);
   const [profile, setProfile] = useState<UserProfileData>(() => createEmptyProfile());
   const [bodyForm, setBodyForm] = useState({ weight: String(profile.weight), height: String(profile.height), age: String(profile.age) });
-  const [plans, setPlans] = useState<WorkoutPlanApi[]>([]);
-  const [mealPlans, setMealPlans] = useState<MealPlanApi[]>([]);
+  const [plans, setPlans] = useState<WorkoutPlanSummaryApi[]>([]);
+  const [mealPlans, setMealPlans] = useState<MealPlanSummaryApi[]>([]);
   const [completions, setCompletions] = useState<PlanCompletionResponseDto[]>([]);
   const [activePlanId, setActivePlanId] = useState<string | null>(null);
   const [activeMealPlanId, setActiveMealPlanId] = useState<string | null>(null);
@@ -218,15 +200,9 @@ export default function Profile() {
         return;
       }
 
-      const [account, dbProfile, workoutPlans, userMealPlans, workoutActivation, mealActivation, preferences, completionHistory] = await Promise.all([
+      const [account, dbProfile] = await Promise.all([
         profileApi.getMe(),
         profileApi.getProfile(),
-        workoutPlanApi.getMyPlans(),
-        mealPlanApi.getMyPlans(),
-        planActivationApi.getActive("Workout"),
-        planActivationApi.getActive("Meal"),
-        planPreferencesApi.getCustomizations(),
-        planCompletionApi.getByUser(),
       ]);
 
       if (cancelled) return;
@@ -236,13 +212,11 @@ export default function Profile() {
         setFormEmail(account.username);
       }
 
-      const streaks = calculateStreaks(completionHistory);
       const updated = {
         ...createEmptyProfile(),
         weight: dbProfile?.weight ?? 0,
         height: dbProfile?.height ?? 0,
         age: dbProfile?.age ?? 0,
-        streak: streaks.current,
         avatarUrl: normalizeMediaUrl(dbProfile?.avatarUrl),
       };
 
@@ -252,6 +226,20 @@ export default function Profile() {
         height: String(updated.height),
         age: String(updated.age),
       });
+
+      const [workoutPlans, userMealPlans, workoutActivation, mealActivation, preferences, completionHistory] = await Promise.all([
+        workoutPlanApi.getMyPlanSummaries(),
+        mealPlanApi.getMyPlanSummaries(),
+        planActivationApi.getActive("Workout"),
+        planActivationApi.getActive("Meal"),
+        planPreferencesApi.getCustomizations(),
+        planCompletionApi.getByUser(),
+      ]);
+
+      if (cancelled) return;
+
+      const streaks = calculateStreaks(completionHistory);
+      setProfile((current) => ({ ...current, streak: streaks.current }));
       setPlans(workoutPlans);
       setMealPlans(userMealPlans);
       setCompletions(completionHistory);
@@ -516,7 +504,7 @@ export default function Profile() {
               const custom = customizations[activePlan.id];
               const accent = custom?.colorId ? getThemeById(custom.colorId) : getThemeById(DEFAULT_THEME_IDS[Math.max(0, planIndex) % 4]);
               const customImg = custom?.imageUrl;
-              const estMinutes = activePlan.days.length * 45;
+              const estMinutes = activePlan.dayCount * 45;
 
               return (
                 <article className={`flex flex-1 flex-col overflow-hidden rounded-2xl border shadow-[0_18px_36px_rgba(0,0,0,0.25)] backdrop-blur-[6px] transition-all duration-300 hover:-translate-y-1 hover:shadow-xl ${accent.card}`}>
@@ -528,14 +516,14 @@ export default function Profile() {
                       <Dumbbell className="h-16 w-16 text-white/20" />
                     )}
                     <span className={`absolute bottom-3 left-3 rounded-lg ${accent.badge} px-2.5 py-1 text-xs font-bold text-white backdrop-blur-sm`}>
-                      {activePlan.days.length} days
+                      {activePlan.dayCount} days
                     </span>
                   </div>
                   {/* Content */}
                   <div className="flex flex-1 flex-col p-5">
                     <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-400">
-                      <span className="flex items-center gap-1"><Calendar className="h-3.5 w-3.5" />{activePlan.days.length} training days</span>
-                      <span className="flex items-center gap-1"><Star className="h-3.5 w-3.5" />{activePlan.days.reduce((s, d) => s + (d.dayExercises?.length ?? d.exercises.length), 0)} exercises</span>
+                      <span className="flex items-center gap-1"><Calendar className="h-3.5 w-3.5" />{activePlan.dayCount} training days</span>
+                      <span className="flex items-center gap-1"><Star className="h-3.5 w-3.5" />{activePlan.exerciseCount} exercises</span>
                       <span className="flex items-center gap-1"><Clock className="h-3.5 w-3.5" />~{estMinutes} min</span>
                     </div>
                     <h3 className="mb-5 break-words text-xl font-bold leading-snug text-slate-50">{activePlan.name}</h3>
@@ -564,7 +552,7 @@ export default function Profile() {
               const custom = mealCustomizations[activeMealPlan.id];
               const accent = custom?.colorId ? getThemeById(custom.colorId) : getThemeById(DEFAULT_THEME_IDS[Math.max(0, planIndex) % 4]);
               const customImg = normalizeMediaUrl(custom?.imageUrl);
-              const dayCount = activeMealPlan.days.length;
+              const dayCount = activeMealPlan.dayCount;
 
               return (
                 <article className={`flex flex-1 flex-col overflow-hidden rounded-2xl border shadow-[0_18px_36px_rgba(0,0,0,0.25)] backdrop-blur-[6px] transition-all duration-300 hover:-translate-y-1 hover:shadow-xl ${accent.card}`}>

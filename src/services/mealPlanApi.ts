@@ -39,6 +39,16 @@ export interface MealPlanApi {
   days: MealPlanDayApi[];
 }
 
+export interface MealPlanSummaryApi {
+  id: number;
+  userId: number;
+  name: string;
+  updatedAt: string;
+  meals: number;
+  dayCount: number;
+  kcalPerDay: number;
+}
+
 export interface MealPlanCreateDayBody {
   label: string;
   dayNumber: number;
@@ -54,6 +64,13 @@ export interface MealPlanCreateDayBody {
 }
 
 export const mealPlanApi = {
+  async getMyPlanSummaries(): Promise<MealPlanSummaryApi[]> {
+    const session = AuthUtils.getSession();
+    if (!session) return [];
+    const result = await apiClient.get<MealPlanSummaryApi[]>(`/mealplan/user/${session.userId}/summary`);
+    return result.ok ? result.data : [];
+  },
+
   async getMyPlans(): Promise<MealPlanApi[]> {
     const session = AuthUtils.getSession();
     if (!session) return [];

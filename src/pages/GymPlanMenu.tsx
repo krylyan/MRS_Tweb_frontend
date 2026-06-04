@@ -595,7 +595,7 @@ export default function GymPlanMenu() {
 
     const loadPlan = async (): Promise<void> => {
       if (!planId && !isNewDraft) {
-        const availablePlans = await workoutPlanApi.getMyPlans();
+        const availablePlans = await workoutPlanApi.getMyPlanSummaries();
         if (cancelled) return;
         const fallbackPlan = availablePlans[0];
 

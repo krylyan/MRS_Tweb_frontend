@@ -4,6 +4,7 @@ import AuthButton from "../../components/auth/AuthButton";
 import AuthInput from "../../components/auth/AuthInput";
 import AuthUtils, { type SessionData } from "../../utils/authUtils";
 import { authService } from "../../services/authService";
+import { questionnaireApi } from "../../services/questionnaireApi";
 
 interface SignInLocationState {
   message?: string;
@@ -24,7 +25,7 @@ export default function SignIn() {
   // Redirect automat dacă userul e deja logat
   useEffect(() => {
     if (AuthUtils.isAuthenticated()) {
-      navigate("/home", { replace: true });
+      navigate(AuthUtils.isQuestionnaireRequired() ? "/questionnaire" : "/home", { replace: true });
       return;
     }
     const frame = requestAnimationFrame(() => setIsLoaded(true));
@@ -57,7 +58,10 @@ export default function SignIn() {
     };
     AuthUtils.setSession(session);
 
-    navigate("/home", { replace: true });
+    const hasCompletedQuestionnaire = await questionnaireApi.hasCompleted();
+    AuthUtils.setQuestionnaireRequired(!hasCompletedQuestionnaire);
+
+    navigate(hasCompletedQuestionnaire ? "/home" : "/questionnaire", { replace: true });
   };
 
   return (

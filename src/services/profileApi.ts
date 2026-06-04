@@ -7,6 +7,10 @@ export interface UserProfileDto {
   weight?: number;
   height?: number;
   age?: number;
+  gender?: string;
+  bmi?: number;
+  bmr?: number;
+  tdee?: number;
   streak?: number;
   avatarUrl?: string;
 }

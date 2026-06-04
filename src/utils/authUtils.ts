@@ -120,6 +120,14 @@ const AuthUtils = {
   isQuestionnaireRequired: (): boolean =>
     sessionStorage.getItem(QUESTIONNAIRE_PENDING_KEY) === "true",
 
+  setQuestionnaireRequired: (value: boolean): void => {
+    if (value) {
+      sessionStorage.setItem(QUESTIONNAIRE_PENDING_KEY, "true");
+      return;
+    }
+    sessionStorage.removeItem(QUESTIONNAIRE_PENDING_KEY);
+  },
+
   saveQuestionnaireAnswers: (): void => {
     const session = readSession();
     if (!session) return;

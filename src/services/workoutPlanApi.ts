@@ -54,6 +54,23 @@ export interface WorkoutPlanApi {
   } | null;
 }
 
+export interface WorkoutPlanDaySummaryApi {
+  dayNumber: number;
+  exerciseCount: number;
+  totalWeight: number;
+}
+
+export interface WorkoutPlanSummaryApi {
+  id: number;
+  userId: number;
+  name: string;
+  createdAt: string;
+  updatedAt: string;
+  dayCount: number;
+  exerciseCount: number;
+  days: WorkoutPlanDaySummaryApi[];
+}
+
 export interface DayPlanCreateBody {
   label: string;
   dayNumber?: number;
@@ -75,6 +92,13 @@ export interface DayPlanCreateBody {
 }
 
 export const workoutPlanApi = {
+  async getMyPlanSummaries(): Promise<WorkoutPlanSummaryApi[]> {
+    const session = AuthUtils.getSession();
+    if (!session) return [];
+    const result = await apiClient.get<WorkoutPlanSummaryApi[]>(`/workoutplan/user/${session.userId}/summary`);
+    return result.ok ? result.data : [];
+  },
+
   async getMyPlans(): Promise<WorkoutPlanApi[]> {
     const session = AuthUtils.getSession();
     if (!session) return [];
