@@ -68,7 +68,6 @@ export const getThemeById = (id: string) =>
   PLAN_THEMES.find((t) => t.id === id) ?? PLAN_THEMES[0];
 
 
-// Meal plans now come from the backend API â€” no more hardcoded mock data
 
 export default function MyPlans() {
   const navigate = useNavigate();
@@ -76,12 +75,10 @@ export default function MyPlans() {
   const activeCategory: PlanCategory = (searchParams.get("tab") as PlanCategory) ?? "workout";
   const menuAreaRef = useRef<HTMLDivElement | null>(null);
 
-  // â”€â”€ API data â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const [workoutPlans, setWorkoutPlans] = useState<WorkoutPlanSummaryApi[]>([]);
   const [mealPlans, setMealPlans] = useState<MealPlanSummaryApi[]>([]);
   const [_isLoading, setIsLoading] = useState(true);
 
-  // â”€â”€ UI state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
   const [activePlanId, setActivePlanIdState] = useState<string | null>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
@@ -97,7 +94,6 @@ export default function MyPlans() {
   const mealMenuRef = useRef<HTMLDivElement | null>(null);
   const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null);
 
-  // â”€â”€ Load plans from API on mount â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   useEffect(() => {
     let cancelled = false;
 
@@ -338,7 +334,6 @@ export default function MyPlans() {
           )}
         </div>
 
-        {/* Star badge â€” only when favorite, non-clickable */}
         {isFavorite && (
           <div className="absolute right-12 top-2 z-10">
             <span className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-amber-400/30 bg-black/40 backdrop-blur-sm text-amber-400">
@@ -347,7 +342,6 @@ export default function MyPlans() {
           </div>
         )}
 
-        {/* â‹¯ Menu â€” sibling to image div, positioned on article (no overflow-hidden parent) */}
         <div className="absolute right-2 top-2 z-10" ref={isMenuOpen ? menuRef : null}>
           <button
             type="button"
@@ -812,7 +806,6 @@ function EditPlanModal({ planName, currentColorId, currentImageUrl, onSave, onCl
           </div>
         </div>
 
-        {/* Preview â€” click to pick image */}
         <div
           className={`relative mx-6 mt-5 flex h-64 cursor-pointer items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br ${preview.imgBg} group sm:h-72`}
           onClick={() => fileInputRef.current?.click()}

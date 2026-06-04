@@ -47,6 +47,13 @@ interface DayPlan {
   isRestDay?: boolean;
 }
 
+interface WorkoutPlanValidationResult {
+  isValid: boolean;
+  message?: string;
+  dayId?: string;
+  exerciseId?: string | number;
+}
+
 interface DaysSelectorProps {
   days: DayPlan[];
   activeDayId: string;       // currently selected/viewed day (tab)
@@ -83,7 +90,7 @@ const DEFAULT_PAUSE_TIME: PauseTime = {
 
 const DEFAULT_SET: WorkoutSet = {
   weight: 0,
-  reps: 0,
+  reps: 1,
 };
 
 const WORKOUT_DAY_COUNT = 7;
@@ -101,6 +108,9 @@ const createEmptySelectedExerciseMap = (): Record<string, string | null> =>
 
 const clampToNonNegativeInteger = (value: number): number =>
   Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 0;
+
+const clampToPositiveInteger = (value: number): number =>
+  Number.isFinite(value) ? Math.max(1, Math.floor(value)) : 1;
 
 const normalizePauseTime = (minutes: number, seconds: number): PauseTime => {
   const totalSeconds = Math.max(0, clampToNonNegativeInteger(minutes) * 60 + clampToNonNegativeInteger(seconds));
@@ -137,6 +147,12 @@ const getPlanExerciseKey = (dayId: string, exerciseId: string | number): string 
 
 const getPlanDayToken = (planIdentifier: string, activationId: number, dayId: string): string =>
   `${planIdentifier}:${activationId}:${dayId}`;
+
+const normalizeWorkoutSetForApi = (set: WorkoutSet, order: number) => ({
+  order,
+  weight: Math.min(1000, clampToNonNegativeInteger(set.weight)),
+  reps: Math.min(500, clampToPositiveInteger(set.reps)),
+});
 
 const parseDateKey = (dateKey: string): Date => {
   const [year, month, day] = dateKey.split("-").map(Number);
@@ -231,6 +247,43 @@ const createPauseByExerciseFromApiPlan = (plan: WorkoutPlanApi): Record<string, 
   return Object.fromEntries(entries);
 };
 
+const validateWorkoutPlanForSave = (
+  days: DayPlan[],
+  setsByExercise: Record<string, WorkoutSet[]>,
+): WorkoutPlanValidationResult => {
+  for (const day of days) {
+    if (day.isRestDay) {
+      continue;
+    }
+
+    for (const exercise of day.exercises) {
+      const sets = setsByExercise[getPlanExerciseKey(day.id, exercise.id)] ?? [];
+
+      if (!sets.length) {
+        return {
+          isValid: false,
+          message: `${exercise.name} from ${day.label} needs at least one set before saving.`,
+          dayId: day.id,
+          exerciseId: exercise.id,
+        };
+      }
+
+      const invalidSetIndex = sets.findIndex((set) => !Number.isFinite(set.reps) || set.reps < 1);
+
+      if (invalidSetIndex >= 0) {
+        return {
+          isValid: false,
+          message: `${exercise.name} from ${day.label} has an invalid set. Reps must be at least 1.`,
+          dayId: day.id,
+          exerciseId: exercise.id,
+        };
+      }
+    }
+  }
+
+  return { isValid: true };
+};
+
 const createPlanPayload = (
   planName: string,
   days: DayPlan[],
@@ -238,21 +291,34 @@ const createPlanPayload = (
   pauseByExercise: Record<string, PauseTime>,
 ) => ({
   name: planName.trim(),
-  days: days.map((day, dayIndex) => ({
-    label: day.label,
-    dayNumber: dayIndex + 1,
-    isRestDay: Boolean(day.isRestDay),
-    exercises: day.exercises.map((exercise, exerciseIndex) => ({
-      exerciseId: Number(exercise.id),
-      order: exerciseIndex,
-      pauseTime: pauseByExercise[getPlanExerciseKey(day.id, exercise.id)] ?? { ...DEFAULT_PAUSE_TIME },
-      sets: (setsByExercise[getPlanExerciseKey(day.id, exercise.id)] ?? [{ ...DEFAULT_SET }]).map((set, setIndex) => ({
-        order: setIndex,
-        weight: set.weight,
-        reps: set.reps,
-      })),
-    })),
-  })),
+  days: days.map((day, dayIndex) => {
+    const exercises = day.isRestDay
+      ? []
+      : day.exercises.flatMap((exercise, exerciseIndex) => {
+          const exerciseId = Number(exercise.id);
+
+          if (!Number.isInteger(exerciseId) || exerciseId <= 0) {
+            return [];
+          }
+
+          return [{
+            exerciseId,
+            order: exerciseIndex,
+            pauseTime: pauseByExercise[getPlanExerciseKey(day.id, exercise.id)] ?? { ...DEFAULT_PAUSE_TIME },
+            sets: (setsByExercise[getPlanExerciseKey(day.id, exercise.id)] ?? [{ ...DEFAULT_SET }]).map(
+              normalizeWorkoutSetForApi,
+            ),
+          }];
+        });
+
+    return {
+      label: day.label,
+      dayNumber: dayIndex + 1,
+      isRestDay: Boolean(day.isRestDay),
+      exerciseIds: exercises.map((exercise) => exercise.exerciseId),
+      exercises,
+    };
+  }),
 });
 
 function DaysSelector({ days, activeDayId, todayPlanDayId, completedDayIds, restDayIds, onSelectDay }: DaysSelectorProps) {
@@ -551,7 +617,7 @@ export default function GymPlanMenu() {
   const [activeWorkoutPlanId, setActiveWorkoutPlanId] = useState<string | null>(null);
   const [activeWorkoutActivation, setActiveWorkoutActivation] = useState<PlanActivationApi | null>(null);
   const [planName, setPlanName] = useState<string>("");
-  const [, setStatusMessage] = useState<string>("");
+  const [statusMessage, setStatusMessage] = useState<string>("");
   const [days, setDays] = useState<DayPlan[]>(() => createEmptyDays());
   const [activeDayId, setActiveDayId] = useState<string>("day-1");
   const [selectedExerciseByDay, setSelectedExerciseByDay] = useState<Record<string, string | null>>(
@@ -730,12 +796,35 @@ export default function GymPlanMenu() {
   const getIconForMuscleGroup = (muscleGroup: MuscleGroup): LucideIcon =>
     EXERCISE_ICON_BY_GROUP[muscleGroup] ?? Dumbbell;
 
+  const showSaveValidationError = (validation: WorkoutPlanValidationResult): void => {
+    setSaveState("error");
+    setStatusMessage(validation.message ?? "The workout plan is not ready to save.");
+
+    if (validation.dayId) {
+      setActiveDayId(validation.dayId);
+    }
+
+    if (validation.dayId && validation.exerciseId !== undefined) {
+      setSelectedExerciseByDay((prev) => ({
+        ...prev,
+        [validation.dayId as string]: String(validation.exerciseId),
+      }));
+    }
+  };
+
   const handlePlanNameChange = (value: string): void => {
     setPlanName(value);
   };
 
   const saveCurrentPlan = async (): Promise<boolean> => {
     if (!planId || !isEditorReady || saveState === "saving") return false;
+
+    const validation = validateWorkoutPlanForSave(days, setsByExercise);
+    if (!validation.isValid) {
+      showSaveValidationError(validation);
+      return false;
+    }
+
     setSaveState("saving");
     const payload = createPlanPayload(planName, days, setsByExercise, pauseByExercise);
     const savedPlan = await workoutPlanApi.update(Number(planId), payload.name, payload.days);
@@ -754,7 +843,9 @@ export default function GymPlanMenu() {
       window.setTimeout(() => setSaveState((current) => (current === "saved" ? "idle" : current)), 1800);
       return true;
     }
+
     setSaveState("error");
+    setStatusMessage("The workout plan could not be saved in the database.");
     return false;
   };
 
@@ -785,7 +876,14 @@ export default function GymPlanMenu() {
     const trimmedName = planName.trim();
 
     if (!trimmedName) {
+      setSaveState("error");
       setStatusMessage("Add the workout name before continuing.");
+      return;
+    }
+
+    const validation = validateWorkoutPlanForSave(days, setsByExercise);
+    if (!validation.isValid) {
+      showSaveValidationError(validation);
       return;
     }
 
@@ -793,6 +891,7 @@ export default function GymPlanMenu() {
     const apiPlan = await workoutPlanApi.create(trimmedName, payload.days);
 
     if (!apiPlan) {
+      setSaveState("error");
       setStatusMessage("The workout plan could not be saved in the database.");
       return;
     }
@@ -1015,6 +1114,15 @@ export default function GymPlanMenu() {
               {!isEditorReady ? (
                 <p className="mt-3 rounded-xl border border-amber-400/20 bg-amber-500/10 px-3 py-2 text-sm text-amber-100">
                   Start by adding the workout name. After that, the full Gym Workout Plan editor unlocks.
+                </p>
+              ) : null}
+
+              {saveState === "error" && statusMessage ? (
+                <p
+                  className="mt-3 rounded-xl border border-rose-300/30 bg-rose-500/12 px-3 py-2 text-sm text-rose-100"
+                  role="alert"
+                >
+                  {statusMessage}
                 </p>
               ) : null}
             </header>

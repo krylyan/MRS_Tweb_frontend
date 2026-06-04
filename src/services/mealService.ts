@@ -2,7 +2,6 @@ import apiClient from "../utils/apiClient";
 import type { FoodItem, MealItemType } from "../types/meal";
 import { normalizeMediaUrl } from "../utils/media";
 
-// ─── Tipul brut returnat de GET /api/fooditem ──────────────────────────────
 export interface ApiFoodItem {
   id: number;
   name: string;
@@ -14,11 +13,10 @@ export interface ApiFoodItem {
   imageUrl: string;
   category: string;
   description: string;
-  itemType: string; // "Simple" | "Prepared"
+  itemType: string;
   preparationSteps?: string | null;
 }
 
-// ─── Mapper API → tip frontend ────────────────────────────────────────────
 const mapApiFoodItem = (f: ApiFoodItem): FoodItem => ({
   id: f.id,
   name: f.name,
@@ -34,14 +32,12 @@ const mapApiFoodItem = (f: ApiFoodItem): FoodItem => ({
   preparationSteps: f.preparationSteps ?? null,
 });
 
-// ─── Fetch toate mâncărurile ───────────────────────────────────────────────
 const getAllMeals = async (): Promise<FoodItem[]> => {
   const result = await apiClient.get<ApiFoodItem[]>("/fooditem");
   if (!result.ok) return [];
   return result.data.map(mapApiFoodItem);
 };
 
-// ─── Fetch după categorie ──────────────────────────────────────────────────
 const getMealsByCategory = async (category: string): Promise<FoodItem[]> => {
   const result = await apiClient.get<ApiFoodItem[]>(
     `/fooditem/category/${encodeURIComponent(category)}`,
@@ -50,7 +46,6 @@ const getMealsByCategory = async (category: string): Promise<FoodItem[]> => {
   return result.data.map(mapApiFoodItem);
 };
 
-// ─── Căutare locală ────────────────────────────────────────────────────────
 const searchMeals = async (query: string): Promise<FoodItem[]> => {
   const all = await getAllMeals();
   if (!query.trim()) return all;
@@ -62,13 +57,11 @@ const searchMeals = async (query: string): Promise<FoodItem[]> => {
   );
 };
 
-// ─── Categorii unice din datele fetchate ──────────────────────────────────
 const getFilterCategories = async (): Promise<string[]> => {
   const all = await getAllMeals();
   return Array.from(new Set(all.map((m) => m.category))).sort();
 };
 
-// ─── DTO pentru create/update ──────────────────────────────────────────────
 export interface FoodItemPayload {
   name: string;
   category: string;
@@ -83,14 +76,12 @@ export interface FoodItemPayload {
   preparationSteps?: string | null;
 }
 
-// ─── Admin: Adaugă mâncare ────────────────────────────────────────────────
 const createMeal = async (dto: FoodItemPayload): Promise<{ ok: boolean; message?: string }> => {
   const result = await apiClient.post<ApiFoodItem>("/fooditem", dto);
   if (result.ok) return { ok: true };
   return { ok: false, message: (result as { ok: false; message: string }).message };
 };
 
-// ─── Admin: Actualizează mâncare ──────────────────────────────────────────
 const updateMeal = async (
   id: number,
   dto: FoodItemPayload,
@@ -100,7 +91,6 @@ const updateMeal = async (
   return { ok: false, message: (result as { ok: false; message: string }).message };
 };
 
-// ─── Admin: Șterge mâncare ────────────────────────────────────────────────
 const deleteMeal = async (id: number): Promise<{ ok: boolean; message?: string }> => {
   const result = await apiClient.delete<void>(`/fooditem/${id}`);
   if (result.ok) return { ok: true };

@@ -26,7 +26,6 @@ import { planPreferencesApi, toCustomizationMap, type PlanCustomizations } from 
 import { mediaApi } from "../services/mediaApi";
 import { normalizeMediaUrl } from "../utils/media";
 
-/* ── Profile persistence ─────────────────────────────────────────────────── */
 
 interface UserProfileData {
   weight: number;
@@ -55,7 +54,6 @@ const getYesterdayKey = () => {
   return toDateStr(yesterday);
 };
 
-/* ── Stat helpers ─────────────────────────────────────────────────────────── */
 
 const getPlanIdFromToken = (dayToken: string) => dayToken.split(":")[0] ?? "";
 
@@ -107,7 +105,6 @@ const fmtWeight = (kg: number) => `${kg.toLocaleString()} kg`;
 
 
 
-/* ── Sub-components ───────────────────────────────────────────────────────── */
 
 const accentMap: Record<string, string> = {
   amber: "bg-amber-500/20",
@@ -159,7 +156,6 @@ function InfoCard({
   );
 }
 
-/* ── Main Component ───────────────────────────────────────────────────────── */
 
 export default function Profile() {
   const currentUser = AuthUtils.getCurrentUser();
@@ -353,7 +349,6 @@ export default function Profile() {
     <div className="min-h-screen text-slate-200">
       <div className={`mx-auto max-w-[1200px] px-4 pb-10 pt-6 transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] sm:px-6 ${isLoaded ? "translate-y-0 opacity-100" : "translate-y-5 opacity-0"}`}>
 
-        {/* ── Profile Header ── */}
         <section className="reveal-up mb-6 flex flex-col gap-5 rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-sm sm:flex-row sm:items-center sm:justify-between">
           <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-center sm:gap-5">
             <div className="relative h-20 w-20 shrink-0">
@@ -427,7 +422,6 @@ export default function Profile() {
           </div>
         </section>
 
-        {/* ── Personal Info ── */}
         {isAdminMode ? (
           <section className="reveal-up reveal-delay-1 rounded-2xl border border-amber-300/20 bg-amber-300/[0.07] p-6 backdrop-blur-sm">
             <div className="mb-5 flex items-center gap-3">
@@ -482,7 +476,6 @@ export default function Profile() {
           </div>
         </section>
 
-        {/* ── Stats ── */}
         <div className="reveal-up reveal-delay-2 mb-6 grid grid-cols-2 gap-4 xl:grid-cols-4">
           <StatCard icon={<Trophy className="h-5 w-5 text-amber-400" />} label="Total Weight Lifted" value={fmtWeight(tw)} accent="amber" />
           <StatCard icon={<Flame className="h-5 w-5 text-orange-400" />} label="Day Streak" value={String(streaks.current)} accent="orange" />
@@ -490,7 +483,6 @@ export default function Profile() {
           <StatCard icon={<Target className="h-5 w-5 text-blue-400" />} label="Kcal per day" value={activeMealKcalPerDay ? activeMealKcalPerDay.toLocaleString() : "—"} accent="blue" />
         </div>
 
-        {/* ── Active Plans Row ── */}
         <div className="grid gap-6 lg:grid-cols-2">
           {/* Workout Plan */}
           <section className="reveal-up reveal-delay-3 flex flex-col">

@@ -1,9 +1,8 @@
-// Toate requesturile merg la /api/... — Vite proxy le redirecteaza la http://localhost:5227
 const BASE_URL = "/api/auth";
 
 export interface RegisterPayload {
   fullName: string;
-  username: string;   // email
+  username: string;
   password: string;
 }
 
@@ -13,7 +12,7 @@ export interface RegisterResponse {
 }
 
 export interface LoginPayload {
-  username: string;   // email
+  username: string;
   password: string;
 }
 
@@ -37,18 +36,18 @@ export interface ApiSuccess<T> {
 
 type ApiResult<T> = ApiSuccess<T> | ApiError;
 
-// ─── helper intern ────────────────────────────────────────────────────────────
 async function parseError(response: Response): Promise<string> {
   try {
     const body = await response.json();
     if (typeof body === "string") return body;
     if (body?.title) return body.title;
     if (body?.message) return body.message;
-  } catch { /* raspuns non-JSON */ }
+  } catch {
+    return `Server error: ${response.status}`;
+  }
   return `Server error: ${response.status}`;
 }
 
-// ─── POST /api/auth/register ──────────────────────────────────────────────────
 export async function registerUser(
   payload: RegisterPayload
 ): Promise<ApiResult<RegisterResponse>> {
@@ -73,7 +72,6 @@ export async function registerUser(
   }
 }
 
-// ─── POST /api/auth/login ─────────────────────────────────────────────────────
 export async function loginUser(
   payload: LoginPayload
 ): Promise<ApiResult<LoginResponse>> {
@@ -108,4 +106,3 @@ export const authService = {
   registerUser,
   loginUser,
 };
-

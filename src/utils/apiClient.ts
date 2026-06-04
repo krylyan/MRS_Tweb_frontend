@@ -1,9 +1,7 @@
 import AuthUtils from "./authUtils";
 
-// Baza URL — toate requesturile merg prin proxy-ul Vite la http://localhost:5227
 const API_BASE = "/api";
 
-// ─── Tipuri ───────────────────────────────────────────────────────────────────
 export interface ApiResponse<T> {
   ok: true;
   data: T;
@@ -38,7 +36,6 @@ function clearGetCache() {
   pendingGets.clear();
 }
 
-// ─── Core fetch cu JWT automat ────────────────────────────────────────────────
 async function apiFetch(
   path: string,
   options: RequestInit = {}
@@ -64,12 +61,10 @@ async function apiFetch(
   });
 }
 
-// ─── Parser răspuns ───────────────────────────────────────────────────────────
 async function parseResponse<T>(response: Response): Promise<ApiResult<T>> {
   const status = response.status;
 
   if (response.status === 204) {
-    // No Content — succes fără body
     return { ok: true, data: undefined as T, status };
   }
 
@@ -81,7 +76,6 @@ async function parseResponse<T>(response: Response): Promise<ApiResult<T>> {
   }
 
   if (!response.ok) {
-    // 401 — token expirat sau invalid: logout + redirect automat la login
     if (status === 401) {
       AuthUtils.logout();
       window.location.href = "/signin";
@@ -101,7 +95,6 @@ async function parseResponse<T>(response: Response): Promise<ApiResult<T>> {
   return { ok: true, data: body as T, status };
 }
 
-// ─── Metode HTTP convenabile ──────────────────────────────────────────────────
 async function get<T>(path: string): Promise<ApiResult<T>> {
   const cacheKey = getCacheKey(path);
   const cached = getCache.get(cacheKey);
@@ -199,7 +192,6 @@ async function del<T>(path: string): Promise<ApiResult<T>> {
   }
 }
 
-// ─── Export ───────────────────────────────────────────────────────────────────
 export const apiClient = {
   get,
   post,

@@ -21,7 +21,6 @@ export default function AdminUsers() {
   const [statusMessage, setStatusMessage] = useState("");
   const [statusTone, setStatusTone] = useState<"success" | "error">("success");
 
-  // ── Fetch useri la mount ────────────────────────────────────────────────────
   useEffect(() => {
     setLoading(true);
     adminApi.getAll().then((data) => {

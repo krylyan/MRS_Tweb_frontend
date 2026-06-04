@@ -27,7 +27,6 @@ import {
 } from "../services/planPreferencesApi";
 
 
-/* ── Date helpers ──────────────────────────────────────────────────────────── */
 
 const parseDateKey = (dateKey: string): Date => {
   const [year, month, day] = dateKey.split("-").map(Number);
@@ -76,7 +75,6 @@ const getActiveDayForDate = (activation: PlanActivationApi, dateKey: string): Ac
 const getHistoryDays = (count = 7): string[] =>
   Array.from({ length: count }, (_, index) => addDays(getDateKey(), -index));
 
-/* ── Sub-components ────────────────────────────────────────────────────────── */
 
 interface StatusBadgeProps {
   completed: boolean;
@@ -299,7 +297,6 @@ function CalorieProgressCard({
   );
 }
 
-/* ── Weekly Activity Chart ────────────────────────────────────────────────── */
 
 const C_W = 760;
 const C_H = 200;
@@ -520,7 +517,6 @@ function WeeklyActivityChart({
   );
 }
 
-/* ── Main component ────────────────────────────────────────────────────────── */
 
 export default function Home() {
   const selectedDateKey = getDateKey();
@@ -569,20 +565,16 @@ export default function Home() {
     ? mealPlans.find((plan) => plan.id.toString() === mealActivation.planIdentifier) ?? null
     : null;
 
-  // ── Cycle activations ──────────────────────────────────────────────────
-  // ── Guards: plan started on selected date? ─────────────────────────────
   const workoutStartedOnDate =
     activeWorkoutPlan && workoutActivation
       ? selectedDateKey >= workoutActivation.activatedAt
       : Boolean(activeWorkoutPlan && !workoutActivation);
 
-  // ── Day mapping for selected date ──────────────────────────────────────
   const workoutDayInfo: ActiveDayInfo | null =
     workoutActivation && activeWorkoutPlan && workoutStartedOnDate
       ? getActiveDayForDate(workoutActivation, selectedDateKey)
       : null;
 
-  // ── Completion status ──────────────────────────────────────────────────
   const workoutCompleted = workoutDayInfo
     ? completions.some(
       (item) =>
@@ -597,11 +589,9 @@ export default function Home() {
         item.dayToken.startsWith(getActivationTokenPrefix(activeWorkoutPlan?.id ?? "", workoutActivation?.id)),
     );
 
-  // ── Stats ──────────────────────────────────────────────────────────────
   const totalWorkoutExercises =
     activeWorkoutPlan?.days.reduce((sum, day) => sum + (day.dayExercises?.length ?? day.exercises.length), 0) ?? 0;
 
-  // ── Theming ────────────────────────────────────────────────────────────
   const activeWorkoutIndex = activeWorkoutPlan
     ? Math.max(0, workoutPlans.findIndex((p) => p.id === activeWorkoutPlan.id))
     : 0;
@@ -611,7 +601,6 @@ export default function Home() {
   );
   const workoutImageUrl = workoutCustomization?.imageUrl;
 
-  // ── \"Open Plan\" hrefs with dayId ───────────────────────────────────────
   const workoutHref = activeWorkoutPlan
     ? `/gym-plan?planId=${activeWorkoutPlan.id}&date=${selectedDateKey}${workoutDayInfo ? `&dayId=${workoutDayInfo.dayId}` : ""}`
     : "#";
@@ -639,12 +628,10 @@ export default function Home() {
     ? `/meal-plan?planId=${activeMealPlan.id}&date=${selectedDateKey}${mealDayInfo ? `&dayId=${mealDayInfo.dayId}` : ""}`
     : "#";
 
-  /* ── Render ─────────────────────────────────────────────────────────── */
   return (
     <main className="min-h-screen text-slate-200">
       <div className="mx-auto w-full max-w-[1400px] px-4 py-5 sm:px-6 sm:py-8">
 
-        {/* ── Quick stats ── */}
         <section className="reveal-up reveal-delay-1 mb-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
           <div className="min-h-[168px] rounded-2xl border border-white/10 bg-white/[0.04] p-5 shadow-[0_18px_42px_rgba(0,0,0,0.22)]">
             <Dumbbell className="mb-3 h-5 w-5 text-cyan-300" />
@@ -654,7 +641,6 @@ export default function Home() {
           <CalorieProgressCard consumedCalories={0} totalCalories={0} />
         </section>
 
-        {/* ── Weekly Activity Chart ── */}
         <WeeklyActivityChart
           workoutPlanId={activeWorkoutPlan?.id.toString()}
           workoutActivationId={workoutActivation?.id}
@@ -665,7 +651,6 @@ export default function Home() {
           completions={completions}
         />
 
-        {/* ── Active plan cards ── */}
         <section className="grid gap-5 xl:grid-cols-2">
 
           {/* Workout plan */}

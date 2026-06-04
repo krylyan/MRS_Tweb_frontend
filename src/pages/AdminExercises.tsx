@@ -33,7 +33,6 @@ export default function AdminExercises() {
   const [submitting, setSubmitting] = useState(false);
   const [exerciseToDelete, setExerciseToDelete] = useState<Exercise | null>(null);
 
-  // Fetch la montare
   useEffect(() => {
     exerciseService.getAllExercises().then((data) => {
       setExercises(data);
@@ -125,7 +124,6 @@ export default function AdminExercises() {
   return (
     <main className="min-h-screen text-slate-200">
       <div className="mx-auto w-full max-w-[1450px] px-4 py-6 sm:px-6 sm:py-8">
-        {/* Header */}
         <section className="reveal-up mb-6 rounded-3xl border border-amber-400/25 bg-amber-500/15 p-6 shadow-[0_24px_60px_rgba(0,0,0,0.35)]">
           <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
             <div>
@@ -147,7 +145,6 @@ export default function AdminExercises() {
         </section>
 
         <div className="grid gap-6 xl:grid-cols-[1.25fr_0.75fr]">
-          {/* Lista exerciții */}
           <section className="reveal-up reveal-delay-1 rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-sm">
             <div className="mb-4 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
               <div className="relative lg:w-[420px]">
@@ -260,7 +257,6 @@ export default function AdminExercises() {
             )}
           </section>
 
-          {/* Formular Add */}
           <section className="reveal-up reveal-delay-2 rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur-sm">
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-xl font-bold text-white">{form.id ? "Edit Exercise" : "Add Exercise"}</h2>

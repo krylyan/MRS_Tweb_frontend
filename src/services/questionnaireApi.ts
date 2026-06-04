@@ -1,8 +1,6 @@
 import apiClient from "../utils/apiClient";
 import AuthUtils from "../utils/authUtils";
 
-// ─── Tipuri ───────────────────────────────────────────────────────────────────
-
 export interface QuestionDto {
   id: number;
   title: string;
@@ -34,22 +32,12 @@ export interface QuestionnaireCompleteResponseDto {
   calories: number;
 }
 
-// ─── API ──────────────────────────────────────────────────────────────────────
-
 export const questionnaireApi = {
-  /**
-   * GET /api/questionnaire/questions
-   * Returnează lista de întrebări din DB.
-   */
   async fetchQuestions(): Promise<QuestionDto[]> {
     const result = await apiClient.get<QuestionDto[]>("/questionnaire/questions");
     return result.ok ? result.data : [];
   },
 
-  /**
-   * POST /api/questionnaire/submit?userId=X
-   * Salvează un răspuns la o întrebare.
-   */
   async submit(dto: QuestionnaireSubmitDto): Promise<boolean> {
     const session = AuthUtils.getSession();
     if (!session) return false;
@@ -60,10 +48,6 @@ export const questionnaireApi = {
     return result.ok;
   },
 
-  /**
-   * Trimite toate răspunsurile unui chestionar completat.
-   * answers: Record<questionId_number, selectedOption>
-   */
   async submitAll(
     questions: QuestionDto[],
     answers: Record<string, string>,
@@ -105,9 +89,6 @@ export const questionnaireApi = {
     return result.data.length >= 10 || answeredQuestions.size >= 10;
   },
 
-  /**
-   * Marchează toate întrebările ca skip-uite.
-   */
   async skipAll(questions: QuestionDto[]): Promise<void> {
     const session = AuthUtils.getSession();
     if (!session) return;

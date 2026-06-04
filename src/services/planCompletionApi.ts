@@ -1,14 +1,12 @@
 import apiClient from "../utils/apiClient";
 import AuthUtils from "../utils/authUtils";
 
-// ─── Tipuri ───────────────────────────────────────────────────────────────────
-
 export type PlanTypeApi = "Workout" | "Meal";
 
 export interface PlanCompletionCreateDto {
   planType: PlanTypeApi;
-  dayToken: string;  // format: "planId:dayId"
-  dateKey: string;   // format: "YYYY-MM-DD"
+  dayToken: string;
+  dateKey: string;
 }
 
 export interface PlanCompletionResponseDto {
@@ -19,18 +17,12 @@ export interface PlanCompletionResponseDto {
   completedAt: string;
 }
 
-// ─── API Client ───────────────────────────────────────────────────────────────
-
 function getUserId(): number | null {
   const session = AuthUtils.getSession();
   return session?.userId ?? null;
 }
 
 export const planCompletionApi = {
-  /**
-   * POST /api/plancompletion?userId=X
-   * Marchează o zi ca finalizată în DB.
-   */
   async markComplete(dto: PlanCompletionCreateDto): Promise<boolean> {
     const userId = getUserId();
     if (!userId) return false;
@@ -41,10 +33,6 @@ export const planCompletionApi = {
     return result.ok;
   },
 
-  /**
-   * DELETE /api/plancompletion?userId=X&dayToken=...&dateKey=...
-   * Anulează marcarea unei zile ca finalizată.
-   */
   async unmark(dayToken: string, dateKey: string): Promise<boolean> {
     const userId = getUserId();
     if (!userId) return false;
@@ -54,10 +42,6 @@ export const planCompletionApi = {
     return result.ok;
   },
 
-  /**
-   * GET /api/plancompletion?userId=X
-   * Returnează toate completările unui user (opțional filtrat pe planType).
-   */
   async getByUser(planType?: PlanTypeApi): Promise<PlanCompletionResponseDto[]> {
     const userId = getUserId();
     if (!userId) return [];
