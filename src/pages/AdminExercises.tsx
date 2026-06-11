@@ -12,6 +12,7 @@ interface ExerciseFormState {
   muscleGroup: string;
   gifUrl: string;
   instructions: string;
+  metValue: string;
 }
 
 const createEmptyForm = (): ExerciseFormState => ({
@@ -20,6 +21,7 @@ const createEmptyForm = (): ExerciseFormState => ({
   muscleGroup: "",
   gifUrl: "",
   instructions: "",
+  metValue: "5",
 });
 
 export default function AdminExercises() {
@@ -85,6 +87,7 @@ export default function AdminExercises() {
       muscleGroup: form.muscleGroup,
       gifUrl: form.gifUrl,
       instructions: form.instructions,
+      metValue: Math.min(20, Math.max(1, Number(form.metValue) || 5)),
     };
     const result = form.id
       ? await exerciseService.updateExercise(form.id, payload)
@@ -112,6 +115,7 @@ export default function AdminExercises() {
       muscleGroup: exercise.muscleGroup,
       gifUrl: exercise.gifUrl,
       instructions: exercise.instructions,
+      metValue: String(exercise.metValue || 5),
     });
     setStatusMessage("");
   };
@@ -322,6 +326,22 @@ export default function AdminExercises() {
                   rows={6}
                   className="w-full rounded-xl border border-white/12 bg-white/[0.04] px-3 py-3 text-sm text-white outline-none transition-all focus:border-amber-400/50"
                 />
+              </label>
+
+              <label className="block">
+                <span className="mb-1 block text-sm font-medium text-slate-300">MET intensity</span>
+                <input
+                  type="number"
+                  min="1"
+                  max="20"
+                  step="0.1"
+                  value={form.metValue}
+                  onChange={(e) => setForm((p) => ({ ...p, metValue: e.target.value }))}
+                  className="h-11 w-full rounded-xl border border-white/12 bg-white/[0.04] px-3 text-sm text-white outline-none transition-all focus:border-amber-400/50"
+                />
+                <p className="mt-1.5 text-xs leading-5 text-slate-500">
+                  Used to estimate calories burned from body weight and workout duration.
+                </p>
               </label>
 
               <button

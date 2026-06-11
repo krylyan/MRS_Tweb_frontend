@@ -2,23 +2,25 @@ const BASE_URL = "/api/auth";
 
 export interface RegisterPayload {
   fullName: string;
-  username: string;
+  email: string;
   password: string;
 }
 
 export interface RegisterResponse {
   id: number;
   fullName: string;
+  email: string;
 }
 
 export interface LoginPayload {
-  username: string;
+  email: string;
   password: string;
 }
 
 export interface LoginResponse {
   userId: number;
   fullName: string;
+  email: string;
   role: string;
   token: string;
   expiresAt: string;
@@ -52,10 +54,15 @@ export async function registerUser(
   payload: RegisterPayload
 ): Promise<ApiResult<RegisterResponse>> {
   try {
+    const normalizedPayload = {
+      ...payload,
+      fullName: payload.fullName.trim(),
+      email: payload.email.trim().toLowerCase(),
+    };
     const response = await fetch(`${BASE_URL}/register`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
+      body: JSON.stringify(normalizedPayload),
     });
     if (!response.ok) {
       const message = await parseError(response);
@@ -76,10 +83,14 @@ export async function loginUser(
   payload: LoginPayload
 ): Promise<ApiResult<LoginResponse>> {
   try {
+    const normalizedPayload = {
+      ...payload,
+      email: payload.email.trim().toLowerCase(),
+    };
     const response = await fetch(`${BASE_URL}/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
+      body: JSON.stringify(normalizedPayload),
     });
     if (!response.ok) {
       const message = await parseError(response);

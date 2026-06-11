@@ -34,7 +34,7 @@ export default function AdminUsers() {
     if (!normalized) return users;
     return users.filter(
       (user) =>
-        user.username.toLowerCase().includes(normalized) ||
+        user.email.toLowerCase().includes(normalized) ||
         user.fullName.toLowerCase().includes(normalized),
     );
   }, [searchQuery, users]);
@@ -179,7 +179,7 @@ export default function AdminUsers() {
                           </span>
                         )}
                       </div>
-                      <p className="mt-1 text-sm text-slate-400">{user.username}</p>
+                      <p className="mt-1 text-sm text-slate-400">{user.email}</p>
                     </div>
 
                     <div className="flex flex-col gap-3 xl:min-w-[420px]">

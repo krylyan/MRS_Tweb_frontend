@@ -7,12 +7,13 @@ export type UserRole = "Admin" | "User";
 export interface SessionData {
   userId: number;
   fullName: string;
+  email: string;
   role: UserRole;
   token: string;
 }
 
 export interface ManagedUser {
-  username: string;
+  email: string;
   fullName: string;
   role: UserRole;
   blocked: boolean;
@@ -22,8 +23,20 @@ const readSession = (): SessionData | null => {
   const raw = sessionStorage.getItem(SESSION_KEY);
   if (!raw) return null;
   try {
-    return JSON.parse(raw) as SessionData;
+    const session = JSON.parse(raw) as Partial<SessionData>;
+    if (
+      typeof session.userId !== "number" ||
+      typeof session.fullName !== "string" ||
+      typeof session.email !== "string" ||
+      typeof session.role !== "string" ||
+      typeof session.token !== "string"
+    ) {
+      clearSession();
+      return null;
+    }
+    return session as SessionData;
   } catch {
+    clearSession();
     return null;
   }
 };
@@ -47,7 +60,7 @@ const AuthUtils = {
     const session = readSession();
     if (!session) return null;
     return {
-      username: session.fullName,
+      email: session.email,
       fullName: session.fullName,
       role: session.role,
       blocked: false,
@@ -56,9 +69,7 @@ const AuthUtils = {
 
   getSession: (): SessionData | null => readSession(),
 
-  getCurrentUsername: (): string | null => readSession()?.fullName ?? null,
-
-  getCurrentUserEmail: (): string | null => readSession()?.fullName ?? null,
+  getCurrentUserEmail: (): string | null => readSession()?.email ?? null,
 
   isCurrentUserAdmin: (): boolean => readSession()?.role === "Admin",
 
@@ -124,23 +135,23 @@ const AuthUtils = {
 
   getAllUsers: (): ManagedUser[] => [],
 
-  updateUserRole: (_username: string, _role: UserRole): { ok: boolean; message?: string } =>
+  updateUserRole: (_email: string, _role: UserRole): { ok: boolean; message?: string } =>
     ({ ok: false, message: "Not implemented - use API" }),
 
-  toggleUserBlocked: (_username: string): { ok: boolean; message?: string } =>
+  toggleUserBlocked: (_email: string): { ok: boolean; message?: string } =>
     ({ ok: false, message: "Not implemented - use API" }),
 
-  deleteUser: (_username: string): { ok: boolean; message?: string } =>
+  deleteUser: (_email: string): { ok: boolean; message?: string } =>
     ({ ok: false, message: "Not implemented - use API" }),
 
-  updateCurrentProfile: (_fullName: string, _username: string): { ok: boolean; message?: string } =>
+  updateCurrentProfile: (_fullName: string, _email: string): { ok: boolean; message?: string } =>
     ({ ok: false, message: "Not implemented - use API" }),
 
   checkAuthStatus: (): { isLoggedIn: boolean; userEmail: string | null } => {
     const session = readSession();
     return {
       isLoggedIn: session !== null,
-      userEmail: session?.fullName ?? null,
+      userEmail: session?.email ?? null,
     };
   },
 };

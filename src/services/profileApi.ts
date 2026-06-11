@@ -16,12 +16,18 @@ export interface UserProfileDto {
 export interface UserResponseDto {
   id: number;
   fullName: string;
-  username: string;
+  email: string;
+}
+
+export interface UserWeightHistoryDto {
+  id: number;
+  weight: number;
+  recordedAt: string;
 }
 
 export interface UserUpdateDto {
   fullName: string;
-  username: string;
+  email: string;
 }
 
 function getUserId(): number | null {
@@ -41,6 +47,13 @@ export const profileApi = {
     if (!userId) return null;
     const result = await apiClient.put<UserProfileDto>(`/user/${userId}/profile`, dto);
     return result.ok ? result.data : null;
+  },
+
+  async getWeightHistory(): Promise<UserWeightHistoryDto[]> {
+    const userId = getUserId();
+    if (!userId) return [];
+    const result = await apiClient.get<UserWeightHistoryDto[]>(`/user/${userId}/profile/weight-history`);
+    return result.ok ? result.data : [];
   },
 
   async updateMe(dto: UserUpdateDto): Promise<UserResponseDto | null> {

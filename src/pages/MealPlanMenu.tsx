@@ -65,6 +65,13 @@ const getActivationStartKey = (activation: PlanActivationApi): string =>
 const getPlanDayToken = (planIdentifier: string, activationId: number, dayId: string): string =>
   `${planIdentifier}:${activationId}:${dayId}`;
 
+const getMealSlotToken = (
+  planIdentifier: string,
+  activationId: number,
+  dayId: string,
+  slot: MealSlot,
+): string => `${getPlanDayToken(planIdentifier, activationId, dayId)}:${SLOT_TO_API[slot]}`;
+
 const getScheduledDayForDate = (activation: PlanActivationApi, dateKey: string) => {
   const diff = Math.max(0, daysBetween(getActivationStartKey(activation), dateKey));
   const totalDays = Math.max(1, activation.totalDays || 7);
@@ -508,7 +515,11 @@ function MealSection({
   slot,
   items,
   collapsed,
+  completed,
+  canComplete,
+  completing,
   onToggleCollapse,
+  onComplete,
   onAdd,
   onOpen,
   onRemove,
@@ -517,7 +528,11 @@ function MealSection({
   slot: MealSlot;
   items: PlannedFoodItem[];
   collapsed: boolean;
+  completed: boolean;
+  canComplete: boolean;
+  completing: boolean;
   onToggleCollapse: () => void;
+  onComplete: () => void;
   onAdd: (food: FoodItem) => void;
   onOpen: (food: PlannedFoodItem) => void;
   onRemove: (foodId: number) => void;
@@ -528,27 +543,46 @@ function MealSection({
   return (
     <>
       <section className="mb-4 rounded-2xl border border-white/10 bg-white/5">
-        <button
-          type="button"
-          onClick={() => {
-            onToggleCollapse();
-          }}
-          className="flex w-full items-center justify-between px-5 py-4 text-left transition-colors hover:bg-white/[0.03]"
-        >
-          <span className="text-sm font-bold uppercase tracking-widest text-slate-50">
-            {MEAL_LABELS[slot]}
-          </span>
+        <div className="flex w-full items-center justify-between gap-3 px-5 py-4">
+          <button
+            type="button"
+            onClick={onToggleCollapse}
+            className="flex min-w-0 flex-1 items-center gap-3 text-left"
+          >
+            <span className="truncate text-sm font-bold uppercase tracking-widest text-slate-50">
+              {MEAL_LABELS[slot]}
+            </span>
+            {collapsed ? (
+              <ChevronDown className="h-4 w-4 shrink-0 text-slate-400" />
+            ) : (
+              <ChevronUp className="h-4 w-4 shrink-0 text-slate-400" />
+            )}
+          </button>
           <div className="flex items-center gap-3">
             <span className="text-sm text-slate-400">
               <span className="font-semibold text-orange-400">{slotKcal}</span> kcal
             </span>
-            {collapsed ? (
-              <ChevronDown className="h-4 w-4 text-slate-400" />
-            ) : (
-              <ChevronUp className="h-4 w-4 text-slate-400" />
-            )}
+            {canComplete || completed ? (
+              <button
+                type="button"
+                onClick={onComplete}
+                disabled={completed || completing}
+                className={`inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-all ${
+                  completed
+                    ? "cursor-default border-emerald-300/30 bg-emerald-500/15 text-emerald-200"
+                    : "border-cyan-300/25 bg-cyan-400/10 text-cyan-100 hover:bg-cyan-400/20"
+                }`}
+              >
+                {completing ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : completed ? (
+                  <Check className="h-3.5 w-3.5" />
+                ) : null}
+                {completing ? "Saving..." : completed ? "Completed" : "Complete meal"}
+              </button>
+            ) : null}
           </div>
-        </button>
+        </div>
 
         <div
           className="grid transition-all duration-300 ease-in-out"
@@ -673,6 +707,7 @@ export default function MealPlanMenu() {
   const [isDirty, setIsDirty] = useState(false);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [completionVersion, setCompletionVersion] = useState(0);
+  const [completingSlot, setCompletingSlot] = useState<MealSlot | "all" | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -727,12 +762,23 @@ export default function MealPlanMenu() {
     return DAYS
       .filter((day) => {
         const dayDate = getScheduledDateForDayInCycle(activeMealActivation, day.id, todayKey);
-        return mealCompletions.some(
+        const legacyCompleted = mealCompletions.some(
           (item) => item.dayToken === getPlanDayToken(activeMealPlanId, activeMealActivation.id, day.id) && item.dateKey === dayDate,
+        );
+        if (legacyCompleted) return true;
+
+        const dayMeals = allMeals[day.id];
+        const slotsWithFood = MEAL_SLOTS.filter((slot) => (dayMeals?.[slot]?.length ?? 0) > 0);
+        return slotsWithFood.length > 0 && slotsWithFood.every((slot) =>
+          mealCompletions.some(
+            (item) =>
+              item.dayToken === getMealSlotToken(activeMealPlanId, activeMealActivation.id, day.id, slot) &&
+              item.dateKey === dayDate,
+          ),
         );
       })
       .map((day) => day.id);
-  }, [activeMealActivation, activeMealPlanId, mealCompletions, todayKey]);
+  }, [activeMealActivation, activeMealPlanId, allMeals, mealCompletions, todayKey]);
 
   // Compute which meal plan day maps to TODAY (for blue highlight)
   const todayPlanDayId = useMemo(() => {
@@ -742,14 +788,36 @@ export default function MealPlanMenu() {
   const isCompletedForDate = useMemo(
     () => {
       if (!canMarkCompleted || !activeMealPlanId || !activeMealActivation) return false;
-      return mealCompletions.some(
+      const legacyCompleted = mealCompletions.some(
         (item) =>
           item.dayToken === getPlanDayToken(activeMealPlanId, activeMealActivation.id, activeDayId) &&
           item.dateKey === todayKey,
       );
+      if (legacyCompleted) return true;
+
+      const slotsWithFood = MEAL_SLOTS.filter((slot) => currentMeals[slot].length > 0);
+      return slotsWithFood.length > 0 && slotsWithFood.every((slot) =>
+        mealCompletions.some(
+          (item) =>
+            item.dayToken === getMealSlotToken(activeMealPlanId, activeMealActivation.id, activeDayId, slot) &&
+            item.dateKey === todayKey,
+        ),
+      );
     },
-    [activeDayId, activeMealActivation, activeMealPlanId, canMarkCompleted, mealCompletions, todayKey],
+    [activeDayId, activeMealActivation, activeMealPlanId, canMarkCompleted, currentMeals, mealCompletions, todayKey],
   );
+
+  const isSlotCompleted = (slot: MealSlot): boolean => {
+    if (!activeMealPlanId || !activeMealActivation) return false;
+    const legacyToken = getPlanDayToken(activeMealPlanId, activeMealActivation.id, activeDayId);
+    const slotToken = getMealSlotToken(activeMealPlanId, activeMealActivation.id, activeDayId, slot);
+    const activeDayDateKey = getScheduledDateForDayInCycle(activeMealActivation, activeDayId, todayKey);
+    return mealCompletions.some(
+      (item) =>
+        item.dateKey === activeDayDateKey &&
+        (item.dayToken === legacyToken || item.dayToken === slotToken),
+    );
+  };
 
   const markDirty = () => {
     setIsDirty(true);
@@ -838,7 +906,7 @@ export default function MealPlanMenu() {
     markDirty();
   };
 
-  const handleMarkCompleted = async () => {
+  const completeSlots = async (slots: MealSlot[]) => {
     if (!activeMealPlanId || !activeMealActivation || !canMarkCompleted || activeDayId !== todayPlanDayId) return;
 
     if (isDirty || !currentPlanId) {
@@ -846,13 +914,38 @@ export default function MealPlanMenu() {
       if (!saved) return;
     }
 
-    const completed = await planCompletionApi.markComplete({
-      planType: "Meal",
-      dayToken: getPlanDayToken(activeMealPlanId, activeMealActivation.id, activeDayId),
-      dateKey: todayKey,
-    });
-    if (completed) {
+    const pendingSlots = slots.filter((slot) => currentMeals[slot].length > 0 && !isSlotCompleted(slot));
+    if (pendingSlots.length === 0) return;
+
+    const results = await Promise.all(
+      pendingSlots.map((slot) =>
+        planCompletionApi.markComplete({
+          planType: "Meal",
+          dayToken: getMealSlotToken(activeMealPlanId, activeMealActivation.id, activeDayId, slot),
+          dateKey: todayKey,
+        }),
+      ),
+    );
+    if (results.some(Boolean)) {
       setCompletionVersion((current) => current + 1);
+    }
+  };
+
+  const handleMarkCompleted = async () => {
+    setCompletingSlot("all");
+    try {
+      await completeSlots(MEAL_SLOTS);
+    } finally {
+      setCompletingSlot(null);
+    }
+  };
+
+  const handleCompleteSlot = async (slot: MealSlot) => {
+    setCompletingSlot(slot);
+    try {
+      await completeSlots([slot]);
+    } finally {
+      setCompletingSlot(null);
     }
   };
 
@@ -879,15 +972,19 @@ export default function MealPlanMenu() {
               <button
                 type="button"
                 onClick={handleMarkCompleted}
-                disabled={isCompletedForDate}
+                disabled={isCompletedForDate || completingSlot !== null}
                 className={`inline-flex w-fit items-center gap-2 rounded-xl border px-5 py-2.5 text-sm font-semibold transition-all duration-200 active:scale-95 ${
                   isCompletedForDate
                     ? "cursor-default border-emerald-300/30 bg-emerald-500/15 text-emerald-200"
                     : "border-cyan-300/25 bg-cyan-400/10 text-cyan-100 hover:bg-cyan-400/20"
                 }`}
               >
-                {isCompletedForDate ? <Check className="h-4 w-4" /> : null}
-                {isCompletedForDate ? "Completed" : "Complete"}
+                {completingSlot === "all" ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : isCompletedForDate ? (
+                  <Check className="h-4 w-4" />
+                ) : null}
+                {completingSlot === "all" ? "Saving..." : isCompletedForDate ? "Completed" : "Complete all"}
               </button>
             ) : null}
             <button
@@ -982,7 +1079,11 @@ export default function MealPlanMenu() {
               slot={slot}
               items={currentMeals[slot]}
               collapsed={collapsed[slot]}
+              completed={isSlotCompleted(slot)}
+              canComplete={canMarkCompleted && activeDayId === todayPlanDayId && currentMeals[slot].length > 0}
+              completing={completingSlot === slot}
               onToggleCollapse={() => toggleCollapse(slot)}
+              onComplete={() => handleCompleteSlot(slot)}
               onAdd={(food) => addFood(slot, food)}
               onOpen={(food) => setSelectedFood({ slot, food })}
               onRemove={(id) => removeFood(slot, id)}

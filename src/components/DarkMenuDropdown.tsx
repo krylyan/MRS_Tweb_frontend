@@ -68,7 +68,7 @@ export function DarkMenuDropdown<T extends string>({
       {open ? (
         <div
           role="menu"
-          className="absolute right-0 top-[calc(100%+10px)] z-[9999] w-full min-w-[190px] overflow-hidden rounded-2xl border border-white/12 bg-slate-950/95 p-2 shadow-[0_24px_60px_rgba(0,0,0,0.45)] backdrop-blur-xl"
+          className="dropdown-pop absolute right-0 top-[calc(100%+10px)] z-[9999] w-full min-w-[190px] overflow-hidden rounded-2xl border border-white/12 bg-slate-950/95 p-2 shadow-[0_24px_60px_rgba(0,0,0,0.45)] backdrop-blur-xl"
         >
           {options.map((option) => {
             const isActive = option.value === value;
@@ -82,11 +82,12 @@ export function DarkMenuDropdown<T extends string>({
                   onChange(option.value);
                   setOpen(false);
                 }}
-                className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-semibold transition-all ${
+                className={`dropdown-option flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-semibold transition-all ${
                   isActive
                     ? `${activeBg} ${activeText} ring-1 ${activeRing}`
                     : "text-slate-300 hover:bg-white/[0.06] hover:text-white"
                 }`}
+                style={{ animationDelay: `${options.indexOf(option) * 35}ms` }}
               >
                 <span className="flex h-5 w-5 items-center justify-center">
                   {isActive ? <Check className="h-4 w-4" /> : null}
@@ -97,6 +98,21 @@ export function DarkMenuDropdown<T extends string>({
           })}
         </div>
       ) : null}
+      <style>{`
+        @keyframes dropdownPop {
+          from { opacity: 0; transform: translateY(-8px) scale(.96); filter: blur(3px); }
+          to { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+        }
+        @keyframes dropdownOptionIn {
+          from { opacity: 0; transform: translateX(-8px); }
+          to { opacity: 1; transform: translateX(0); }
+        }
+        .dropdown-pop { transform-origin: top right; animation: dropdownPop 220ms cubic-bezier(.22,1,.36,1) both; }
+        .dropdown-option { animation: dropdownOptionIn 220ms cubic-bezier(.22,1,.36,1) both; }
+        @media (prefers-reduced-motion: reduce) {
+          .dropdown-pop, .dropdown-option { animation: none; }
+        }
+      `}</style>
     </div>
   );
 }

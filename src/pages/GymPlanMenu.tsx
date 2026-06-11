@@ -61,6 +61,7 @@ interface DaysSelectorProps {
   completedDayIds: string[];
   restDayIds: string[];
   onSelectDay: (day: DayPlan) => void;
+  onRenameDay: (dayId: string, label: string) => void;
 }
 
 interface ActivityDetailsProps {
@@ -208,6 +209,7 @@ const createDaysFromApiPlan = (plan: WorkoutPlanApi): DayPlan[] => {
         muscleGroup: exercise.muscleGroup as MuscleGroup,
         gifUrl: exercise.gifUrl ?? "",
         instructions: exercise.instructions ?? "",
+        metValue: exercise.metValue ?? 5,
       }),
     ),
   }));
@@ -321,7 +323,29 @@ const createPlanPayload = (
   }),
 });
 
-function DaysSelector({ days, activeDayId, todayPlanDayId, completedDayIds, restDayIds, onSelectDay }: DaysSelectorProps) {
+function DaysSelector({
+  days,
+  activeDayId,
+  todayPlanDayId,
+  completedDayIds,
+  restDayIds,
+  onSelectDay,
+  onRenameDay,
+}: DaysSelectorProps) {
+  const [editingDayId, setEditingDayId] = useState<string | null>(null);
+  const [draftLabel, setDraftLabel] = useState("");
+
+  const startEditing = (day: DayPlan) => {
+    setEditingDayId(day.id);
+    setDraftLabel(day.label.slice(0, 10));
+  };
+
+  const finishEditing = (day: DayPlan) => {
+    const nextLabel = draftLabel.trim().slice(0, 10);
+    onRenameDay(day.id, nextLabel || `Day ${day.id.replace("day-", "")}`);
+    setEditingDayId(null);
+  };
+
   return (
     <section className="reveal-up reveal-delay-2 mb-4 rounded-[14px] border border-white/12 bg-white/4 px-4 py-3 shadow-[0_14px_28px_rgba(0,0,0,0.25)] backdrop-blur-[6px]">
       <div className="flex w-full items-center gap-1.5">
@@ -347,15 +371,42 @@ function DaysSelector({ days, activeDayId, todayPlanDayId, completedDayIds, rest
           }
 
           return (
-            <button
+            <div
               key={day.id}
-              type="button"
-              onClick={() => onSelectDay(day)}
-              className={className}
-              title={isRest ? `${day.label} — Rest Day` : day.label}
+              role="button"
+              tabIndex={editingDayId === day.id ? -1 : 0}
+              onClick={() => {
+                if (editingDayId !== day.id) onSelectDay(day);
+              }}
+              onDoubleClick={() => startEditing(day)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" && editingDayId !== day.id) onSelectDay(day);
+              }}
+              className={`${className} cursor-pointer`}
+              title={isRest ? `${day.label} — Rest Day` : `${day.label}. Double-click to rename.`}
             >
-              <span className="block truncate">{isRest ? "Rest" : day.label}</span>
-            </button>
+              {editingDayId === day.id ? (
+                <input
+                  autoFocus
+                  type="text"
+                  value={draftLabel}
+                  maxLength={10}
+                  onClick={(event) => event.stopPropagation()}
+                  onDoubleClick={(event) => event.stopPropagation()}
+                  onChange={(event) => setDraftLabel(event.target.value.slice(0, 10))}
+                  onBlur={() => finishEditing(day)}
+                  onKeyDown={(event) => {
+                    event.stopPropagation();
+                    if (event.key === "Enter") event.currentTarget.blur();
+                    if (event.key === "Escape") setEditingDayId(null);
+                  }}
+                  className="h-6 w-full rounded-md border border-white/20 bg-slate-950/60 px-1.5 text-center text-xs font-semibold text-white outline-none ring-2 ring-emerald-300/40"
+                  aria-label={`Rename ${day.label}`}
+                />
+              ) : (
+                <span className="block truncate">{day.label}</span>
+              )}
+            </div>
           );
         })}
       </div>
@@ -433,6 +484,28 @@ function ActivityDetails({
     }
   };
 
+  if (!selectedExerciseName) {
+    return (
+      <section className="reveal-up reveal-delay-5 flex min-h-[240px] items-center justify-center rounded-[14px] border border-white/12 bg-white/4 p-6 text-center shadow-[0_14px_28px_rgba(0,0,0,0.25)] backdrop-blur-[6px]">
+        <div>
+          {isRestDay ? (
+            <Moon className="mx-auto h-9 w-9 text-violet-300/40" />
+          ) : (
+            <Dumbbell className="mx-auto h-9 w-9 text-emerald-300/30" />
+          )}
+          <h2 className="mt-3 text-base font-semibold text-slate-100">
+            {isRestDay ? "Recovery day" : "No exercise selected"}
+          </h2>
+          <p className="mt-1 text-sm text-slate-400">
+            {isRestDay
+              ? "Set details are hidden because this day is reserved for rest."
+              : "Add an exercise to configure pause time, sets, weight, and repetitions."}
+          </p>
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section className="reveal-up reveal-delay-5 rounded-[14px] border border-white/12 bg-white/4 p-4 shadow-[0_14px_28px_rgba(0,0,0,0.25)] backdrop-blur-[6px]">
       {/* Content faded when Rest Day */}
@@ -497,7 +570,7 @@ function ActivityDetails({
             {sets.map((set, index) => (
               <div
                 key={`set-${index}`}
-                className="grid grid-cols-[56px_minmax(0,1fr)_88px_32px] items-center gap-2.5 rounded-[10px] border border-white/10 bg-white/[0.03] p-2.5"
+                className="set-row-enter grid grid-cols-[56px_minmax(0,1fr)_88px_32px] items-center gap-2.5 rounded-[10px] border border-white/10 bg-white/[0.03] p-2.5"
               >
                 <div className="flex h-10 items-center justify-center rounded-[10px] border border-white/10 bg-white/[0.02] text-sm font-semibold text-slate-100">
                   {index + 1}
@@ -590,6 +663,14 @@ function ActivityDetails({
               </div>
             ))}
           </div>
+          <style>{`
+            @keyframes setRowEnter {
+              from { opacity: 0; transform: translateY(-12px) scale(.97); background: rgba(16,185,129,.16); }
+              to { opacity: 1; transform: translateY(0) scale(1); }
+            }
+            .set-row-enter { animation: setRowEnter 300ms cubic-bezier(.22,1,.36,1) both; }
+            @media (prefers-reduced-motion: reduce) { .set-row-enter { animation: none; } }
+          `}</style>
 
           <div className="mt-4 flex items-center justify-center">
             <button
@@ -914,6 +995,13 @@ export default function GymPlanMenu() {
     setStatusMessage(`${day.label} selected.`);
   };
 
+  const handleRenameDay = (dayId: string, label: string): void => {
+    setDays((currentDays) =>
+      currentDays.map((day) => (day.id === dayId ? { ...day, label } : day)),
+    );
+    setStatusMessage(`${label} saved.`);
+  };
+
   const handleSelectExercise = (exercise: Exercise): void => {
     const existsInActiveDay = activeDayExercises.some((item) => item.id === exercise.id);
     if (!existsInActiveDay) {
@@ -1135,6 +1223,7 @@ export default function GymPlanMenu() {
                 completedDayIds={completedDayIds}
                 restDayIds={restDayIds}
                 onSelectDay={handleSelectDay}
+                onRenameDay={handleRenameDay}
               />
 
               {/* Rest Day button — OUTSIDE the faded grid, always active */}

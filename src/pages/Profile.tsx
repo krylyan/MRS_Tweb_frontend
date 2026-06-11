@@ -13,7 +13,6 @@ import {
   UserCircle2,
   UtensilsCrossed,
   Star,
-  Clock,
 } from "lucide-react";
 import AuthUtils from "../utils/authUtils";
 import { getThemeById, DEFAULT_THEME_IDS } from "./MyPlans";
@@ -133,7 +132,7 @@ function InfoCard({
   inputVal: string; onChange: (v: string) => void; placeholder: string; unit: string;
 }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+    <div className={`rounded-2xl border border-white/10 bg-white/[0.03] p-5 transition-all duration-300 ${editing ? "profile-field-edit border-emerald-400/25 bg-emerald-400/[0.035]" : ""}`}>
       <div className="mb-3 flex items-center gap-2 text-slate-400">
         {icon}
         <span className="text-sm font-medium">{label}</span>
@@ -164,11 +163,15 @@ export default function Profile() {
 
   const [isEditing, setIsEditing] = useState(false);
   const [formName, setFormName] = useState(currentUser?.fullName ?? "User");
-  const [formEmail, setFormEmail] = useState(currentUser?.username ?? "user@example.com");
+  const [formEmail, setFormEmail] = useState(currentUser?.email ?? "user@example.com");
   const [editError, setEditError] = useState("");
   const [avatarError, setAvatarError] = useState("");
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const avatarInputRef = useRef<HTMLInputElement | null>(null);
+  const savedAccountRef = useRef({
+    fullName: currentUser?.fullName ?? "User",
+    email: currentUser?.email ?? "user@example.com",
+  });
 
   const [isEditingBody, setIsEditingBody] = useState(false);
   const [profile, setProfile] = useState<UserProfileData>(() => createEmptyProfile());
@@ -182,6 +185,12 @@ export default function Profile() {
   const [mealCustomizations, setMealCustomizations] = useState<PlanCustomizations>({});
 
   const [isLoaded, setIsLoaded] = useState(false);
+  const [saveFeedback, setSaveFeedback] = useState<"account" | "body" | null>(null);
+
+  const showSaveFeedback = (scope: "account" | "body") => {
+    setSaveFeedback(scope);
+    window.setTimeout(() => setSaveFeedback((current) => current === scope ? null : current), 700);
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -191,7 +200,8 @@ export default function Profile() {
         const account = await profileApi.getMe();
         if (!cancelled && account) {
           setFormName(account.fullName);
-          setFormEmail(account.username);
+          setFormEmail(account.email);
+          savedAccountRef.current = { fullName: account.fullName, email: account.email };
         }
         return;
       }
@@ -205,7 +215,8 @@ export default function Profile() {
 
       if (account) {
         setFormName(account.fullName);
-        setFormEmail(account.username);
+        setFormEmail(account.email);
+        savedAccountRef.current = { fullName: account.fullName, email: account.email };
       }
 
       const updated = {
@@ -259,7 +270,7 @@ export default function Profile() {
   useEffect(() => {
     const u = AuthUtils.getCurrentUser();
     setFormName(u?.fullName ?? "User");
-    setFormEmail(u?.username ?? "user@example.com");
+    setFormEmail(u?.email ?? "user@example.com");
   }, []);
 
   const streaks = useMemo(() => calculateStreaks(completions), [completions]);
@@ -275,16 +286,19 @@ export default function Profile() {
   const activeMealKcalPerDay = useMemo(() => mealKcalPerDay(activeMealPlan), [activeMealPlan]);
 
   const displayName = formName || currentUser?.fullName || "User";
-  const displayEmail = formEmail || currentUser?.username || "user@example.com";
+  const displayEmail = formEmail || currentUser?.email || "user@example.com";
   const avatarUrl = normalizeMediaUrl(profile.avatarUrl);
 
   const handleSave = async () => {
     const n = formName.trim();
     if (!n) { setEditError("Please fill in your name."); return; }
-    const updated = await profileApi.updateMe({ fullName: n, username: formEmail });
+    const updated = await profileApi.updateMe({ fullName: n, email: formEmail });
     if (!updated) { setEditError("Unable to update profile."); return; }
     setEditError("");
     setIsEditing(false);
+    AuthUtils.setLoginInfo(updated.fullName);
+    savedAccountRef.current = { fullName: updated.fullName, email: updated.email };
+    showSaveFeedback("account");
   };
 
   const handleAvatarChange = async (file: File | undefined) => {
@@ -337,6 +351,7 @@ export default function Profile() {
     if (saved) {
       setProfile(next);
       setIsEditingBody(false);
+      showSaveFeedback("body");
     }
   };
 
@@ -349,7 +364,24 @@ export default function Profile() {
     <div className="min-h-screen text-slate-200">
       <div className={`mx-auto max-w-[1200px] px-4 pb-10 pt-6 transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] sm:px-6 ${isLoaded ? "translate-y-0 opacity-100" : "translate-y-5 opacity-0"}`}>
 
-        <section className="reveal-up mb-6 flex flex-col gap-5 rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-sm sm:flex-row sm:items-center sm:justify-between">
+        <style>{`
+          @keyframes profileEditIn {
+            from { opacity: .35; transform: translateY(-8px) scale(.985); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+          }
+          @keyframes profileSaved {
+            0% { box-shadow: 0 0 0 rgba(52,211,153,0); }
+            45% { box-shadow: 0 0 0 3px rgba(52,211,153,.32), 0 0 34px rgba(16,185,129,.18); }
+            100% { box-shadow: 0 0 0 rgba(52,211,153,0); }
+          }
+          .profile-field-edit { animation: profileEditIn 260ms cubic-bezier(.22,1,.36,1) both; }
+          .profile-save-flash { animation: profileSaved 650ms ease-out both; }
+          @media (prefers-reduced-motion: reduce) {
+            .profile-field-edit, .profile-save-flash { animation: none; }
+          }
+        `}</style>
+
+        <section className={`reveal-up mb-6 flex flex-col gap-5 rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-sm sm:flex-row sm:items-center sm:justify-between ${saveFeedback === "account" ? "profile-save-flash" : ""}`}>
           <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-center sm:gap-5">
             <div className="relative h-20 w-20 shrink-0">
               <button
@@ -382,7 +414,7 @@ export default function Profile() {
             </div>
             <div className="min-w-0">
               {isEditing ? (
-                <div className="space-y-2">
+                <div className="profile-field-edit space-y-2">
                   <input type="text" value={formName} onChange={(e) => setFormName(e.target.value)} className="block w-full rounded-lg border border-white/20 bg-white/8 px-3 py-1.5 text-lg font-bold text-white outline-none focus:border-emerald-500/60" />
                   <p className="break-all text-sm text-gray-400 sm:break-normal">{displayEmail}</p>
                   {editError ? <p className="text-xs text-rose-400">{editError}</p> : null}
@@ -410,11 +442,11 @@ export default function Profile() {
           <div>
             {isEditing ? (
               <div className="flex gap-2">
-                <button type="button" onClick={handleSave} className="rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-emerald-600">Save</button>
-                <button type="button" onClick={() => { setIsEditing(false); setFormName(currentUser?.fullName ?? "User"); setFormEmail(currentUser?.username ?? "user@example.com"); setEditError(""); setAvatarError(""); }} className="rounded-xl border border-white/20 bg-white/8 px-4 py-2 text-sm font-semibold text-slate-300 transition-colors hover:bg-white/12">Cancel</button>
+                <button type="button" onClick={handleSave} className="rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-white transition-all hover:bg-emerald-600 active:scale-95">Save</button>
+                <button type="button" onClick={() => { setIsEditing(false); setFormName(savedAccountRef.current.fullName); setFormEmail(savedAccountRef.current.email); setEditError(""); setAvatarError(""); }} className="rounded-xl border border-white/20 bg-white/8 px-4 py-2 text-sm font-semibold text-slate-300 transition-all hover:bg-white/12 active:scale-95">Cancel</button>
               </div>
             ) : (
-              <button type="button" onClick={() => { setIsEditing(true); setEditError(""); setAvatarError(""); }} className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/8 px-4 py-2 text-sm font-semibold text-slate-200 transition-colors hover:bg-white/12">
+              <button type="button" onClick={() => { setIsEditing(true); setEditError(""); setAvatarError(""); }} className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/8 px-4 py-2 text-sm font-semibold text-slate-200 transition-all hover:-translate-y-0.5 hover:bg-white/12 active:scale-95">
                 <Pencil className="h-4 w-4" />
                 Edit Profile
               </button>
@@ -454,16 +486,16 @@ export default function Profile() {
           </section>
         ) : (
           <>
-        <section className="reveal-up reveal-delay-1 mb-6 rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-sm">
+        <section className={`reveal-up reveal-delay-1 mb-6 rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-sm ${saveFeedback === "body" ? "profile-save-flash" : ""}`}>
           <div className="mb-5 flex items-center justify-between">
             <h2 className="text-xl font-bold text-white">Personal Info</h2>
             {isEditingBody ? (
               <div className="flex gap-2">
-                <button type="button" onClick={handleSaveBody} className="rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-emerald-600">Save</button>
-                <button type="button" onClick={handleCancelBody} className="rounded-xl border border-white/20 bg-white/8 px-4 py-2 text-sm font-semibold text-slate-300 transition-colors hover:bg-white/12">Cancel</button>
+                <button type="button" onClick={handleSaveBody} className="rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-white transition-all hover:bg-emerald-600 active:scale-95">Save</button>
+                <button type="button" onClick={handleCancelBody} className="rounded-xl border border-white/20 bg-white/8 px-4 py-2 text-sm font-semibold text-slate-300 transition-all hover:bg-white/12 active:scale-95">Cancel</button>
               </div>
             ) : (
-              <button type="button" onClick={() => setIsEditingBody(true)} className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/8 px-3 py-2 text-sm font-semibold text-slate-200 transition-colors hover:bg-white/12">
+              <button type="button" onClick={() => setIsEditingBody(true)} className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/8 px-3 py-2 text-sm font-semibold text-slate-200 transition-all hover:-translate-y-0.5 hover:bg-white/12 active:scale-95">
                 <Pencil className="h-3.5 w-3.5" />
                 Edit
               </button>
@@ -496,8 +528,6 @@ export default function Profile() {
               const custom = customizations[activePlan.id];
               const accent = custom?.colorId ? getThemeById(custom.colorId) : getThemeById(DEFAULT_THEME_IDS[Math.max(0, planIndex) % 4]);
               const customImg = custom?.imageUrl;
-              const estMinutes = activePlan.dayCount * 45;
-
               return (
                 <article className={`flex flex-1 flex-col overflow-hidden rounded-2xl border shadow-[0_18px_36px_rgba(0,0,0,0.25)] backdrop-blur-[6px] transition-all duration-300 hover:-translate-y-1 hover:shadow-xl ${accent.card}`}>
                   {/* Image Area */}
@@ -507,16 +537,11 @@ export default function Profile() {
                     ) : (
                       <Dumbbell className="h-16 w-16 text-white/20" />
                     )}
-                    <span className={`absolute bottom-3 left-3 rounded-lg ${accent.badge} px-2.5 py-1 text-xs font-bold text-white backdrop-blur-sm`}>
-                      {activePlan.dayCount} days
-                    </span>
                   </div>
                   {/* Content */}
                   <div className="flex flex-1 flex-col p-5">
                     <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-400">
-                      <span className="flex items-center gap-1"><Calendar className="h-3.5 w-3.5" />{activePlan.dayCount} training days</span>
-                      <span className="flex items-center gap-1"><Star className="h-3.5 w-3.5" />{activePlan.exerciseCount} exercises</span>
-                      <span className="flex items-center gap-1"><Clock className="h-3.5 w-3.5" />~{estMinutes} min</span>
+                      <span className="flex items-center gap-1.5"><Dumbbell className="h-3.5 w-3.5 text-cyan-300" />{activePlan.exerciseCount} exercises</span>
                     </div>
                     <h3 className="mb-5 break-words text-xl font-bold leading-snug text-slate-50">{activePlan.name}</h3>
                     <Link to={`/gym-plan?planId=${activePlan.id}`} className={`mt-auto inline-flex w-max items-center justify-center rounded-[10px] px-6 py-2.5 text-sm font-semibold text-white shadow-lg transition-all duration-200 active:scale-95 ${accent.btn}`}>
@@ -544,8 +569,6 @@ export default function Profile() {
               const custom = mealCustomizations[activeMealPlan.id];
               const accent = custom?.colorId ? getThemeById(custom.colorId) : getThemeById(DEFAULT_THEME_IDS[Math.max(0, planIndex) % 4]);
               const customImg = normalizeMediaUrl(custom?.imageUrl);
-              const dayCount = activeMealPlan.dayCount;
-
               return (
                 <article className={`flex flex-1 flex-col overflow-hidden rounded-2xl border shadow-[0_18px_36px_rgba(0,0,0,0.25)] backdrop-blur-[6px] transition-all duration-300 hover:-translate-y-1 hover:shadow-xl ${accent.card}`}>
                   <div className={`relative flex h-48 items-center justify-center bg-gradient-to-br ${accent.imgBg}`}>
@@ -554,20 +577,9 @@ export default function Profile() {
                     ) : (
                       <UtensilsCrossed className="h-16 w-16 text-white/20" />
                     )}
-                    <span className={`absolute bottom-3 left-3 rounded-lg ${accent.badge} px-2.5 py-1 text-xs font-bold text-white backdrop-blur-sm`}>
-                      {dayCount} days
-                    </span>
                   </div>
                   <div className="flex flex-1 flex-col p-5">
                     <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-400">
-                      <span className="inline-flex items-center gap-1.5">
-                        <Calendar className="h-4 w-4" />
-                        {dayCount} meal days
-                      </span>
-                      <span className="inline-flex items-center gap-1.5">
-                        <UtensilsCrossed className="h-4 w-4" />
-                        {activeMealPlan.meals} meals
-                      </span>
                       <span className="inline-flex items-center gap-1.5">
                         <Flame className="h-4 w-4 text-orange-400" />
                         {activeMealKcalPerDay.toLocaleString()} kcal/day

@@ -5,7 +5,7 @@ export type UserRole = "Admin" | "User";
 export interface AdminUser {
   id: number;
   fullName: string;
-  username: string;
+  email: string;
   role: UserRole;
   blocked: boolean;
 }

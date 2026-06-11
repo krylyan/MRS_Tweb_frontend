@@ -23,6 +23,7 @@ export interface WorkoutExerciseApi {
   muscleGroup: string;
   gifUrl?: string;
   instructions?: string;
+  metValue: number;
 }
 
 export interface WorkoutDayExerciseApi {

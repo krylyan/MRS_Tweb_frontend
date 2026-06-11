@@ -1,4 +1,4 @@
-import { AlertTriangle, CalendarDays, Check, Clock, Dumbbell, Flame, ImageIcon, MoreHorizontal, Palette, Plus, Star, Trash2 } from "lucide-react";
+import { AlertTriangle, Check, Dumbbell, Flame, ImageIcon, MoreHorizontal, Palette, Plus, Star, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { workoutPlanApi } from "../services/workoutPlanApi";
@@ -150,7 +150,8 @@ export default function MyPlans() {
   const handleSetActive = async (planId: string) => {
     const nextId = activePlanId === planId ? null : planId;
     if (nextId) {
-      await planActivationApi.activate(planId, "Workout", 7);
+      const plan = workoutPlans.find((item) => item.id.toString() === planId);
+      await planActivationApi.activate(planId, "Workout", plan?.dayCount || 1);
     } else {
       await planActivationApi.deactivate("Workout");
     }
@@ -162,7 +163,7 @@ export default function MyPlans() {
     const nextId = activeMealPlanId === planId ? null : planId;
     if (nextId) {
       const plan = mealPlans.find((p) => p.id.toString() === planId);
-      await planActivationApi.activate(planId, "Meal", plan?.meals || 7);
+      await planActivationApi.activate(planId, "Meal", plan?.dayCount || 1);
     } else {
       await planActivationApi.deactivate("Meal");
     }
@@ -306,8 +307,6 @@ export default function MyPlans() {
     const isMenuOpen = openMenuId === plan.id;
     const accent = getAccentClasses(plan.id, index);
     const customImg = customizations[plan.id]?.imageUrl;
-    const estMinutes = plan.statValue > 0 ? plan.statValue * 45 : 45;
-
     return (
       <article
         key={`${sectionKey}-${plan.id}`}
@@ -321,10 +320,6 @@ export default function MyPlans() {
           ) : (
             <Dumbbell className="h-16 w-16 text-white/20" />
           )}
-          {/* Days badge */}
-          <span className={`absolute bottom-3 left-3 rounded-lg ${accent.badge} px-2.5 py-1 text-xs font-bold text-white backdrop-blur-sm`}>
-            {plan.statValue} {plan.statLabel === "Days" ? "days" : "meals"}
-          </span>
           {/* Active badge */}
           {isActive && (
             <span className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-lg bg-emerald-500/90 px-2.5 py-1 text-xs font-bold text-white backdrop-blur-sm">
@@ -405,21 +400,11 @@ export default function MyPlans() {
         <div className="flex flex-1 flex-col rounded-b-2xl p-4">
           {/* Stats row */}
           <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-400">
-            <span className="flex items-center gap-1">
-              <CalendarDays className="h-3.5 w-3.5" />
-              {plan.statValue} {plan.statLabel === "Days" ? "training days" : "meals"}
-            </span>
             {plan.sourceType === "workout" && (
-              <>
-                <span className="flex items-center gap-1">
-                  <Star className="h-3.5 w-3.5" />
-                  {plan.exerciseCount} exercises
-                </span>
-                <span className="flex items-center gap-1">
-                  <Clock className="h-3.5 w-3.5" />
-                  ~{estMinutes} min
-                </span>
-              </>
+              <span className="flex items-center gap-1.5">
+                <Dumbbell className="h-3.5 w-3.5 text-cyan-300" />
+                {plan.exerciseCount} exercises
+              </span>
             )}
           </div>
 
@@ -469,7 +454,7 @@ export default function MyPlans() {
             <Flame className="h-16 w-16 text-white/20" />
           )}
           <span className={`absolute bottom-3 left-3 rounded-lg ${accent.badge} px-2.5 py-1 text-xs font-bold text-white backdrop-blur-sm`}>
-            {plan.meals} meals/day
+            {plan.kcalPerDay.toLocaleString()} kcal/day
           </span>
           {isMealActive && (
             <span className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-lg bg-emerald-500/90 px-2.5 py-1 text-xs font-bold text-white backdrop-blur-sm">
@@ -539,8 +524,8 @@ export default function MyPlans() {
         <div className="flex flex-1 flex-col rounded-b-2xl p-4">
           <div className="mb-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-400">
             <span className="flex items-center gap-1">
-              <CalendarDays className="h-3.5 w-3.5" />
-              {plan.meals} meals / day
+              <Flame className="h-3.5 w-3.5 text-orange-300" />
+              {plan.kcalPerDay.toLocaleString()} kcal/day
             </span>
           </div>
           <h3 className="mb-4 break-words text-base font-bold leading-snug text-slate-50">{plan.name}</h3>

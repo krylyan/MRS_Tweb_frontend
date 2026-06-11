@@ -50,7 +50,7 @@ export default function SignUp() {
 
     const result = await authService.registerUser({
       fullName: fullName.trim(),
-      username: email.trim(),   // username = email in backend
+      email: email.trim(),
       password,
     });
 

@@ -25,6 +25,16 @@ import {
   toCustomizationMap,
   type PlanCustomizations,
 } from "../services/planPreferencesApi";
+import DashboardStatistics, {
+  type EnergyChartPoint,
+  type MacroChartData,
+  type WeightChartPoint,
+} from "../components/DashboardStatistics";
+import {
+  profileApi,
+  type UserProfileDto,
+  type UserWeightHistoryDto,
+} from "../services/profileApi";
 
 
 
@@ -54,6 +64,13 @@ const getActivationStartKey = (activation: PlanActivationApi): string =>
 
 const getPlanDayToken = (planIdentifier: string | number, activationId: number, dayId: string): string =>
   `${planIdentifier}:${activationId}:${dayId}`;
+
+const getMealSlotToken = (
+  planIdentifier: string | number,
+  activationId: number,
+  dayId: string,
+  slot: string,
+): string => `${getPlanDayToken(planIdentifier, activationId, dayId)}:${slot}`;
 
 const getActivationTokenPrefix = (planIdentifier: string | number, activationId?: number): string =>
   activationId ? `${planIdentifier}:${activationId}:` : `${planIdentifier}:`;
@@ -97,14 +114,13 @@ function StatusBadge({ completed }: StatusBadgeProps) {
 
 interface ActiveDayBadgeProps {
   dayInfo: ActiveDayInfo;
-  totalDays: number;
 }
 
-function ActiveDayBadge({ dayInfo, totalDays }: ActiveDayBadgeProps) {
+function ActiveDayBadge({ dayInfo }: ActiveDayBadgeProps) {
   return (
     <span className="inline-flex items-center gap-1.5 rounded-full border border-blue-300/30 bg-blue-500/15 px-3 py-1 text-xs font-semibold text-blue-200">
       <CalendarDays className="h-3.5 w-3.5" />
-      {dayInfo.dayLabel} of {totalDays}
+      {dayInfo.dayLabel}
     </span>
   );
 }
@@ -118,7 +134,6 @@ interface ActivePlanCardProps {
   accent: ReturnType<typeof getThemeById>;
   stats: Array<{ icon: "calendar" | "clock" | "dumbbell" | "flame" | "target"; label: string }>;
   dayInfo: ActiveDayInfo | null;
-  totalDays: number;
 }
 
 const statIcons = {
@@ -138,7 +153,6 @@ function ActivePlanCard({
   accent,
   stats,
   dayInfo,
-  totalDays,
 }: ActivePlanCardProps) {
   const Icon = type === "workout" ? Dumbbell : UtensilsCrossed;
 
@@ -156,7 +170,7 @@ function ActivePlanCard({
         <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-slate-950/10" />
         {/* Badges over image */}
         <div className="absolute bottom-4 left-4 right-4 flex flex-wrap items-center gap-2">
-          {dayInfo && <ActiveDayBadge dayInfo={dayInfo} totalDays={totalDays} />}
+          {dayInfo && <ActiveDayBadge dayInfo={dayInfo} />}
           <StatusBadge completed={completed} />
         </div>
       </div>
@@ -175,7 +189,7 @@ function ActivePlanCard({
             <div>
               <p className="text-xl font-extrabold leading-none text-blue-100">{dayInfo.dayLabel}</p>
               <p className="mt-0.5 text-xs text-blue-300/80">
-                {`of ${totalDays} ${type === "workout" ? "training" : "meal plan"} days`}
+                {type === "workout" ? "Today’s scheduled workout" : "Today’s nutrition plan"}
               </p>
             </div>
           </div>
@@ -342,7 +356,7 @@ interface WeeklyActivityChartProps {
   completions: PlanCompletionResponseDto[];
 }
 
-function WeeklyActivityChart({
+export function WeeklyActivityChart({
   workoutPlanId,
   mealPlanId,
   workoutActivationId,
@@ -528,18 +542,31 @@ export default function Home() {
   const [completions, setCompletions] = useState<PlanCompletionResponseDto[]>([]);
   const [workoutCustomizations, setWorkoutCustomizations] = useState<PlanCustomizations>({});
   const [mealCustomizations, setMealCustomizations] = useState<PlanCustomizations>({});
+  const [profile, setProfile] = useState<UserProfileDto | null>(null);
+  const [weightHistory, setWeightHistory] = useState<UserWeightHistoryDto[]>([]);
 
   useEffect(() => {
     let cancelled = false;
 
     async function loadDashboardData() {
-      const [wPlans, mPlans, wActivation, mActivation, allCompletions, preferences] = await Promise.all([
+      const [
+        wPlans,
+        mPlans,
+        wActivation,
+        mActivation,
+        allCompletions,
+        preferences,
+        userProfile,
+        userWeightHistory,
+      ] = await Promise.all([
         workoutPlanApi.getMyPlans(),
         mealPlanApi.getMyPlans(),
         planActivationApi.getActive("Workout"),
         planActivationApi.getActive("Meal"),
         planCompletionApi.getByUser(),
         planPreferencesApi.getCustomizations(),
+        profileApi.getProfile(),
+        profileApi.getWeightHistory(),
       ]);
 
       if (cancelled) return;
@@ -550,6 +577,8 @@ export default function Home() {
       setCompletions(allCompletions);
       setWorkoutCustomizations(toCustomizationMap(preferences, "Workout"));
       setMealCustomizations(toCustomizationMap(preferences, "Meal"));
+      setProfile(userProfile);
+      setWeightHistory(userWeightHistory);
     }
 
     loadDashboardData();
@@ -613,14 +642,24 @@ export default function Home() {
     mealActivation && activeMealPlan && mealStartedOnDate
       ? getActiveDayForDate(mealActivation, selectedDateKey)
       : null;
-  const mealCompleted = mealDayInfo
-    ? completions.some(
-      (item) =>
-        item.planType === "Meal" &&
-        item.dayToken === getPlanDayToken(activeMealPlan!.id, mealActivation!.id, mealDayInfo.dayId) &&
-        item.dateKey === selectedDateKey,
-    )
-    : false;
+  const mealCompleted = (() => {
+    if (!mealDayInfo || !activeMealPlan || !mealActivation) return false;
+
+    const dayToken = getPlanDayToken(activeMealPlan.id, mealActivation.id, mealDayInfo.dayId);
+    const completedTokens = new Set(
+      completions
+        .filter((item) => item.planType === "Meal" && item.dateKey === selectedDateKey)
+        .map((item) => item.dayToken),
+    );
+    if (completedTokens.has(dayToken)) return true;
+
+    const slotsWithFood = activeMealPlan.days[mealDayInfo.dayIndex]?.categories
+      .filter((category) => category.items.length > 0)
+      .map((category) => category.slot) ?? [];
+    return slotsWithFood.length > 0 && slotsWithFood.every((slot) =>
+      completedTokens.has(getMealSlotToken(activeMealPlan.id, mealActivation.id, mealDayInfo.dayId, slot)),
+    );
+  })();
   const mealCustomization = activeMealPlan ? mealCustomizations[activeMealPlan.id] : undefined;
   const mealAccent = getThemeById(mealCustomization?.colorId ?? "orange");
   const mealImageUrl = mealCustomization?.imageUrl;
@@ -628,27 +667,155 @@ export default function Home() {
     ? `/meal-plan?planId=${activeMealPlan.id}&date=${selectedDateKey}${mealDayInfo ? `&dayId=${mealDayInfo.dayId}` : ""}`
     : "#";
 
+  const getMealDayTotals = (dayIndex: number): MacroChartData & { calories: number } => {
+    const day = activeMealPlan?.days[dayIndex];
+    if (!day) return { calories: 0, protein: 0, carbs: 0, fats: 0 };
+
+    return day.categories
+      .flatMap((category) => category.items)
+      .reduce(
+        (totals, item) => ({
+          calories: totals.calories + item.kcal,
+          protein: totals.protein + item.protein,
+          carbs: totals.carbs + item.carbs,
+          fats: totals.fats + item.fats,
+        }),
+        { calories: 0, protein: 0, carbs: 0, fats: 0 },
+      );
+  };
+
+  const getConsumedMealTotals = (
+    dayIndex: number,
+    dateKey: string,
+  ): MacroChartData & { calories: number } => {
+    const empty = { calories: 0, protein: 0, carbs: 0, fats: 0 };
+    const day = activeMealPlan?.days[dayIndex];
+    if (!day || !mealActivation || !activeMealPlan) return empty;
+
+    const dayId = `day-${dayIndex + 1}`;
+    const dayToken = getPlanDayToken(activeMealPlan.id, mealActivation.id, dayId);
+    const completedTokens = new Set(
+      completions
+        .filter((item) => item.planType === "Meal" && item.dateKey === dateKey)
+        .map((item) => item.dayToken),
+    );
+
+    if (completedTokens.has(dayToken)) return getMealDayTotals(dayIndex);
+
+    return day.categories
+      .filter((category) =>
+        completedTokens.has(getMealSlotToken(activeMealPlan.id, mealActivation.id, dayId, category.slot)),
+      )
+      .flatMap((category) => category.items)
+      .reduce(
+        (totals, item) => ({
+          calories: totals.calories + item.kcal,
+          protein: totals.protein + item.protein,
+          carbs: totals.carbs + item.carbs,
+          fats: totals.fats + item.fats,
+        }),
+        empty,
+      );
+  };
+
+  const todayMealTotals = mealDayInfo
+    ? getMealDayTotals(mealDayInfo.dayIndex)
+    : { calories: 0, protein: 0, carbs: 0, fats: 0 };
+
+  const consumedMealTotalsToday = mealDayInfo
+    ? getConsumedMealTotals(mealDayInfo.dayIndex, selectedDateKey)
+    : { calories: 0, protein: 0, carbs: 0, fats: 0 };
+  const mealCaloriesConsumedToday = Math.round(consumedMealTotalsToday.calories);
+
+  const weightForDate = (dateKey: string): number => {
+    const historicalWeight = [...weightHistory]
+      .filter((entry) => entry.recordedAt.slice(0, 10) <= dateKey)
+      .sort((a, b) => b.recordedAt.localeCompare(a.recordedAt))[0]?.weight;
+    return historicalWeight ?? profile?.weight ?? 70;
+  };
+
+  const estimateWorkoutCalories = (dayIndex: number, dateKey: string): number => {
+    const day = activeWorkoutPlan?.days[dayIndex];
+    if (!day) return 0;
+
+    const weight = weightForDate(dateKey);
+    const dayExercises = day.dayExercises ?? [];
+
+    const total = dayExercises.length
+      ? dayExercises.reduce((sum, item) => {
+          const setCount = Math.max(1, item.sets.length);
+          const pauseMinutes = (item.pauseTime?.minutes ?? 0) + (item.pauseTime?.seconds ?? 0) / 60;
+          const estimatedMinutes = setCount * 0.75 + Math.max(0, setCount - 1) * pauseMinutes;
+          const metValue = item.exercise.metValue || 5;
+          return sum + (metValue * 3.5 * weight * Math.max(estimatedMinutes, 3)) / 200;
+        }, 0)
+      : day.exercises.reduce(
+          (sum, exercise) => sum + ((exercise.metValue || 5) * 3.5 * weight * 5) / 200,
+          0,
+        );
+
+    return Math.round(total);
+  };
+
+  const energyChartData: EnergyChartPoint[] = getHistoryDays(7).reverse().map((dateKey) => {
+    const label = parseDateKey(dateKey).toLocaleDateString("en-GB", { weekday: "short" });
+    let consumed = 0;
+    let burned = 0;
+
+    if (activeMealPlan && mealActivation && dateKey >= getActivationStartKey(mealActivation)) {
+      const dayInfo = getActiveDayForDate(mealActivation, dateKey);
+      consumed = Math.round(getConsumedMealTotals(dayInfo.dayIndex, dateKey).calories);
+    }
+
+    if (activeWorkoutPlan && workoutActivation && dateKey >= getActivationStartKey(workoutActivation)) {
+      const dayInfo = getActiveDayForDate(workoutActivation, dateKey);
+      const completed = completions.some(
+        (item) =>
+          item.planType === "Workout" &&
+          item.dateKey === dateKey &&
+          item.dayToken === getPlanDayToken(activeWorkoutPlan.id, workoutActivation.id, dayInfo.dayId),
+      );
+      if (completed) burned = estimateWorkoutCalories(dayInfo.dayIndex, dateKey);
+    }
+
+    return { date: dateKey, label, consumed, burned };
+  });
+
+  const weightChartData: WeightChartPoint[] = weightHistory
+    .slice(-12)
+    .map((entry) => ({
+      date: entry.recordedAt,
+      label: new Date(entry.recordedAt).toLocaleDateString("en-GB", { day: "2-digit", month: "short" }),
+      weight: entry.weight,
+    }));
+
+  const macroGoal = (() => {
+    const weight = profile?.weight && profile.weight > 0 ? profile.weight : 70;
+    const calories = profile?.tdee && profile.tdee > 0
+      ? profile.tdee + 300
+      : Math.max(todayMealTotals.calories + 250, 2_200);
+    const protein = weight * 1.8;
+    const fats = weight * 0.8;
+    const carbs = Math.max(0, (calories - protein * 4 - fats * 9) / 4);
+    return { protein, carbs, fats };
+  })();
+
   return (
     <main className="min-h-screen text-slate-200">
       <div className="mx-auto w-full max-w-[1400px] px-4 py-5 sm:px-6 sm:py-8">
 
-        <section className="reveal-up reveal-delay-1 mb-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
-          <div className="min-h-[168px] rounded-2xl border border-white/10 bg-white/[0.04] p-5 shadow-[0_18px_42px_rgba(0,0,0,0.22)]">
-            <Dumbbell className="mb-3 h-5 w-5 text-cyan-300" />
-            <p className="text-3xl font-bold text-white">{totalWorkoutExercises}</p>
-            <p className="mt-1 text-sm text-slate-400">exercises in active workout plan</p>
-          </div>
-          <CalorieProgressCard consumedCalories={0} totalCalories={0} />
+        <section className="reveal-up reveal-delay-1 mb-6">
+          <CalorieProgressCard
+            consumedCalories={mealCaloriesConsumedToday}
+            totalCalories={Math.round(todayMealTotals.calories)}
+          />
         </section>
 
-        <WeeklyActivityChart
-          workoutPlanId={activeWorkoutPlan?.id.toString()}
-          workoutActivationId={workoutActivation?.id}
-          workoutActivatedAt={workoutActivation?.activatedAt}
-          mealPlanId={activeMealPlan?.id.toString()}
-          mealActivationId={mealActivation?.id}
-          mealActivatedAt={mealActivation?.activatedAt}
-          completions={completions}
+        <DashboardStatistics
+          energy={energyChartData}
+          macros={consumedMealTotalsToday}
+          macroGoal={macroGoal}
+          weight={weightChartData}
         />
 
         <section className="grid gap-5 xl:grid-cols-2">
@@ -672,11 +839,8 @@ export default function Home() {
                 imageUrl={workoutImageUrl}
                 accent={workoutAccent}
                 dayInfo={workoutDayInfo}
-                totalDays={activeWorkoutPlan.days.length}
                 stats={[
-                  { icon: "calendar", label: `${activeWorkoutPlan.days.length} training days` },
                   { icon: "dumbbell", label: `${totalWorkoutExercises} exercises` },
-                  { icon: "clock", label: `~${Math.max(1, activeWorkoutPlan.days.length) * 45} min` },
                 ]}
               />
             </div>
@@ -701,11 +865,8 @@ export default function Home() {
                 imageUrl={mealImageUrl}
                 accent={mealAccent}
                 dayInfo={mealDayInfo}
-                totalDays={mealActivation?.totalDays ?? 7}
                 stats={[
-                  { icon: "calendar", label: `${mealActivation?.totalDays ?? 7} plan days` },
-                  { icon: "flame", label: `${activeMealPlan.meals} meals / day` },
-                  { icon: "target", label: "Nutrition plan" },
+                  { icon: "flame", label: `${Math.round(todayMealTotals.calories).toLocaleString()} kcal / day` },
                 ]}
               />
             </div>

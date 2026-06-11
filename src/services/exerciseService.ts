@@ -9,6 +9,7 @@ export interface ApiExercise {
   muscleGroup: string;
   gifUrl: string;
   instructions: string;
+  metValue: number;
 }
 
 const mapApiExercise = (e: ApiExercise): Exercise => ({
@@ -17,6 +18,7 @@ const mapApiExercise = (e: ApiExercise): Exercise => ({
   muscleGroup: e.muscleGroup as MuscleGroup,
   gifUrl: normalizeMediaUrl(e.gifUrl),
   instructions: e.instructions,
+  metValue: e.metValue || 5,
 });
 
 const getAllExercises = async (): Promise<Exercise[]> => {
@@ -45,6 +47,7 @@ const createExercise = async (dto: {
   muscleGroup: string;
   gifUrl: string;
   instructions: string;
+  metValue: number;
 }): Promise<{ ok: true; exercise: Exercise } | { ok: false; message: string }> => {
   const result = await apiClient.post<ApiExercise>("/exercise", dto);
   if (result.ok && result.data.id > 0) return { ok: true, exercise: mapApiExercise(result.data) };
@@ -59,6 +62,7 @@ const updateExercise = async (
     muscleGroup: string;
     gifUrl: string;
     instructions: string;
+    metValue: number;
   },
 ): Promise<{ ok: true; exercise: Exercise } | { ok: false; message: string }> => {
   const result = await apiClient.put<ApiExercise>(`/exercise/${id}`, dto);

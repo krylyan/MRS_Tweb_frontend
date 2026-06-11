@@ -6,6 +6,7 @@ export interface Exercise {
   muscleGroup: MuscleGroup;
   gifUrl: string;
   instructions: string;
+  metValue: number;
 }
 
 export const MUSCLE_GROUPS: MuscleGroup[] = ["Chest", "Back", "Legs", "Arms", "Core", "Cardio"];

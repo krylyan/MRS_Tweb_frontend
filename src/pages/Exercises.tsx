@@ -3,14 +3,12 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import ReactDOM from "react-dom";
 import { Link } from "react-router-dom";
 import { DarkMenuDropdown } from "../components/DarkMenuDropdown";
+import ExerciseFrameCarousel from "../components/ExerciseFrameCarousel";
 import { exerciseService } from "../services/exerciseService";
 import type { Exercise, MuscleGroup } from "../types/exercise";
 import { MUSCLE_GROUPS } from "../types/exercise";
 import AuthUtils from "../utils/authUtils";
 import { hasMediaUrl } from "../utils/media";
-
-const getSecondExerciseFrameUrl = (url: string): string =>
-  url.replace(/\/0\.jpg(?=($|\?))/, "/1.jpg");
 
 type ExerciseFilter = "all" | MuscleGroup;
 
@@ -194,31 +192,10 @@ interface ExerciseDetailModalProps {
 }
 
 function ExerciseDetailModal({ exercise, onClose }: ExerciseDetailModalProps) {
-  const [gifFailed, setGifFailed] = useState(false);
-  const [frameIndex, setFrameIndex] = useState(0);
-  const frameUrls = useMemo(() => {
-    if (!hasMediaUrl(exercise.gifUrl)) return [];
-    const secondFrame = getSecondExerciseFrameUrl(exercise.gifUrl);
-    return secondFrame === exercise.gifUrl ? [exercise.gifUrl] : [exercise.gifUrl, secondFrame];
-  }, [exercise.gifUrl]);
   const instructionLines = exercise.instructions
     .split(/\.\s+/)
     .filter((s) => s.trim().length > 0)
     .map((s) => (s.endsWith(".") ? s : `${s}.`));
-
-  useEffect(() => {
-    setGifFailed(false);
-    setFrameIndex(0);
-  }, [exercise.id]);
-
-  useEffect(() => {
-    if (frameUrls.length < 2 || gifFailed) return;
-    const intervalId = window.setInterval(() => {
-      setFrameIndex((current) => (current + 1) % frameUrls.length);
-    }, 650);
-
-    return () => window.clearInterval(intervalId);
-  }, [frameUrls.length, gifFailed]);
 
   return (
     <div
@@ -237,21 +214,13 @@ function ExerciseDetailModal({ exercise, onClose }: ExerciseDetailModalProps) {
         >
           <X className="h-4 w-4" />
         </button>
-        <div className="relative flex h-56 w-full items-center justify-center overflow-hidden bg-gradient-to-br from-slate-800 to-slate-950">
-          {frameUrls.length > 0 && !gifFailed ? (
-            <img
-              src={frameUrls[frameIndex]}
-              alt={exercise.name}
-              className="h-full w-full object-cover"
-              onError={() => setGifFailed(true)}
-            />
-          ) : (
-            <div className="flex flex-col items-center gap-3 text-slate-400">
-              <Dumbbell className="h-14 w-14 text-emerald-300/30" />
-              <p className="text-sm font-medium">No exercise GIF added yet</p>
-            </div>
-          )}
-        </div>
+        <ExerciseFrameCarousel
+          imageUrl={exercise.gifUrl}
+          alt={exercise.name}
+          className="h-64 w-full sm:h-72"
+          imageClassName="object-contain p-3"
+          emptyMessage="No exercise image added yet"
+        />
         <div className="max-h-[60vh] overflow-y-auto p-5">
           <h2 className="mb-3 text-xl font-bold text-slate-50">{exercise.name}</h2>
           <div className="mb-5 flex flex-wrap gap-2">
