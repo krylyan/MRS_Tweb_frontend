@@ -1,177 +1,158 @@
-const LOGIN_KEY = "fitlife_session_logged_in";
-const USER_KEY = "fitlife_session_user";
-const USERS_KEY = "fitlife_users";
-const QUESTIONNAIRE_KEY = "fitlife_questionnaire";
+const SESSION_KEY = "fitlife_session";
+const ADMIN_MODE_KEY = "fitlife_admin_mode";
 const QUESTIONNAIRE_PENDING_KEY = "fitlife_questionnaire_pending";
 
-type AnswersMap = Record<string, string>;
+export type UserRole = "Admin" | "User";
 
-interface UserRecord {
+export interface SessionData {
+  userId: number;
   fullName: string;
-  password: string;
+  email: string;
+  role: UserRole;
+  token: string;
 }
 
-type UsersMap = Record<string, UserRecord>;
-
-interface QuestionnaireEntry {
-  skipped: boolean;
-  answers: AnswersMap | null;
-  completedAt: string;
+export interface ManagedUser {
+  email: string;
+  fullName: string;
+  role: UserRole;
+  blocked: boolean;
 }
 
-type QuestionnaireData = Record<string, QuestionnaireEntry>;
-
-interface RegisterResult {
-  ok: boolean;
-  message?: string;
-}
-
-const DEFAULT_USERS: UsersMap = {
-  admin: {
-    fullName: "Admin",
-    password: "admin",
-  },
-};
-
-const ensureUsers = (): UsersMap => {
-  const raw = localStorage.getItem(USERS_KEY);
-  if (!raw) {
-    localStorage.setItem(USERS_KEY, JSON.stringify(DEFAULT_USERS));
-    return { ...DEFAULT_USERS };
-  }
-
+const readSession = (): SessionData | null => {
+  const raw = sessionStorage.getItem(SESSION_KEY);
+  if (!raw) return null;
   try {
-    const parsed = JSON.parse(raw) as UsersMap;
-    if (!parsed.admin) {
-      parsed.admin = DEFAULT_USERS.admin;
-      localStorage.setItem(USERS_KEY, JSON.stringify(parsed));
+    const session = JSON.parse(raw) as Partial<SessionData>;
+    if (
+      typeof session.userId !== "number" ||
+      typeof session.fullName !== "string" ||
+      typeof session.email !== "string" ||
+      typeof session.role !== "string" ||
+      typeof session.token !== "string"
+    ) {
+      clearSession();
+      return null;
     }
-    return parsed;
+    return session as SessionData;
   } catch {
-    localStorage.setItem(USERS_KEY, JSON.stringify(DEFAULT_USERS));
-    return { ...DEFAULT_USERS };
+    clearSession();
+    return null;
   }
 };
 
-const setAuthSession = (username: string): void => {
-  sessionStorage.setItem(LOGIN_KEY, "true");
-  sessionStorage.setItem(USER_KEY, username);
+const writeSession = (data: SessionData): void => {
+  sessionStorage.setItem(SESSION_KEY, JSON.stringify(data));
 };
 
-const readQuestionnaireData = (): QuestionnaireData => {
-  const raw = localStorage.getItem(QUESTIONNAIRE_KEY);
-  if (!raw) {
-    return {};
-  }
-
-  try {
-    return JSON.parse(raw) as QuestionnaireData;
-  } catch {
-    return {};
-  }
-};
-
-const writeQuestionnaireData = (data: QuestionnaireData): void => {
-  localStorage.setItem(QUESTIONNAIRE_KEY, JSON.stringify(data));
-};
-
-const setQuestionnairePending = (value: boolean): void => {
-  sessionStorage.setItem(QUESTIONNAIRE_PENDING_KEY, value ? "true" : "false");
-};
-
-const clearLegacyLoginStorage = (): void => {
-  localStorage.removeItem("isLoggedIn");
-  localStorage.removeItem("userEmail");
+const clearSession = (): void => {
+  sessionStorage.removeItem(SESSION_KEY);
+  sessionStorage.removeItem(ADMIN_MODE_KEY);
+  sessionStorage.removeItem(QUESTIONNAIRE_PENDING_KEY);
 };
 
 const AuthUtils = {
-  isAuthenticated: (): boolean => sessionStorage.getItem(LOGIN_KEY) === "true",
+  isAuthenticated: (): boolean => readSession() !== null,
 
-  getCurrentUserEmail: (): string | null => sessionStorage.getItem(USER_KEY),
+  getToken: (): string | null => readSession()?.token ?? null,
 
-  setLoginInfo: (username: string): void => setAuthSession(username),
-
-  login: (username: string, password: string): boolean => {
-    clearLegacyLoginStorage();
-    const users = ensureUsers();
-    const normalized = username.trim();
-    const user = users[normalized];
-
-    if (!user || user.password !== password) {
-      return false;
-    }
-
-    setAuthSession(normalized);
-    setQuestionnairePending(normalized === "admin");
-    return true;
+  getCurrentUser: (): ManagedUser | null => {
+    const session = readSession();
+    if (!session) return null;
+    return {
+      email: session.email,
+      fullName: session.fullName,
+      role: session.role,
+      blocked: false,
+    };
   },
 
-  register: (username: string, password: string, fullName = ""): RegisterResult => {
-    const users = ensureUsers();
-    const normalized = username.trim();
+  getSession: (): SessionData | null => readSession(),
 
-    if (!normalized) {
-      return { ok: false, message: "Email is required" };
+  getCurrentUserEmail: (): string | null => readSession()?.email ?? null,
+
+  isCurrentUserAdmin: (): boolean => readSession()?.role === "Admin",
+
+  setSession: (data: SessionData): void => {
+    writeSession(data);
+    sessionStorage.setItem(ADMIN_MODE_KEY, "false");
+  },
+
+  setLoginInfo: (fullName: string): void => {
+    const session = readSession();
+    if (session) {
+      writeSession({ ...session, fullName });
     }
-
-    if (users[normalized]) {
-      return { ok: false, message: "Account already exists" };
-    }
-
-    users[normalized] = { fullName: fullName.trim(), password };
-    localStorage.setItem(USERS_KEY, JSON.stringify(users));
-    return { ok: true };
   },
 
   logout: (): void => {
-    sessionStorage.removeItem(LOGIN_KEY);
-    sessionStorage.removeItem(USER_KEY);
-    sessionStorage.removeItem(QUESTIONNAIRE_PENDING_KEY);
-    clearLegacyLoginStorage();
+    clearSession();
+    localStorage.removeItem("isLoggedIn");
+    localStorage.removeItem("userEmail");
+    localStorage.removeItem("fitlife_users");
   },
 
-  isQuestionnaireRequired: (): boolean => {
-    const currentUser = sessionStorage.getItem(USER_KEY);
-    const pending = sessionStorage.getItem(QUESTIONNAIRE_PENDING_KEY) === "true";
-    return currentUser === "admin" && pending;
-  },
+  isAdminModeEnabled: (): boolean =>
+    AuthUtils.isCurrentUserAdmin() &&
+    sessionStorage.getItem(ADMIN_MODE_KEY) === "true",
 
-  saveQuestionnaireAnswers: (answers: AnswersMap): void => {
-    const currentUser = sessionStorage.getItem(USER_KEY);
-    if (!currentUser) {
+  setAdminModeEnabled: (value: boolean): void => {
+    if (!AuthUtils.isCurrentUserAdmin()) {
+      sessionStorage.setItem(ADMIN_MODE_KEY, "false");
       return;
     }
+    sessionStorage.setItem(ADMIN_MODE_KEY, value ? "true" : "false");
+  },
 
-    const questionnaireData = readQuestionnaireData();
-    questionnaireData[currentUser] = {
-      skipped: false,
-      answers,
-      completedAt: new Date().toISOString(),
-    };
-    writeQuestionnaireData(questionnaireData);
-    setQuestionnairePending(false);
+  toggleAdminMode: (): boolean => {
+    const next = !AuthUtils.isAdminModeEnabled();
+    AuthUtils.setAdminModeEnabled(next);
+    return next;
+  },
+
+  isQuestionnaireRequired: (): boolean =>
+    sessionStorage.getItem(QUESTIONNAIRE_PENDING_KEY) === "true",
+
+  setQuestionnaireRequired: (value: boolean): void => {
+    if (value) {
+      sessionStorage.setItem(QUESTIONNAIRE_PENDING_KEY, "true");
+      return;
+    }
+    sessionStorage.removeItem(QUESTIONNAIRE_PENDING_KEY);
+  },
+
+  saveQuestionnaireAnswers: (): void => {
+    const session = readSession();
+    if (!session) return;
+    sessionStorage.removeItem(QUESTIONNAIRE_PENDING_KEY);
   },
 
   skipQuestionnaire: (): void => {
-    const currentUser = sessionStorage.getItem(USER_KEY);
-    if (!currentUser) {
-      return;
-    }
-
-    const questionnaireData = readQuestionnaireData();
-    questionnaireData[currentUser] = {
-      skipped: true,
-      answers: null,
-      completedAt: new Date().toISOString(),
-    };
-    writeQuestionnaireData(questionnaireData);
-    setQuestionnairePending(false);
+    const session = readSession();
+    if (!session) return;
+    sessionStorage.removeItem(QUESTIONNAIRE_PENDING_KEY);
   },
 
+  getAllUsers: (): ManagedUser[] => [],
+
+  updateUserRole: (_email: string, _role: UserRole): { ok: boolean; message?: string } =>
+    ({ ok: false, message: "Not implemented - use API" }),
+
+  toggleUserBlocked: (_email: string): { ok: boolean; message?: string } =>
+    ({ ok: false, message: "Not implemented - use API" }),
+
+  deleteUser: (_email: string): { ok: boolean; message?: string } =>
+    ({ ok: false, message: "Not implemented - use API" }),
+
+  updateCurrentProfile: (_fullName: string, _email: string): { ok: boolean; message?: string } =>
+    ({ ok: false, message: "Not implemented - use API" }),
+
   checkAuthStatus: (): { isLoggedIn: boolean; userEmail: string | null } => {
-    const isLoggedIn = sessionStorage.getItem(LOGIN_KEY) === "true";
-    const userEmail = sessionStorage.getItem(USER_KEY);
-    return { isLoggedIn, userEmail };
+    const session = readSession();
+    return {
+      isLoggedIn: session !== null,
+      userEmail: session?.email ?? null,
+    };
   },
 };
 

@@ -1,9 +1,10 @@
-﻿import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import AuthButton from "../../components/auth/AuthButton";
 import AuthCard from "../../components/auth/AuthCard";
 import AuthInput from "../../components/auth/AuthInput";
 import AuthUtils from "../../utils/authUtils";
+import { authService } from "../../services/authService";
 
 export default function SignUp() {
   const navigate = useNavigate();
@@ -34,8 +35,9 @@ export default function SignUp() {
       return;
     }
 
-    if (password.length < 6) {
-      setError("Password must be at least 6 characters");
+    // backend-ul cere minim 8 caractere (StringLength MinimumLength = 8)
+    if (password.length < 8) {
+      setError("Password must be at least 8 characters");
       return;
     }
 
@@ -45,9 +47,13 @@ export default function SignUp() {
     }
 
     setLoading(true);
-    await new Promise((resolve) => setTimeout(resolve, 300));
 
-    const result = AuthUtils.register(email, password, fullName);
+    const result = await authService.registerUser({
+      fullName: fullName.trim(),
+      email: email.trim(),
+      password,
+    });
+
     setLoading(false);
 
     if (!result.ok) {
@@ -55,8 +61,9 @@ export default function SignUp() {
       return;
     }
 
+    // userul a fost creat in DB cu succes
     navigate("/signin", {
-      state: { message: "Account created successfully! Please sign in." },
+      state: { message: `Account created! Welcome, ${result.data.fullName}. Please sign in.` },
       replace: true,
     });
   };
