@@ -73,6 +73,14 @@ export default function App() {
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/admin/faq"
+            element={
+              <ProtectedRoute requireAdminMode>
+                <FAQ />
+              </ProtectedRoute>
+            }
+          />
           <Route path="/exercises" element={<Exercises />} />
           <Route path="/profile" element={<Profile />} />
         </Route>

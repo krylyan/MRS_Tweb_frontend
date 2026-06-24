@@ -1,5 +1,7 @@
 import {
   AlertCircle,
+  Dumbbell,
+  HelpCircle,
   Loader2,
   Search,
   Shield,
@@ -7,8 +9,10 @@ import {
   Trash2,
   UserCog,
   Users,
+  UtensilsCrossed,
 } from "lucide-react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { Link } from "react-router-dom";
 import { adminApi, type AdminUser, type UserRole } from "../services/adminApi";
 import AuthUtils from "../utils/authUtils";
 
@@ -114,6 +118,12 @@ export default function AdminUsers() {
         </section>
 
         <section className="reveal-up reveal-delay-1 mb-5 rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-sm">
+          <div className="mb-4 grid gap-3 md:grid-cols-3">
+            <AdminQuickLinkCard to="/admin/exercises" icon={<Dumbbell className="h-5 w-5" />} label="Exercises" description="Manage exercise catalog" />
+            <AdminQuickLinkCard to="/admin/meals" icon={<UtensilsCrossed className="h-5 w-5" />} label="Meals" description="Manage food items" />
+            <AdminQuickLinkCard to="/admin/faq" icon={<HelpCircle className="h-5 w-5" />} label="FAQ" description="Edit questions and categories" />
+          </div>
+
           <div className="relative">
             <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
             <input
@@ -253,6 +263,31 @@ function StatCard({
       <p className="text-2xl font-bold text-white">{value}</p>
       <p className="text-sm text-slate-300">{label}</p>
     </div>
+  );
+}
+
+function AdminQuickLinkCard({
+  to,
+  icon,
+  label,
+  description,
+}: {
+  to: string;
+  icon: ReactNode;
+  label: string;
+  description: string;
+}) {
+  return (
+    <Link
+      to={to}
+      className="rounded-2xl border border-white/10 bg-black/20 p-4 transition-all hover:border-amber-300/30 hover:bg-amber-400/10"
+    >
+      <div className="mb-2 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-white/10 text-amber-200">
+        {icon}
+      </div>
+      <p className="text-lg font-semibold text-white">{label}</p>
+      <p className="text-sm text-slate-400">{description}</p>
+    </Link>
   );
 }
 
